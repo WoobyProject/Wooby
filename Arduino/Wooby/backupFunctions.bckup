@@ -1,0 +1,21 @@
+  void clockDisplay(){
+    
+    int totalTimeLapse = 4000; // in milliseconds 
+    unsigned long entryTime = millis();
+    
+    // Display loop
+     do {
+      // Set up the display
+      u8g.firstPage();
+      u8g.setFont(u8g_font_osb18);
+      do {
+       clockShoot((millis()-entryTime), totalTimeLapse) ;
+      }while( u8g.nextPage()); 
+          
+     
+     }while( (millis()-entryTime) <= totalTimeLapse); 
+
+     unsigned long exitTime = millis();
+     Serial.print("Entry time (s):"); Serial.println(float(entryTime/1000));
+     Serial.print("Exit time (s):"); Serial.println(float(exitTime/1000));
+  }
