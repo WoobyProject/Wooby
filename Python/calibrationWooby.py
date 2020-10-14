@@ -384,7 +384,7 @@ plt.title("c coeff")
 ################################## 
 
 m_a = m_a_Xtreme
-m_b = m_b_Xtreme
+m_b = m_b_Xtreme*0
 
 
 plt.figure()

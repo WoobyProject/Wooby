@@ -49,8 +49,10 @@ selected_feat = ["thetasqr" ,"thetadeg"]
 X_cf_th = np.array(WoobyDataFrame[selected_feat])
 y_cf_th = np.array(WoobyDataFrame["relativeVal_WU"]/ WoobyDataFrame["relativeValue_WU_0"]-1)
 
+'''
 X_cf_th = np.array(mainWoobyDF_Adv[selected_feat])
 y_cf_th = np.array(mainWoobyDF_Adv["relativeValue_WU"]/ mainWoobyDF_Adv["relativeValue_WU_0"]-1)
+'''
 
 X_cf_th = X_cf_th.reshape((-1, 2))
 y_cf_th = y_cf_th.reshape((-1, 1))
