@@ -1,4 +1,5 @@
 *.C linguist-detectable=false
-*.C++ linguist-detectable=true
-*.MATLAB linguist-detectable=true
-*.Python linguist-detectable=true
+*.cpp linguist-detectable=true
+*.m linguist-detectable=true
+*.py linguist-detectable=true
+*.m linguist-language=MATLAB
