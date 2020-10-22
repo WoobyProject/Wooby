@@ -15,49 +15,16 @@
 //************************//
 
   #define MODEL 2
-  #define TYPE 3
-
+  #define TYPE 0
   // TYPE = 0 (PROTOTYPE)
-  #if TYPE==0
-    bool B_ANGLE_ADJUSTMENT = true;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
-    bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ACTIVE = false;
-    bool B_HTTPREQ = true;
-    bool B_SERIALPORT = true;
-  #endif
-
-// TYPE = 0 (PROTOTYPE-connectToWiFi)
-  #if TYPE==3
-    bool B_ANGLE_ADJUSTMENT = true;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
-    bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ACTIVE = false;
-    bool B_HTTPREQ = false;
-    bool B_SERIALPORT = true;
-  #endif
-
   // TYPE = 1 (FINAL DELIVERY)
-  #if TYPE==1
-    bool B_ANGLE_ADJUSTMENT = true;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = true;
-    bool B_DISPLAY_ANGLES = false;
-    bool B_INHIB_NEG_VALS = true;
-    bool B_INACTIVITY_ACTIVE = true;
-    bool B_HTTPREQ = true;
-    bool B_SERIALPORT = true;
-  #endif
 
 //************************//
 //*      SENSOR CONF     *//
 //************************//
   #define DOUT 19     // For Arduino 6
   #define CLK  18     // For Arduino 5
+  #define TARE_BUTTON 27
 
   // For Arduino:
   // HX711 scale(DOUT, CLK);
@@ -65,24 +32,25 @@
   HX711 scale;
 
   int nMeasures = 7;
-  int nMeasuresTare = 7;
+  int nMeasuresTare = 15;
 
   // Model choice
   #if MODEL == 1
-    float calibrationFactor=42.00;
+    float calibration_factor=42.00;
   #endif
 
   #if MODEL == 2
-    float calibrationFactor=42.7461;
+    // OLD BOOT LOADER
+    float calibration_factor=42.7461;
   #endif
 
   #if MODEL == 3
     // OLD BOOT LOADER
-    float calibrationFactor=61.7977;
+    float calibration_factor=61.7977;
   #endif
 
   #if MODEL == 4
-    float calibrationFactor=38.5299;
+    float calibration_factor= 38.5299;
   #endif
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
@@ -110,6 +78,7 @@
   float const P1 =  -46.122436;
   float const P0 =  0.0;
 
+  bool B_ANGLE_ADJUSTMENT = true;
   float const calib_theta_2 = -0.00014;
   float relativeVal_WU = 0;
   float realValue_WU_AngleAdj = 0;
@@ -131,8 +100,7 @@
   const float VCCCORR  = 5.0/5.01;      // Measured Vcc by multimeter divided by reported Vcc
 
   float myVcc, myVccFiltered, ratioVCCMAX;
-
-  bool bErrorVccMng=1;
+  bool B_VCCMNG = false;
   /*Vcc vcc(VCCCORR);
   Filter VccFilter(0.65, 10); // (Sampling time (depending on the loop execution time), tau for filter
   */
@@ -150,6 +118,7 @@
   unsigned long tStartTareButton = 0;
   unsigned long tEndTareButton = 0;
 
+
 //************************//
 //*      DISPLAY CONF    *//
 //************************//
@@ -160,35 +129,33 @@
   U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // For ESP32, replace 'setPrintPos' by 'setCursor'.
+
   int state = 0;
   char static aux[21] = "01234567890123456789";
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
 
-  bool bErrorDisplay = false;
+  bool B_LIMITEDANGLES = false;
+  bool B_INHIB_NEG_VALS = false;
 
 //************************//
 //*    INACTIVITY CONF   *//
 //************************//
 
-  bool bInactive = false;
-  const float MAX_INACTIVITY_TIME = 60*1000; // in milliseconds
+  const float MAX_INACTIVITY_TIME = 100000; // in milliseconds
   const float INACTIVE_THR  = 5.0;
-
+  bool bInactive = false;
   unsigned long lastTimeActivity = 0;
-  const gpio_num_t PIN_WAKEUP = GPIO_NUM_27; // GPIO_NUM_27
-  const int WAKEUP_LEVEL = 1;
-  esp_sleep_wakeup_cause_t wakeupReason;
+  const byte interruptPin = 2;
 
 //************************//
 //*    GYROSCOPE CONF    *//
 //************************//
-
   const int MPU_ADDR=0x68;
   const float pi = 3.1416;
   int16_t Ax,Ay,Az,Tmp,Gx,Gy,Gz;
-  float myAx, myAy, myAz, myTmp, myGx, myGy, myGz;
+  float myAx, myAy, myAz, myTmp, myGyroX, myGyroY, myGyroZ;
   float thetadeg, phideg ;
 
   const float MAX_THETA_VALUE = 10;
@@ -197,11 +164,13 @@
 //************************//
 //*  COMMUNICATION CONF  *//
 //************************//
+  bool B_HTTPREQ = false;
+  bool B_SERIALPORT = true;
 
   unsigned long countForGoogleSend = 0;
 
 //************************//
-//*  WEIGHTING ALGO CONF *//
+//*  FILTERING FUNCTIONS *//
 //************************//
   struct filterResult {
     float yk;
@@ -220,100 +189,23 @@
   float realValue_WU = 0;
 
   float correctedValue = 0;
-  RTC_DATA_ATTR float offset = 0;
-
-  //************************//
-  //* GYRO/ACCEL FUNCTIONS *//
-  //************************//
-
-  void setupMPU(){
-
-      Wire.begin();
-
-   // Waking up the chip
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x6B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the gyroscope (+-200 deg/s)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the accelerometer (+-2 g)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-  }
-
-  void readTemp(){
-      Wire.beginTransmission(MPU_ADDR);
-      Wire.write(0x41);
-      Wire.endTransmission(false);
-      Wire.requestFrom(MPU_ADDR,2,true);
-
-      Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-      myTmp = Tmp/340.00+36.53;
-  }
-
-  void readAccel(){
-
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU_ADDR,14,true);
-
-    Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
-    Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
-    Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
-    Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-    Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
-    Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
-    Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
-
-    myAx =    float(Ax)/16384;
-    myAy = -1*float(Az)/16384;
-    myAz =    float(Ay)/16384;
-    myGx =    float(Gx)/131;
-    myGy =    float(Gy)/131;
-    myGz =    float(Gz)/131;
-
-    myTmp = Tmp/340.00+36.53;
-
-  }
-
-  void angleCalc(){
-      readAccel();
-      phideg = (180/pi)*atan2(myAy,myAz);
-      thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
-  }
-
-  void angleAdjustment(){
-    if (B_ANGLE_ADJUSTMENT){
-      angleCalc();
-      realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
-    }
-    else{
-      realValue_WU_AngleAdj = relativeVal_WU;
-    }
-  }
+  float offset = 0;
 
 //*******************************//
 //*      WEIGHTING ALGORITHM    *//
 //*******************************//
 
 void myTare(){
-  DPRINTLN("TARE starting... ");
+  Serial.println("TARE starting... ");
   unsigned long bTare = millis();
-  scale.tare(nMeasuresTare);
-  DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
+  long tareWU = scale.tare(nMeasuresTare);
+  Serial.print("TARE time: "); Serial.print(float((millis()-bTare)/1000));Serial.println(" s");
+  // float tareGR = tareWU/scale.get_scale(); this does NOT mean anything
 
-  readTemp();
+  //readTemp();
   TEMPREF = myTmp;
-  DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
+
+  Serial.print("Reference Temp:"); Serial.println(TEMPREF);
 }
 
 float correctionTemp(float beforeCorrectionValue){
@@ -365,10 +257,6 @@ filterResult filtering(float uk, float uk_1, float yk_1){
 //*********************++++***//
 
 void initTareButton(){
-
-  //*         TARE BUTTON      *//
-  pinMode(PIN_PUSH_BUTTON, INPUT);
-
   DPRINTLN("Initializing the tare button ... ");
   tareButtonStateN   = 0;
   tareButtonStateN_1 = 0;
@@ -404,7 +292,6 @@ int updateTareButton(){
   }
 }
 
-/*
 void tareButtonFunction() // TODO: verify if this is ok (and/or used)
 {
   int Push_button_state = digitalRead(PIN_PUSH_BUTTON);
@@ -413,63 +300,19 @@ void tareButtonFunction() // TODO: verify if this is ok (and/or used)
     myTare();
   }
 }
-*/
 
 void tareButtonAction()
 {
   int timeButton = updateTareButton();
   if (timeButton>200){
-    DPRINTLN("Time tare button: ");
-    DPRINTLN(timeButton);
+    Serial.print("Time tare button: ");
+    Serial.println(timeButton);
     myTare();
   }
 }
-
-//************************//
-//* VCC MANAGEMENT FUNCS *//
-//************************//
-
-void setupVccMgnt(){
-  // For Arduino:
-  // myVcc = vcc.Read_Volts();
-  // VccFilter.init(myVcc);
-}
-
 //************************//
 //*   DISPLAY FUNCTIONS  *//
 //************************//
-
-void setupDisplay(){
-
-  try{
-      u8g.begin();
-      u8g.sleepOff();
-      // Flip screen, if required
-      // For Arduino:
-        //u8g.setRot180();
-      // For ESP32
-      Serial.println("Flipping the screen ");
-      u8g.setFlipMode(1);
-
-
-  // Set up of the default font
-    u8g.setFont(u8g2_font_6x10_tf);
-    // u8g.setFont(u8g_font_9x18);
-    // u8g.setFont(u8g2_font_osb18_tf);
-
- // Other display set-ups
-    u8g.setFontRefHeightExtendedText();
-    // For Arduino: u8g.setDefaultForegroundColor();
-    u8g.setFontPosTop();
-
-    bErrorDisplay = false;
-  }
-  catch(int e){
-    Serial.println("Not possible to activate the display");
-    bErrorDisplay = true;
-  }
-}
-
 void displayImage( const unsigned char * u8g_image_bits){
    u8g.firstPage();
    do {
@@ -548,126 +391,131 @@ void clockShoot(int currentTime, int finalTime) {
 
 }
 
-void wakingUpDisplay(){
-  // Set up the display
-  u8g.firstPage();
-  u8g.setFont(u8g2_font_osb18_tf);
-
-  do{
-    u8g.setFont(u8g2_font_helvR08_tf); //u8g_font_6x10
-    u8g.drawStr( 45, 10, "Woooooby!");
-    u8g.setFont(u8g2_font_helvR14_tf);
-    u8g.drawStr( 20, 20, "Waking up");
-  }while(u8g.nextPage());
-  delay(1000);
-}
-
-void sleepingDisplay(){
-  // Set up the display
-  u8g.firstPage();
-  u8g.setFont(u8g2_font_osb18_tf);
-
-  do{
-    u8g.setFont(u8g2_font_artossans8_8r); //u8g_font_6x10
-    u8g.drawStr( 55, 10, "zzz");
-    u8g.setFont(u8g2_font_helvR14_tf);
-    u8g.drawStr( 30, 25, "Going to");
-    u8g.setFont(u8g2_font_helvR14_tf);
-    u8g.drawStr( 45, 40, "sleep");
-  }while(u8g.nextPage());
-
-  delay(2000);
-}
 
 //***************************//
 //*  INACTIVITY FUNCTIONS   *//
 //***************************//
 
-void print_wakeup_reason(){
-  switch(esp_sleep_get_wakeup_cause())
-  {
-    case 1  : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case 2  : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case 3  : Serial.println("Wakeup caused by timer"); break;
-    case 4  : Serial.println("Wakeup caused by touchpad"); break;
-    case 5  : Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.println("Wakeup was not caused by deep sleep"); break;
-  }
-}
-
-void manage_wakeup_reason(){
-  if (esp_sleep_get_wakeup_cause()==2){
-    Serial.println("Wakeup caused by external signal using RTC_IO");
-  }
-  else{
-    Serial.println("Wakeup was not caused by deep sleep");
-  }
-}
-
-void setUpInactivity(){
-  lastTimeActivity =  millis();
-  // Is this necesary? It seems it's not:
-  // rtc_gpio_pulldown_en(PIN_WAKEUP)
-  esp_sleep_enable_ext0_wakeup(PIN_WAKEUP, WAKEUP_LEVEL);
-
-  // For Arduino:
-  // Serial.print("CLOCK DIVISION:"); Serial.println(CLKPR);
-  // pinMode(PIN_WAKEUP, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(interruptPin), wakeUp, CHANGE);
-
-}
-
-void updateLastTime() {
-  if (abs(displayFinalValue - displayFinalValue_1 ) > INACTIVE_THR ){
-      lastTimeActivity =  millis();
-  }
-}
-
-void handleActionInactivity(){
-
-  if (!bInactive){
-    // Waking up ...
-
-    // Waking the screen up
-    u8g.sleepOff();
-    // Reseting the last time variables
-    updateLastTime();
-  }
-  else{
-    // Going to sleep...
-    // GUI information
-    sleepingDisplay();
-
-    // Putting the screen in sleep mode
-    u8g.sleepOn();
-
-    //Putting the ESP in sleep mode (deep sleep)
-    // esp_light_sleep_start(); NOT THIS ONE! We'll need to review the code !
-    esp_deep_sleep_start();
-
-    // Putting the Arduino in sleep mode
-    /*set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable();
-    sleep_cpu();*/
-  }
-}
-
 void inactivityCheck() {
 
-  // Update of last time activity
-  updateLastTime();
-  unsigned long runtimeNow = millis();
+  // Checking activity
+    if (abs(displayFinalValue - displayFinalValue_1 ) > INACTIVE_THR ){
+          Serial.print("Active: ");Serial.print(bInactive);
+          lastTimeActivity =  millis();
+          if (bInactive){
+            // Waking the Arduino up
+
+
+            // Waking the screen up
+            u8g.sleepOff();
+            bInactive =  false;
+            }
+    }
 
   // Checking inactivity
-  if ((runtimeNow - lastTimeActivity) > MAX_INACTIVITY_TIME){
-      DEEPDPRINT("Inactive - Time diff: ");
-      DEEPDPRINT((runtimeNow - lastTimeActivity)/1000);
-      DEEPDPRINTLN(" s");
-      bInactive = true;
+    if ((millis() - lastTimeActivity) > MAX_INACTIVITY_TIME){
+          Serial.println("Inactive");
+          bInactive = true;
+
+          // Putting the screen in sleep mode
+          u8g.sleepOn();
+          // esp_deep_sleep_start();
+
+          // Putting the Arduino in sleep mode
+          /*set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+          sleep_enable();
+          sleep_cpu();*/
+    }
+
+
+}
+
+void wakeUp(void){
+  bInactive = false;
+  lastTimeActivity =  millis();
+  u8g.sleepOff();
+}
+
+//************************//
+//* GYRO/ACCEL FUNCTIONS *//
+//************************//
+
+void setupMPU(){
+
+    Wire.begin();
+
+ // Waking up the chip
+    Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
+    Wire.write(0x6B); // PWR_MGMT_1 register (Power management)
+    Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
+    Wire.endTransmission(true);
+
+  // Setting up the FS of the gyroscope (+-200 deg/s)
+    Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
+    Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
+    Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
+    Wire.endTransmission(true);
+
+  // Setting up the FS of the accelerometer (+-2 g)
+    Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
+    Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
+    Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
+    Wire.endTransmission(true);
+}
+
+void readTemp(){
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x41);
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_ADDR,2,true);
+
+    Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
+    myTmp = Tmp/340.00+36.53;
+}
+
+void readAccel(){
+
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR,14,true);
+
+  Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
+  Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
+  Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
+  Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
+  Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
+  Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
+  Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
+
+  myAx = float(Ax)/16384;
+  myAy = -1*float(Az)/16384;
+  myAz = float(Ay)/16384;
+  myGyroX = float(Gx)/131;
+  myGyroY = float(Gy)/131;
+  myGyroZ = float(Gz)/131;
+
+  myTmp = Tmp/340.00+36.53;
+
+}
+
+//************************//
+//* GYRO/ACCEL FUNCTIONS *//
+//************************//
+
+void angleCalc(){
+    readAccel();
+    phideg = (180/pi)*atan2(myAy,myAz);
+    thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
+}
+
+void angleAdjustment(){
+  if (B_ANGLE_ADJUSTMENT){
+    angleCalc();
+    realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
   }
   else{
-      DEEPDPRINTLN("Active: ");
-      bInactive = false;
+    realValue_WU_AngleAdj = relativeVal_WU;
   }
 }
 
@@ -675,17 +523,6 @@ void inactivityCheck() {
 //**************************//
 //* HTTP REQUEST FUNCTIONS *//
 //**************************//
-
-void setupGoogleComs(){
-  if (B_HTTPREQ){
-  //*       GOOGLE CONNECTION        *//
-     clientForGoogle.setCACert(root_ca);
-  //*         WIFI CONNECTION        *//
-     setupWiFi();
-     // Checking WiFi connection //
-     BF_WIFI = !checkWiFiConnection();
-  }
-}
 
 void hashJSON(char* data, unsigned len) {
   // Hash encryption of the JSON
@@ -712,7 +549,7 @@ String buildJson(){
   dataItem["correctedValueFiltered"]  = correctedValueFiltered;
   dataItem["bSync"     ]              = bSync;
   dataItem["bSync_corr"]              = bSync_corr;
-  dataItem["calibrationFactor"     ] = calibrationFactor;
+  dataItem["calibration_factor"     ] = calibration_factor;
   dataItem["offset"]                  = offset;
   dataItem["realValue_WU"     ]       = realValue_WU;
   dataItem["bInactive"]               = bInactive;
@@ -760,13 +597,20 @@ String buildJson(){
 
 }
 
+//***************************//
+//* COMMUNICATION FUNCTIONS *//
+//***************************//
+
 bool sendJson()
 {
+
+
   String payLoad = buildJson();
 
   // Connexion to the host
   DPRINTLN("Connecting to ");
   DPRINTLN(host);
+
 
   if (!clientForGoogle.connect(host, port)){
     ERRORPRINTLN("Connection failed.");
@@ -774,25 +618,26 @@ bool sendJson()
   }
 
   try{
-    String postRequest =   "POST "  + String(uri)  + " HTTP/1.1\r\n" +
-                           "Host: " + String(host) + "\r\n" +
-                           "Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" +
-                       //  "Content-Type: application/json; utf-8\r\n" +
-                           "Content-Length: " + payLoad.length() + "\r\n" + "\r\n" + payLoad;
+  String postRequest =   "POST "  + String(uri)  + " HTTP/1.1\r\n" +
+                         "Host: " + String(host) + "\r\n" +
+                         "Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" +
+                     //  "Content-Type: application/json; utf-8\r\n" +
+                         "Content-Length: " + payLoad.length() + "\r\n" + "\r\n" + payLoad;
 
-    DPRINTLN("Post request: ");
-    DPRINTLN(postRequest);
+  DPRINTLN("Post request: ");
+  DPRINTLN(postRequest);
 
-    // Sending the final string
-    clientForGoogle.print(postRequest);
-    clientForGoogle.stop();
-    return true;
-  }
-  catch(int e){
-    ERRORPRINT("Post request not succcessful");
-    ERRORPRINT(e);
-    return false;
-  }
+  // Sending the final string
+  clientForGoogle.print(postRequest);
+  clientForGoogle.stop();
+  return true;
+}
+catch(int e){
+  ERRORPRINT("Post request not succcessful");
+  ERRORPRINT(e);
+  return false;
+}
+
 }
 
 bool sendDataToGoogle()
@@ -811,15 +656,8 @@ bool sendDataToGoogle()
   }
 }
 
-//***************************//
-//* SERIAL COMMS FUNCTIONS  *//
-//***************************//
-
 void printSerial()
 {
-  if (!B_SERIALPORT)
-    return;
-
   Serial.print("WS");
 
   Serial.print("tBeforeMeasure");               Serial.print(":");
@@ -846,19 +684,6 @@ void printSerial()
   Serial.print("correctedValueFiltered");       Serial.print(":");
   Serial.print(correctedValueFiltered, 5);      Serial.print(",\t");
 
-
-  Serial.print("myAx");                     Serial.print(":");
-  Serial.print(myAx);                       Serial.print(",\t");
-  Serial.print("myAy");                     Serial.print(":");
-  Serial.print(myAy);                       Serial.print(",\t");
-  Serial.print("myAz");                     Serial.print(":");
-  Serial.print(myAz);                       Serial.print(",\t");
-  Serial.print("myGx");                     Serial.print(":");
-  Serial.print(myGx);                       Serial.print(",\t");
-  Serial.print("myGy");                     Serial.print(":");
-  Serial.print(myGy);                       Serial.print(",\t");
-  Serial.print("myGz");                     Serial.print(":");
-  Serial.print(myGz);                       Serial.print(",\t");
 
   Serial.print("thetadeg");                     Serial.print(":");
   Serial.print(thetadeg);                       Serial.print(",\t");
@@ -890,7 +715,7 @@ void printSerialOld()
   Serial.print(correctedValueFiltered, 4);      Serial.print(",\t");
   Serial.print(bSync);                          Serial.print(",\t");
   Serial.print(bSync_corr);                     Serial.print(",\t");
-  Serial.print(calibrationFactor,4);           Serial.print(",\t");
+  Serial.print(calibration_factor,4);           Serial.print(",\t");
   //Serial.print(valLue_WU/realvalLue,4);Serial.print(",\t");
   Serial.print(offset, 4);                      Serial.print(",\t");
   Serial.print(realValue_WU);                   Serial.print(",\t");
@@ -902,9 +727,9 @@ void printSerialOld()
   Serial.print(myAx);                           Serial.print(",\t");
   Serial.print(myAy);                           Serial.print(",\t");
   Serial.print(myAz);                           Serial.print(",\t");
-  Serial.print(myGx);                        Serial.print(",\t");
-  Serial.print(myGy);                        Serial.print(",\t");
-  Serial.print(myGz);                        Serial.print(",\t");
+  Serial.print(myGyroX);                        Serial.print(",\t");
+  Serial.print(myGyroY);                        Serial.print(",\t");
+  Serial.print(myGyroZ);                        Serial.print(",\t");
 
   Serial.print(thetadeg);                       Serial.print(",\t");
   Serial.print(phideg);                         Serial.print(",\t");
@@ -916,18 +741,13 @@ void printSerialOld()
   Serial.println("");
 }
 
+
+
 //*************************//
 //*    MACRO FUNCTIONS    *//
 //*************************//
-
-void setUpWeightAlgorithm(){
-    realValue_1 = 0;
-    realValueFiltered = 0;
-    realValueFiltered_1 = 0;
-    bSync = false;
-}
-
-void getWoobyWeight(){
+void getWoobyWeight()
+{
 
     // Raw weighting //
     tBeforeMeasure = millis();
@@ -941,7 +761,8 @@ void getWoobyWeight(){
     angleAdjustment();
 
     // Conversion to grams //
-    realValue = (relativeVal_WU)/scale.get_scale();
+    realValue = (relativeVal_WU)/scale.get_scale() ;
+
     correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
 
     // Filtering  //
@@ -961,7 +782,8 @@ void getWoobyWeight(){
     tAfterAlgo = millis();
 }
 
-void mainDisplayWooby(){
+void mainDisplayWooby()
+{
   // Set up the display
   u8g.firstPage();
 
@@ -986,7 +808,7 @@ void mainDisplayWooby(){
 
         } while(u8g.nextPage());
   }
-  else if ((abs(thetadeg) > MAX_THETA_VALUE || abs(phideg) > MAX_PHI_VALUE ) && (B_LIMITED_ANGLES)){ // Verification of the maximum allowed angles
+  else if ((abs(thetadeg) > MAX_THETA_VALUE || abs(phideg) > MAX_PHI_VALUE ) && (B_LIMITEDANGLES)){ // Verification of the maximum allowed angles
        do {
             u8g.setFont(u8g2_font_osb18_tf);
             u8g.setCursor(17, 30) ; // (Horiz, Vert)
@@ -1014,7 +836,7 @@ void mainDisplayWooby(){
         u8g.print("grams");
 
 
-        if (B_DISPLAY_ANGLES){
+       if (TYPE==0){
           // Display trust region //
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosBottom();
@@ -1040,10 +862,7 @@ void mainDisplayWooby(){
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosTop();
           u8g.setCursor(100, 12) ; // (Horiz, Vert)
-          if (!bErrorVccMng)
-            u8g.print(int(100*ratioVCCMAX));
-          else
-            u8g.print("??");
+          u8g.print(int(100*ratioVCCMAX));
 
 
           u8g.setFont(u8g_font_6x10);
@@ -1059,88 +878,100 @@ void mainDisplayWooby(){
           u8g.drawBox(100+22+1,2+2,2, 7-4+1);
           u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
 
-        // Display connections //
-          u8g.setFont(u8g2_font_open_iconic_www_1x_t);
-          u8g.drawStr( 4, 2, "Q");
-          if (!B_HTTPREQ)
-            u8g.drawLine(2,  11,  11, 2);
-
-          u8g.setFont(u8g_font_6x10);
-          u8g.drawStr( 20, 3, "S");
-          if (!B_SERIALPORT)
-            u8g.drawLine(17,  11,  26, 2);
-
     } while(u8g.nextPage());
   }
 
-  if (B_INACTIVITY_ACTIVE){
+  if (TYPE>0){
     inactivityCheck();
-    handleActionInactivity();
+    if (bInactive){
+    Serial.println("Display set to inactive"); // TODO:Change for DEBUG!
+    }
   }
 }
 
 //************************//
 //*       SET UP        *//
 //************************//
-
 void setup(void) {
 
-  Serial.begin(115200);
-  unsigned long setUpTime =  millis();
+  Serial.begin(9600);
+  Serial.println("Wooby!! ");
+  Serial.println("Initializing to measure tons of smiles");
 
-  //*       INACTIVITY MANAGEMENT      *//
-  wakeupReason = esp_sleep_get_wakeup_cause();
-  // print_wakeup_reason();
-
-  //*          SCREEN SETUP          *//
-  setupDisplay();
-
-  //*          WELCOME MESSAGE          *//
-  if(wakeupReason == 2){ // Wooby is waking up after inactiviy
-    Serial.println("Wooby waking up!");     // wakingUpDisplay();
-  }
-  else{
-    Serial.println("Hello! I'm Wooby!! ");
-    Serial.println("Initializing to measure tons of smiles ... ");
-  }
 
   //*       SET UP  WEIGHT SENSOR       *//
-  Serial.println("Setting up weight sensor...");
-  scale.begin(DOUT, CLK);
-  scale.set_gain(gain);
-  scale.set_scale(calibrationFactor);
-  scale.set_offset(offset);
+
+    scale.begin(DOUT, CLK);
+    scale.set_gain(gain);
+    scale.set_scale(calibration_factor);
 
 
   //*         ACCELEROMETER           *//
-  Serial.println("Setting up accelerometer sensor...");
-  setupMPU();
-  readAccel(); // do we have to read the info ?
-  readTemp(); // do we have to read the info ?
+    setupMPU();
+    readAccel();
+    //readTemp();
+
+  //*            AUTO TARE             *//
+
+    myTare();
+    initTareButton();
 
   //*            FILTERING            *//
-  setUpWeightAlgorithm();
+
+    realValue_1 = 0;
+    realValueFiltered = 0;
+    realValueFiltered_1 = 0;
+    bSync = false;
+
+  //*          SCREEN SETUP          *//
+      // Flip screen, if required
+      // For Arduino:
+        //u8g.setRot180();
+      // For ESP32
+    try{
+        u8g.begin();
+        Serial.println("Flipping the screen ");
+        u8g.setFlipMode(1);
+
+
+    // Set up of the font
+      u8g.setFont(u8g2_font_6x10_tf);
+      // u8g.setFont(u8g_font_9x18);
+      // u8g.setFont(u8g2_font_osb18_tf);
+
+   // Other display set-ups
+      u8g.setFontRefHeightExtendedText();
+      // For Arduino: u8g.setDefaultForegroundColor();
+      u8g.setFontPosTop();
+    }
+    catch(int e){
+      Serial.println("Not possible to activate the display");
+    }
 
   //*          INACTIVITY          *//
-  setUpInactivity();
 
-  //*          TARE BUTTON         *//
-  initTareButton();
-
-  //*          AUTO TARE         *//
-  if(wakeupReason!=2){
-      myTare();
-  }
+    // For Arduino: Serial.print("CLOCK DIVISION:"); Serial.println(CLKPR);
+    lastTimeActivity =  millis();
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), wakeUp, CHANGE);
 
   //*          VCC MANAGEMENT        *//
-  setupVccMgnt();
+    // For Arduino:
+    // myVcc = vcc.Read_Volts();
+    // VccFilter.init(myVcc);
+
+  //*         TARE BUTTON      *//
+    pinMode(PIN_PUSH_BUTTON, INPUT);
 
 
-  //*          GOOGLE COMS        *//
-  setupGoogleComs();
-
-  unsigned long setUpTimeEnd =  millis();
-  DPRINTLN("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
+   if (B_HTTPREQ){
+  //*       GOOGLE CONNECTION        *//
+      clientForGoogle.setCACert(root_ca);
+  //*         WIFI CONNECTION        *//
+      setupWiFi();
+      // Checking WiFi connection //
+      BF_WIFI = !checkWiFiConnection();
+    }
 
 }
 
@@ -1165,11 +996,11 @@ void loop(void) {
     {
       char temp = Serial.read();
       switch(temp){
-      case '+': calibrationFactor += 0.01;
-                scale.set_scale(calibrationFactor);
+      case '+': calibration_factor += 0.01;
+                scale.set_scale(calibration_factor);
                 break;
-      case '-': calibrationFactor -= 0.01;
-                scale.set_scale(calibrationFactor);
+      case '-': calibration_factor -= 0.01;
+                scale.set_scale(calibration_factor);
                 break;
       case 't': myTare();
                 break;
@@ -1177,11 +1008,6 @@ void loop(void) {
                 break;
       }
     }
-
-  //*      INACTIVITY MANAGEMENT   *//
-  if(esp_sleep_get_wakeup_cause()==2){ // Wooby is waking up after inactiviy
-    state=3;
-  }
 
   //*         MAIN SWITCH          *//
 
@@ -1201,9 +1027,6 @@ void loop(void) {
     break;
 
     case 2:
-            // Updating last time for inactivity
-            updateLastTime();
-
             // Displaying and weighting is about to begin
             Serial.println("DATA START");
             state++;
@@ -1211,6 +1034,10 @@ void loop(void) {
     break;
     case 3:
     {
+            // Display characteristics
+              // u8g.setFont(u8g_font_9x18);
+              // u8g.setFont(u8g2_font_osb18_tf);
+              // u8g.setFontPosTop();
 
             // Main display loop
 

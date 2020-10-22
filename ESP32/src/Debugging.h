@@ -3,7 +3,7 @@
 
 #pragma once
 // un-comment this line to print the debugging statements
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
   #define DPRINT(...)    Serial.print(__VA_ARGS__)
@@ -13,6 +13,7 @@
   #define DPRINT(...)
   #define DPRINTLN(...)
 #endif
+
 
 
 // un-comment this line to print the debugging statements

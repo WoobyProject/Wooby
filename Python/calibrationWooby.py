@@ -22,38 +22,6 @@ from sklearn.linear_model import LinearRegression
 plt.close('all')
 
 
-def readWoobyFile(fileFolder, fileName):
-    try:
-        fileFullPath = os.path.join(fileFolder, fileName)
-        if os.path.isfile(fileFullPath):
-            if (".txt" in fileName):
-                fileDf = pd.read_csv(fileFullPath)
-                print("File read: {}".format(fileName))
-                return {"name":fileName, "data":fileDf}
-        else:
-            return None
-    except:
-        return None
-
-def readWoobyFolder(fileFolder, fileFilter):
-    listFinal = []
-    allFiles = os.listdir(fileFolder)
-    for fileName in allFiles:
-        answer = re.search(fileFilter, fileName)
-        if (answer!=None):
-            result = readWoobyFile(fileFolder, fileName)
-            if(result!=None):
-                listFinal.append(result)
-    return listFinal
-
-def calculationWooby(dataWooby):
-    dataWooby["data"]["tMeasureRaw"] =          dataWooby["data"]["tAfterMeasure"] - dataWooby["data"]["tBeforeMeasure"] 
-    dataWooby["data"]["tMeasure"] =             dataWooby["data"]["tAfterAlgo"] - dataWooby["data"]["tBeforeMeasure"]
-    
-    dataWooby["data"]["relativeValue_WU"] =     dataWooby["data"]["realValue_WU"] - dataWooby["data"]["OFFSET"]
-    
-    return dataWooby
-
 ##################################        
 #       Reading of each file     #
 ##################################
@@ -383,8 +351,8 @@ plt.title("c coeff")
 #    Testing of the algorithm    #
 ################################## 
 
-m_a = m_a_Xtreme
-m_b = m_b_Xtreme*0
+#m_a = m_a_Xtreme
+#m_b = m_b_Xtreme*0
 
 
 plt.figure()

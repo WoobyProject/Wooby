@@ -26,7 +26,7 @@ def tare():
 print("Connecting with Wooby ...")
 
 portWooby = '/dev/cu.SLAB_USBtoUART'
-baudRateWooby = 9600;
+baudRateWooby = 115200;
 
 serialPortWooby = serial.Serial(port = portWooby, baudrate=baudRateWooby,
                            bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
@@ -38,13 +38,13 @@ serialPortWooby.flush()
 serialPortWooby.flushInput()
 serialPortWooby.flushOutput()
 
-N_MAX_MEASURES = 100
+N_MAX_MEASURES = 5000
 
 # Measures configuration 
-REAL_WEIGHT = 1000
+REAL_WEIGHT = 0
 # SUBSET = "UNITARY_TEST"
-SUBSET = "WOOBY2_ANGLE_ALGO_TEST"
-SUFFIX = "FRONT"
+SUBSET = "TEMP_TEST" # "Austin"
+SUFFIX = "Up_Tray4"
 
 ##########################        
 #  Serial data reading   #
@@ -108,7 +108,27 @@ while (i < N_MAX_MEASURES):
 # Closing the serial port would restart the Wooby (not wanted)
 # serialPortWooby.close()
 print(WoobyDataFrame.head())
+print(WoobyDataFrame.keys())
 
+###########################        
+#      Calculations       #
+###########################
+
+
+WoobyDataFrame["timeNorm"] = WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
+
+'''
+
+WoobyDataFrame["relativeValue_WU"] = WoobyDataFrame["realValue_WU"]-WoobyDataFrame["OFFSET"]
+
+WoobyDataFrame["myAx"] = WoobyDataFrame["Ax"]/16384
+WoobyDataFrame["myAy"] = WoobyDataFrame["Ay"]/16384
+WoobyDataFrame["myAz"] = WoobyDataFrame["Az"]/16384
+
+WoobyDataFrame["myGx"] = WoobyDataFrame["Gx"]/131
+WoobyDataFrame["myGy"] = WoobyDataFrame["Gy"]/131
+WoobyDataFrame["myGz"] = WoobyDataFrame["Gz"]/131
+'''
 
 ###########################        
 # Formatting and storing  #
@@ -120,7 +140,7 @@ WoobyDataFrame["realWeight"] = [REAL_WEIGHT] * N_MAX_MEASURES
 # print(WoobyDataFrame.to_csv(index=False))
 
 fileName = "{}_{}gr_{}.txt".format(SUBSET, REAL_WEIGHT, SUFFIX)
-fileFolder = os.path.join("/Users/macretina/Documents/Airbus/Humanity Lab/Wooby/Python/datasets", SUBSET)
+fileFolder = os.path.join("/Users/macretina/Documents/Airbus/Humanity Lab/Wooby/Github/Python/datasets", SUBSET)
 fileFullPath = os.path.join(fileFolder, fileName)
 
 # Check if the folder exists
@@ -140,28 +160,40 @@ else:
 #     Additional plots    #
 ###########################
 
-
 # WoobyDataFrame = readWoobyFile(fileFolder, fileName)["data"]
 
-timeNorm = WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
+
+# Plot: Temperature vs time
+plt.figure()
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myTmp"])
+plt.show()
+plt.grid(True)
+
+# Plot: Temperature vs relativeVal_WU
+plt.figure()
+plt.plot(WoobyDataFrame["myTmp"], WoobyDataFrame["relativeVal_WU"], 'o')
+plt.show()
+plt.grid(True)
+
+
 
 plt.figure()
-plt.plot(timeNorm, WoobyDataFrame["realValue_WU"])
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue_WU"])
 plt.show()
 plt.grid(True)
 
 plt.figure()
-plt.plot(timeNorm, WoobyDataFrame["thetadeg"], label ="thetadeg")
-plt.plot(timeNorm, WoobyDataFrame["phideg"], label ="phideg")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["thetadeg"], label ="thetadeg")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["phideg"], label ="phideg")
 plt.show()
 plt.grid(True)
 
 
 plt.figure()
 
-plt.plot(timeNorm, WoobyDataFrame["realValue"],             label="realValue")
-plt.plot(timeNorm, WoobyDataFrame["realValueFiltered"],     label="realValueFiltered")
-plt.plot(timeNorm, WoobyDataFrame["correctedValueFiltered"],label="correctedValueFiltered")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"],             label="realValue")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"],     label="realValueFiltered")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"],label="correctedValueFiltered")
 plt.legend(loc='best')
 plt.grid(True)
 plt.show()
@@ -262,3 +294,78 @@ plt.plot(WoobyDataFrame["realValue_WU_AngleAdj"], label="Angle adj vallue")
 plt.legend(loc='best')
 plt.grid(True)
 plt.show()
+
+
+
+
+# Accelerations
+plt.figure()
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myAx"], label="Ax")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myAy"], label="Ay")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myAz"], label="Az")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+plt.figure()
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myGx"], label="Gx")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myGy"], label="Gy")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myGz"], label="Gz")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
+
+plt.figure()
+plt.plot(WoobyDataFrame["myAx"], WoobyDataFrame["realValue_WU"], 'o', label="Ax")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
+plt.figure()
+plt.plot(WoobyDataFrame["relativeVal_WU"], -WoobyDataFrame["thetadeg"]/max(abs(WoobyDataFrame["thetadeg"])), 'o', label="theta norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAx"]/max(abs(WoobyDataFrame["myAx"])), 'o', label="Ax norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAy"]/max(abs(WoobyDataFrame["myAy"])), 'o', label="Ay norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAz"]/max(abs(WoobyDataFrame["myAz"])), 'o', label="Az norm")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+plt.figure()
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAx"], 'o', label="Ax norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAy"], 'o', label="Ay norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myAz"], 'o', label="Az norm")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
+plt.figure()
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGx"], 'o', label="Gx norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGy"], 'o', label="Gy norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGz"], 'o', label="Gz norm")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
+plt.figure()
+plt.plot(WoobyDataFrame["relativeVal_WU"], -WoobyDataFrame["thetadeg"]/max(abs(WoobyDataFrame["thetadeg"])), 'o', label="theta norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGx"]/max(abs(WoobyDataFrame["myGx"])), 'o', label="Gx norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGy"]/max(abs(WoobyDataFrame["myGy"])), 'o', label="Gy norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], WoobyDataFrame["myGz"]/max(abs(WoobyDataFrame["myGz"])), 'o', label="Gz norm")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
+plt.figure()
+plt.plot(WoobyDataFrame["relativeVal_WU"], -WoobyDataFrame["thetadeg"]/max(abs(WoobyDataFrame["thetadeg"])), 'o', label="theta norm")
+plt.plot(WoobyDataFrame["relativeVal_WU"], -WoobyDataFrame["phideg"]/max(abs(WoobyDataFrame["phideg"])), 'o', label="phi norm")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+
+
