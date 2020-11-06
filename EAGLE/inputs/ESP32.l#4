@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.6.1">
+<eagle version="8.5.1">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -165,11 +165,13 @@
 <text x="18.45" y="6.52" size="1.016" layer="21" rot="R90">SD1</text>
 <text x="20.99" y="6.52" size="1.016" layer="21" rot="R90">SD0</text>
 <text x="23.53" y="6.52" size="1.016" layer="21" rot="R90">CLK</text>
-<text x="-11.28" y="3.9" size="1.9304" layer="21">ESP32-DevkitC</text>
+<text x="-4.93" y="-1.18" size="1.9304" layer="21">ESP32-DevkitC</text>
 <wire x1="-24.13" y1="12.7" x2="24.13" y2="12.7" width="0.254" layer="21"/>
 <wire x1="24.13" y1="12.7" x2="24.13" y2="-12.7" width="0.254" layer="21"/>
 <wire x1="24.13" y1="-12.7" x2="-24.13" y2="-12.7" width="0.254" layer="21"/>
 <wire x1="-24.13" y1="-12.7" x2="-24.13" y2="12.7" width="0.254" layer="21"/>
+<text x="-24.13" y="13.97" size="1.27" layer="21">&gt;NAME</text>
+<text x="10.16" y="-15.24" size="1.27" layer="27">ESP32-DEVKITC</text>
 </package>
 </packages>
 <symbols>
@@ -182,10 +184,10 @@
 <pin name="EN" x="-20.32" y="-17.78" length="middle" rot="R90"/>
 <pin name="SVP" x="-17.78" y="-17.78" length="middle" rot="R90"/>
 <pin name="SVN" x="-15.24" y="-17.78" length="middle" rot="R90"/>
-<pin name="BATS" x="-12.7" y="-17.78" length="middle" rot="R90"/>
-<pin name="TARE" x="-10.16" y="-17.78" length="middle" rot="R90"/>
+<pin name="IO34" x="-12.7" y="-17.78" length="middle" rot="R90"/>
+<pin name="IO35" x="-10.16" y="-17.78" length="middle" rot="R90"/>
 <pin name="IO32" x="-7.62" y="-17.78" length="middle" rot="R90"/>
-<pin name="BAT_BOT" x="-5.08" y="-17.78" length="middle" rot="R90"/>
+<pin name="IO33" x="-5.08" y="-17.78" length="middle" rot="R90"/>
 <pin name="IO25" x="-2.54" y="-17.78" length="middle" rot="R90"/>
 <pin name="IO26" x="0" y="-17.78" length="middle" rot="R90"/>
 <pin name="IO27" x="2.54" y="-17.78" length="middle" rot="R90"/>
@@ -207,13 +209,13 @@
 <pin name="IO16" x="5.08" y="17.78" length="middle" rot="R270"/>
 <pin name="IO17" x="2.54" y="17.78" length="middle" rot="R270"/>
 <pin name="IO5" x="0" y="17.78" length="middle" rot="R270"/>
-<pin name="SCK" x="-2.54" y="17.78" length="middle" rot="R270"/>
+<pin name="IO18" x="-2.54" y="17.78" length="middle" rot="R270"/>
 <pin name="IO19" x="-5.08" y="17.78" length="middle" rot="R270"/>
 <pin name="GND@32" x="-7.62" y="17.78" length="middle" rot="R270"/>
-<pin name="SDA" x="-10.16" y="17.78" length="middle" rot="R270"/>
+<pin name="IO21" x="-10.16" y="17.78" length="middle" rot="R270"/>
 <pin name="RXD0" x="-12.7" y="17.78" length="middle" rot="R270"/>
 <pin name="TXD0" x="-15.24" y="17.78" length="middle" rot="R270"/>
-<pin name="SCL" x="-17.78" y="17.78" length="middle" rot="R270"/>
+<pin name="IO22" x="-17.78" y="17.78" length="middle" rot="R270"/>
 <pin name="IO23" x="-20.32" y="17.78" length="middle" rot="R270"/>
 <pin name="GND@38" x="-22.86" y="17.78" length="middle" rot="R270"/>
 <text x="-26.67" y="5.08" size="1.27" layer="95" rot="R90">&gt;NAME</text>
@@ -230,8 +232,6 @@
 <connects>
 <connect gate="G$1" pin="3V3" pad="1"/>
 <connect gate="G$1" pin="5V" pad="19"/>
-<connect gate="G$1" pin="BATS" pad="5"/>
-<connect gate="G$1" pin="BAT_BOT" pad="8"/>
 <connect gate="G$1" pin="CLK" pad="20"/>
 <connect gate="G$1" pin="CMD" pad="18"/>
 <connect gate="G$1" pin="EN" pad="2"/>
@@ -245,26 +245,28 @@
 <connect gate="G$1" pin="IO15" pad="23"/>
 <connect gate="G$1" pin="IO16" pad="27"/>
 <connect gate="G$1" pin="IO17" pad="28"/>
+<connect gate="G$1" pin="IO18" pad="30"/>
 <connect gate="G$1" pin="IO19" pad="31"/>
 <connect gate="G$1" pin="IO2" pad="24"/>
+<connect gate="G$1" pin="IO21" pad="33"/>
+<connect gate="G$1" pin="IO22" pad="36"/>
 <connect gate="G$1" pin="IO23" pad="37"/>
 <connect gate="G$1" pin="IO25" pad="9"/>
 <connect gate="G$1" pin="IO26" pad="10"/>
 <connect gate="G$1" pin="IO27" pad="11"/>
 <connect gate="G$1" pin="IO32" pad="7"/>
+<connect gate="G$1" pin="IO33" pad="8"/>
+<connect gate="G$1" pin="IO34" pad="5"/>
+<connect gate="G$1" pin="IO35" pad="6"/>
 <connect gate="G$1" pin="IO4" pad="26"/>
 <connect gate="G$1" pin="IO5" pad="29"/>
 <connect gate="G$1" pin="RXD0" pad="34"/>
-<connect gate="G$1" pin="SCK" pad="30"/>
-<connect gate="G$1" pin="SCL" pad="36"/>
 <connect gate="G$1" pin="SD0" pad="21"/>
 <connect gate="G$1" pin="SD1" pad="22"/>
 <connect gate="G$1" pin="SD2" pad="16"/>
 <connect gate="G$1" pin="SD3" pad="17"/>
-<connect gate="G$1" pin="SDA" pad="33"/>
 <connect gate="G$1" pin="SVN" pad="4"/>
 <connect gate="G$1" pin="SVP" pad="3"/>
-<connect gate="G$1" pin="TARE" pad="6"/>
 <connect gate="G$1" pin="TXD0" pad="35"/>
 </connects>
 <technologies>
