@@ -9,13 +9,14 @@
 // #include "Filter.h"
 #include "WoobyWiFi.h"
 #include "Debugging.h"
+#include <RunningAverage.h>
 
 //************************//
 //*      VERSION SEL     *//
 //************************//
 
   #define MODEL 2
-  #define TYPE 3
+  #define TYPE 1
 
   // TYPE = 0 (PROTOTYPE)
   #if TYPE==0
@@ -23,18 +24,20 @@
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
     bool B_DISPLAY_ANGLES = true;
+    bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ACTIVE = false;
     bool B_HTTPREQ = true;
     bool B_SERIALPORT = true;
   #endif
 
-// TYPE = 0 (PROTOTYPE-connectToWiFi)
+// TYPE = 3 (PROTOTYPE-connectToWiFi)
   #if TYPE==3
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
     bool B_DISPLAY_ANGLES = true;
+    bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ACTIVE = false;
     bool B_HTTPREQ = false;
@@ -47,6 +50,7 @@
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = true;
     bool B_DISPLAY_ANGLES = false;
+    bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
     bool B_INACTIVITY_ACTIVE = true;
     bool B_HTTPREQ = true;
@@ -118,21 +122,26 @@
   float tempCorrectionValue = 0;
 
 //************************//
-//*     TARE BUTTON      *//
-//************************//
-  const int PIN_PUSH_BUTTON = 27;
-  unsigned long countTimeButton;
-
-//************************//
 //*  VCC MANAGEMENT CONF *//
 //************************//
-  const float VCCMIN   = 0.0;           // Minimum expected Vcc level, in Volts.
-  const float VCCMAX   = 5.0;           // Maximum expected Vcc level, in Volts.
-  const float VCCCORR  = 5.0/5.01;      // Measured Vcc by multimeter divided by reported Vcc
 
-  float myVcc, myVccFiltered, ratioVCCMAX;
+  const int PIN_VCC = 34;
 
-  bool bErrorVccMng=1;
+  const float VCCMIN   = 0.0;         // Minimum expected Vcc level, in Volts.
+  const float VCCMAX   = 7.3;         // Maximum expected Vcc level, in Volts.
+  const float VGPIO_MES = 2.766;
+  const float VCC_RATIO  = VCCMAX/VGPIO_MES; // Vcc/measured voltage on GPIO pin  (measured by multimeter)
+  const float ADC_CORRECTION = VGPIO_MES/2520;
+
+  float vccBits = 0;
+  float vccGPIO = 0;
+  float vccVolts = 0;
+  float ratioVCCMAX = 0;
+
+  // float myVcc, myVccFiltered;
+
+  bool BF_VCCMNG = false;
+
   /*Vcc vcc(VCCCORR);
   Filter VccFilter(0.65, 10); // (Sampling time (depending on the loop execution time), tau for filter
   */
@@ -142,6 +151,10 @@
 //************************//
 
   #define TARE_BUTTON_PIN 27
+
+  const int PIN_PUSH_BUTTON = 27; // TODO repetead
+
+  unsigned long countTimeButton;
 
   int tareButtonStateN   = 0;
   int tareButtonStateN_1 = 0;
@@ -194,6 +207,8 @@
   const float MAX_THETA_VALUE = 10;
   const float MAX_PHI_VALUE = 10;
 
+  bool BF_MPU=false;
+
 //************************//
 //*  COMMUNICATION CONF  *//
 //************************//
@@ -210,12 +225,13 @@
 
   filterResult realValueFilterResult;
 
+  float FILTERING_THR = 20;  // in grams
   float realValue;
   float realValue_1;
   float realValueFiltered;
   float realValueFiltered_1;
   int bSync;
-  int bSync_corr = 0;
+
 
   float realValue_WU = 0;
 
@@ -249,6 +265,9 @@
       Wire.endTransmission(true);
   }
 
+
+
+  // TODO: This function may be redundant with readMPU()
   void readTemp(){
       Wire.beginTransmission(MPU_ADDR);
       Wire.write(0x41);
@@ -259,46 +278,65 @@
       myTmp = Tmp/340.00+36.53;
   }
 
-  void readAccel(){
+  void readMPU(){
 
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU_ADDR,14,true);
+    uint8_t errorEndTrans = Wire.endTransmission(false);
 
-    Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
-    Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
-    Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
-    Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-    Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
-    Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
-    Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
+    uint8_t errorRF = Wire.requestFrom(MPU_ADDR,14,true);
 
-    myAx =    float(Ax)/16384;
-    myAy = -1*float(Az)/16384;
-    myAz =    float(Ay)/16384;
-    myGx =    float(Gx)/131;
-    myGy =    float(Gy)/131;
-    myGz =    float(Gz)/131;
+    if(errorRF){
+      BF_MPU = false;
 
-    myTmp = Tmp/340.00+36.53;
+      Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
+      Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
+      Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
+      Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
+      Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
+      Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
+      Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
 
+      /*
+      myAx =    float(Ax)/16384;
+      myAy = -1*float(Az)/16384;
+      myAz =    float(Ay)/16384;
+      */
+      myAx =    float(Ax)/16384;
+      myAy = -1*float(Ay)/16384;
+      myAz = -1*float(Az)/16384;
+
+      myGx =    float(Gx)/131;
+      myGy =    float(Gy)/131;
+      myGz =    float(Gz)/131;
+
+      myTmp = Tmp/340.00+36.53;
+    }
+    else{
+      Serial.println("ERROR: Reading MPU");
+      BF_MPU = true;
+    }
   }
 
   void angleCalc(){
-      readAccel();
+    // Keep in mind that atan2() handles the zero div
+      readMPU();
       phideg = (180/pi)*atan2(myAy,myAz);
       thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
+
   }
 
   void angleAdjustment(){
+
     if (B_ANGLE_ADJUSTMENT){
       angleCalc();
-      realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
+      if(!BF_MPU){
+        realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
+        return;
+      }
     }
-    else{
-      realValue_WU_AngleAdj = relativeVal_WU;
-    }
+    realValue_WU_AngleAdj = relativeVal_WU;
+
   }
 
 //*******************************//
@@ -346,7 +384,7 @@ filterResult filtering(float uk, float uk_1, float yk_1){
   float b =  0.6085;
 
   filterResult myResult;
-  if (abs(uk-uk_1) < MIN_GR_VALUE) {
+  if (abs(uk-uk_1) < FILTERING_THR) {
     // Filtering
     myResult.yk = a*uk_1 + b*yk_1;
     myResult.bSync = 0;
@@ -429,11 +467,51 @@ void tareButtonAction()
 //* VCC MANAGEMENT FUNCS *//
 //************************//
 
+
+void readVcc(){
+
+  // Reading pin
+  vccBits = float(analogRead(PIN_VCC));
+
+
+  // Calulation for displaying
+  vccGPIO = vccBits*ADC_CORRECTION;
+  vccVolts = vccGPIO*VCC_RATIO;
+  ratioVCCMAX = min((vccVolts/VCCMAX), float(1.0));
+
+
+  Serial.printf("\nVoltage read (bits): %f", vccBits);
+  Serial.printf("\nReal GPIO voltage (V): %f",   vccGPIO);
+  Serial.printf("\nVCC_RATIO(V): %f",   VCC_RATIO);
+  Serial.printf("\nImage to Vcc (V): %f ",   vccVolts);
+  Serial.printf("\nRatio to Vcc (%): %d \n", int(100*ratioVCCMAX));
+
+   /* For Arduino:
+   myVcc = vcc.Read_Volts();
+   // int deltaOFFSETVcc = correctionVcc(myVcc);
+   myVccFiltered = VccFilter.update(myVcc);
+
+   ratioVCCMAX = min(myVccFiltered/VCCMAX, 1.0);
+   */
+
+}
+
 void setupVccMgnt(){
   // For Arduino:
   // myVcc = vcc.Read_Volts();
   // VccFilter.init(myVcc);
+
+  analogReadResolution(12);
+  analogSetWidth(12);
+  analogSetPinAttenuation(PIN_VCC,ADC_11db); // Sets the input attenuation, default is ADC_11db, range is ADC_0db, ADC_2_5db, ADC_6db, ADC_11db
+                                        // ADC_0db provides no attenuation so IN/OUT = 1 / 1 an input of 3 volts remains at 3 volts before ADC measurement
+                                        // ADC_2_5db provides an attenuation so that IN/OUT = 1 / 1.34 an input of 3 volts is reduced to 2.238 volts before ADC measurement
+                                        // ADC_6db provides an attenuation so that IN/OUT = 1 / 2 an input of 3 volts is reduced to 1.500 volts before ADC measurement
+                                        // ADC_11db provides an attenuation so that IN/OUT = 1 / 3.6 an input of 3 volts is reduced to 0.833 volts before ADC measurement
+
+  readVcc();
 }
+
 
 //************************//
 //*   DISPLAY FUNCTIONS  *//
@@ -711,7 +789,6 @@ String buildJson(){
   dataItem["realValueFiltered"     ]  = realValueFiltered;
   dataItem["correctedValueFiltered"]  = correctedValueFiltered;
   dataItem["bSync"     ]              = bSync;
-  dataItem["bSync_corr"]              = bSync_corr;
   dataItem["calibrationFactor"     ] = calibrationFactor;
   dataItem["offset"]                  = offset;
   dataItem["realValue_WU"     ]       = realValue_WU;
@@ -760,8 +837,7 @@ String buildJson(){
 
 }
 
-bool sendJson()
-{
+bool sendJson(){
   String payLoad = buildJson();
 
   // Connexion to the host
@@ -795,8 +871,7 @@ bool sendJson()
   }
 }
 
-bool sendDataToGoogle()
-{
+bool sendDataToGoogle(){
   // Verify the activation
   if (!B_HTTPREQ){
     return false;
@@ -834,6 +909,7 @@ void printSerial()
   Serial.print(realValue_WU);                   Serial.print(",\t");
   Serial.print("OFFSET");                       Serial.print(":");
   Serial.print(offset);                         Serial.print(",\t");
+  Serial.printf("calibrationFactor:%f,\t", calibrationFactor);
 
   Serial.print("relativeVal_WU");               Serial.print(":");
   Serial.print(relativeVal_WU);                 Serial.print(",\t");
@@ -868,6 +944,17 @@ void printSerial()
   Serial.print("myTmp");                        Serial.print(":");
   Serial.print(myTmp);                          Serial.print(",\t");
 
+  Serial.printf("BF_MPU:%d\t",BF_MPU);
+
+
+  Serial.printf("VCC_RATIO:%f\t",VCC_RATIO);
+  Serial.printf("ADC_CORRECTION:%f\t",ADC_CORRECTION);
+  Serial.printf("vccBits:%f\t",vccBits);
+  Serial.printf("vccGPIO:%f\t",vccGPIO);
+  Serial.printf("vccVolts:%f\t",vccVolts);
+
+  Serial.printf("bSync:%d\t",bSync);
+
   /*
   Serial.print("tareButtonFlank");              Serial.print(":");
   Serial.print(tareButtonFlank);                Serial.print(",\t");
@@ -889,22 +976,21 @@ void printSerialOld()
   Serial.print(realValueFiltered, 4);           Serial.print(",\t");
   Serial.print(correctedValueFiltered, 4);      Serial.print(",\t");
   Serial.print(bSync);                          Serial.print(",\t");
-  Serial.print(bSync_corr);                     Serial.print(",\t");
   Serial.print(calibrationFactor,4);           Serial.print(",\t");
   //Serial.print(valLue_WU/realvalLue,4);Serial.print(",\t");
   Serial.print(offset, 4);                      Serial.print(",\t");
   Serial.print(realValue_WU);                   Serial.print(",\t");
   Serial.print(bInactive);                      Serial.print(",\t");
   Serial.print(lastTimeActivity);               Serial.print(",\t");
-  Serial.print(myVcc);                          Serial.print(",\t");
+  Serial.print(vccVolts);                       Serial.print(",\t");
   // Serial.print((float)scale.get_Vcc_offset(), 4);Serial.print(",\t");
 
   Serial.print(myAx);                           Serial.print(",\t");
   Serial.print(myAy);                           Serial.print(",\t");
   Serial.print(myAz);                           Serial.print(",\t");
-  Serial.print(myGx);                        Serial.print(",\t");
-  Serial.print(myGy);                        Serial.print(",\t");
-  Serial.print(myGz);                        Serial.print(",\t");
+  Serial.print(myGx);                           Serial.print(",\t");
+  Serial.print(myGy);                           Serial.print(",\t");
+  Serial.print(myGz);                           Serial.print(",\t");
 
   Serial.print(thetadeg);                       Serial.print(",\t");
   Serial.print(phideg);                         Serial.print(",\t");
@@ -935,13 +1021,13 @@ void getWoobyWeight(){
     tAfterMeasure = millis();
 
     offset = (float)scale.get_offset();
-    relativeVal_WU = realValue_WU-offset;
+    relativeVal_WU = realValue_WU - offset;
 
     // Angles correction //
     angleAdjustment();
 
     // Conversion to grams //
-    realValue = (relativeVal_WU)/scale.get_scale();
+    realValue = (realValue_WU_AngleAdj)/scale.get_scale();
     correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
 
     // Filtering  //
@@ -1001,6 +1087,7 @@ void mainDisplayWooby(){
   else{
     // Everything is ok!!  So let's show the measurement
     do {
+        // Display weight //
         u8g.setFont(u8g2_font_osb18_tf);
         u8g.setFontPosTop();
         itoa(displayFinalValue, arrayMeasure, 10);
@@ -1013,26 +1100,38 @@ void mainDisplayWooby(){
         u8g.setCursor(30, 25);
         u8g.print("grams");
 
-
+        // Display MPU values //
         if (B_DISPLAY_ANGLES){
           // Display trust region //
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosBottom();
           u8g.setCursor(5, DISPLAY_HEIGHT-2);
-          u8g.print(int(thetadeg), 10);
+          BF_MPU? u8g.print("???"): u8g.print(int(thetadeg), 10);
 
 
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosBottom();
           u8g.setCursor(55, DISPLAY_HEIGHT-2);
-
-          //sprintf(aux, (PGM_P)F("%d %d"), 6, int(TEMPREF));
-          u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
+          BF_MPU? u8g.print("???"): u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
 
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosBottom();
           u8g.setCursor(100, DISPLAY_HEIGHT-2);
-          u8g.print(int(phideg), 10);
+          BF_MPU? u8g.print("???"): u8g.print(int(phideg), 10);
+        }
+
+        if (B_DISPLAY_ACCEL){
+          u8g.setFont(u8g_font_6x10);
+
+          u8g.setCursor(4, 24);
+          BF_MPU? u8g.print("???"):u8g.print(roundf(myAx*100.0)/100.0);
+
+          u8g.setCursor(4, 31);
+          BF_MPU? u8g.print("???"):u8g.print(roundf(myAy*100.0)/100.0);
+
+          u8g.setCursor(4, 38);
+          BF_MPU? u8g.print("???"):u8g.print(roundf(myAz*100.0)/100.0);
+
         }
 
         // Display batterie levels //
@@ -1040,10 +1139,7 @@ void mainDisplayWooby(){
           u8g.setFont(u8g_font_6x10);
           u8g.setFontPosTop();
           u8g.setCursor(100, 12) ; // (Horiz, Vert)
-          if (!bErrorVccMng)
-            u8g.print(int(100*ratioVCCMAX));
-          else
-            u8g.print("??");
+          BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
 
 
           u8g.setFont(u8g_font_6x10);
@@ -1070,6 +1166,8 @@ void mainDisplayWooby(){
           if (!B_SERIALPORT)
             u8g.drawLine(17,  11,  26, 2);
 
+
+
     } while(u8g.nextPage());
   }
 
@@ -1087,6 +1185,13 @@ void setup(void) {
 
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
+
+
+  DPRINTLN("If I do tan of something/0");
+  DPRINTLN(atan2(1,0));
+
+  DPRINTLN("If I do tan of 0/0");
+  DPRINTLN(atan2(0,0));
 
   //*       INACTIVITY MANAGEMENT      *//
   wakeupReason = esp_sleep_get_wakeup_cause();
@@ -1115,8 +1220,7 @@ void setup(void) {
   //*         ACCELEROMETER           *//
   Serial.println("Setting up accelerometer sensor...");
   setupMPU();
-  readAccel(); // do we have to read the info ?
-  readTemp(); // do we have to read the info ?
+  readMPU();  // Read the info for initializing vars and availability
 
   //*            FILTERING            *//
   setUpWeightAlgorithm();
@@ -1135,7 +1239,6 @@ void setup(void) {
   //*          VCC MANAGEMENT        *//
   setupVccMgnt();
 
-
   //*          GOOGLE COMS        *//
   setupGoogleComs();
 
@@ -1149,16 +1252,6 @@ void setup(void) {
 //************************//
 
 void loop(void) {
-
- //  Vcc measurement // TODO!  Create a function !
-    /*
-    myVcc = vcc.Read_Volts();
-    // int deltaOFFSETVcc = correctionVcc(myVcc);
-    myVccFiltered = VccFilter.update(myVcc);
-
-    ratioVCCMAX = _min(myVccFiltered/VCCMAX, 1.0);
-    // For Arduino: ratioVCCMAX = min(myVccFiltered/VCCMAX, 1.0);
-    */
 
   //*  READING OF SERIAL ENTRIES   *//
     if(Serial.available())
@@ -1216,6 +1309,9 @@ void loop(void) {
 
             // Tare button //
             tareButtonAction();
+
+            //   //
+            readVcc();
 
             // Weighting //
             getWoobyWeight();

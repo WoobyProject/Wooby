@@ -36,4 +36,9 @@ def extraCalculationWooby(dataWooby):
     
     dataWooby["data"]["relativeValue_WU"] =     dataWooby["data"]["realValue_WU"] - dataWooby["data"]["OFFSET"]
     
+    dataWooby["data"]["timeSim"] = np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
+    dataWooby["data"]["Te"] =  WoobyDataFrame["timeSim"][1] -  WoobyDataFrame["timeSim"][0]
+
+
     return dataWooby
+

@@ -38,13 +38,13 @@ serialPortWooby.flush()
 serialPortWooby.flushInput()
 serialPortWooby.flushOutput()
 
-N_MAX_MEASURES = 5000
+N_MAX_MEASURES = 400
 
 # Measures configuration 
-REAL_WEIGHT = 0
+REAL_WEIGHT = 104
 # SUBSET = "UNITARY_TEST"
-SUBSET = "TEMP_TEST" # "Austin"
-SUFFIX = "Up_Tray4"
+SUBSET = "Austin" # "Austin"
+SUFFIX = "Up_Box_Empty_Stormy"
 
 ##########################        
 #  Serial data reading   #
@@ -107,6 +107,7 @@ while (i < N_MAX_MEASURES):
 
 # Closing the serial port would restart the Wooby (not wanted)
 # serialPortWooby.close()
+
 print(WoobyDataFrame.head())
 print(WoobyDataFrame.keys())
 
@@ -114,8 +115,17 @@ print(WoobyDataFrame.keys())
 #      Calculations       #
 ###########################
 
+## Adding the real weight
+WoobyDataFrame["realWeight"] = [REAL_WEIGHT] * WoobyDataFrame.shape[0]
 
 WoobyDataFrame["timeNorm"] = WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
+WoobyDataFrame["timeMeasure"] = WoobyDataFrame["tAfterMeasure"]-WoobyDataFrame["tBeforeMeasure"]
+WoobyDataFrame["timeAlgo"] = WoobyDataFrame["tAfterAlgo"]-WoobyDataFrame["tAfterMeasure"]
+
+WoobyDataFrame["timeSim"] = np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
+# WoobyDataFrame["Te"] =  WoobyDataFrame["timeSim"][1] -  WoobyDataFrame["timeSim"][0]
+
+np.mean(np.diff(WoobyDataFrame["timeNorm"]))
 
 '''
 
@@ -134,10 +144,6 @@ WoobyDataFrame["myGz"] = WoobyDataFrame["Gz"]/131
 # Formatting and storing  #
 ###########################
 
-## Adding the real weight
-WoobyDataFrame["realWeight"] = [REAL_WEIGHT] * N_MAX_MEASURES
-
-# print(WoobyDataFrame.to_csv(index=False))
 
 fileName = "{}_{}gr_{}.txt".format(SUBSET, REAL_WEIGHT, SUFFIX)
 fileFolder = os.path.join("/Users/macretina/Documents/Airbus/Humanity Lab/Wooby/Github/Python/datasets", SUBSET)
@@ -162,18 +168,61 @@ else:
 
 # WoobyDataFrame = readWoobyFile(fileFolder, fileName)["data"]
 
+### Time recalculation
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeSim"] )
+    plt.title("Evaluation of time correction for simulation ")
+    plt.ylabel("Real normalize time (ms)")
+    plt.xlabel("Simulation time (ms)")
+    plt.grid(True)
 
-# Plot: Temperature vs time
-plt.figure()
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myTmp"])
-plt.show()
-plt.grid(True)
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], (WoobyDataFrame["timeSim"]/WoobyDataFrame["timeNorm"] - 1)*100 )
+    plt.title("Error in time correction for simulation ")
+    plt.ylabel("Delta in time (%)")
+    plt.xlabel("Simulation time (ms)")
+    plt.grid(True)
+    
+     
+### Performance in time
 
-# Plot: Temperature vs relativeVal_WU
-plt.figure()
-plt.plot(WoobyDataFrame["myTmp"], WoobyDataFrame["relativeVal_WU"], 'o')
-plt.show()
-plt.grid(True)
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"][1:], np.diff(WoobyDataFrame["timeNorm"]) )
+    plt.title("Speed per sample analysis")
+    plt.ylabel("Speed per sample (ms/sample)")
+    plt.xlabel("Time (ms)")
+    plt.grid(True)
+    
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeMeasure"],  label="Measurement")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeAlgo"],     label="Algorithm")
+    plt.title("Times comparison")
+    plt.ylabel("Times (ms)")
+    plt.xlabel("Time (ms) ")
+    plt.legend(loc="best")
+    plt.grid(True)
+
+
+### Temperature analysis
+
+    # Plot: Temperature vs time
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["myTmp"])
+    plt.show()
+    plt.grid(True)
+    plt.title("Temperature over time")
+    plt.xlabel("Time (ms)")
+    plt.ylabel("Temperature (C) ")
+    
+    
+    # Plot: Temperature vs relativeVal_WU
+    plt.figure()
+    plt.plot(WoobyDataFrame["myTmp"], WoobyDataFrame["relativeVal_WU"], 'o')
+    plt.show()
+    plt.grid(True)
+    plt.title("Temperature vs measurement")
+    plt.ylabel("Raw weight value (wu)")
+    plt.xlabel("Temperature (C) ")
 
 
 
@@ -191,9 +240,9 @@ plt.grid(True)
 
 plt.figure()
 
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"],             label="realValue")
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"],     label="realValueFiltered")
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"],label="correctedValueFiltered")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"]-1003,             label="realValue")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"]-1003,     label="realValueFiltered")
+plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"]-1003,label="correctedValueFiltered")
 plt.legend(loc='best')
 plt.grid(True)
 plt.show()

@@ -30,6 +30,7 @@ M = csvread(fullfile(filedir,filename));
 
 %% Filter equation analysis
 
+Te = 0.1;
 
 tau = 10;
 myFilter = ss(-1/tau, 1/tau, 1, 0);
@@ -40,16 +41,20 @@ myFilterDisc_zoh= c2d(myFilter, Te , 'zoh');
 myFilterDisc_foh= c2d(myFilter, Te , 'foh');
 myFilterDisc_tustin = c2d(myFilter, Te , 'tustin');
 
+%      a
+%   --------
+%    z - b
+
 myFilterDisc_calc = tf(1-exp(-Ts/tau),[1, -exp(-Ts/tau)],Ts);
 % Check http://web.cecs.pdx.edu/~tymerski/ece452/6.pdf
-
+Tsim = 10*Te; %5*tau;
 figure
-step(myFilter, Te*20)
+step(myFilter, Tsim)
 hold on
-step(myFilterDisc_zoh, Te*20)
-step(myFilterDisc_foh, Te*20)
-step(myFilterDisc_tustin, Te*20)
-step(myFilterDisc_calc, Te*20)
+step(myFilterDisc_zoh, Tsim, 'r-')
+step(myFilterDisc_foh, Tsim, 'b-')
+step(myFilterDisc_tustin, Tsim, 'g--')
+step(myFilterDisc_calc, Tsim, 'y--')
 
 grid on
 legend show
@@ -96,9 +101,7 @@ correctedValue_generic_filt =   lsim(myFilterDisc, correctedValue_generic,  time
 % step(myFilterDisc2)
 
 
-%      a
-%   --------
-%    z - b
+
   
 %% Plots
 
