@@ -1,6 +1,0 @@
-README.md
-setup.py
-pyWooby.egg-info/PKG-INFO
-pyWooby.egg-info/SOURCES.txt
-pyWooby.egg-info/dependency_links.txt
-pyWooby.egg-info/top_level.txt

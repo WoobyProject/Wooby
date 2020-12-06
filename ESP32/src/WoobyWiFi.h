@@ -10,12 +10,13 @@
 
 //***** WIFI CONF *****//
 
-const bool B_WIFI = true;
-const bool B_WIFI_SMART_CONFIG = false;
+bool B_WIFI = false;
+bool B_WIFI_SMART_CONFIG = false;
+
 bool BF_WIFI = true;
 
 #define WLAN_HOSTNAME   "Wooby"
-#define WLAN_MAX_COUNT  10
+#define WLAN_MAX_COUNT  5
 #define WLAN_LIB_N      4
 String WLAN_NAME_LIB[]  = {"Wooby" ,        "Kike's House"        , "Jose's House",   "Adris's House"};
 String WLAN_SSID_LIB[]  = {"Wooby"     ,    "SFR_6608"            , "SFR-5538",       "Livebox-1D06"};
@@ -51,7 +52,7 @@ void WiFiConnectFromLib() {
 
     int counter = 0;
     while (WiFi.status() != WL_CONNECTED && counter < WLAN_MAX_COUNT) {
-      delay(500);
+      delay(200);
       Serial.print(".");
       counter++;
     }
@@ -78,12 +79,12 @@ void WiFiConnectFromLib() {
   }
 
   Serial.println("No successful connection AT ALL!! ");
+  BF_WIFI = true;
 }
 
 bool setupWiFi (){
   if (!B_WIFI)
     return false;
-
 
   if (B_WIFI_SMART_CONFIG){
 
@@ -100,6 +101,7 @@ bool setupWiFi (){
     Serial.println("SmartConfig done.");
 
     /* Wait for WiFi to connect to AP */
+    // TODO ! This is blocking!
     Serial.println("Waiting for WiFi");
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
@@ -113,17 +115,18 @@ bool setupWiFi (){
     WiFiConnectFromLib();
   }
 
-  BF_WIFI = !checkWiFiConnection();
-  return !BF_WIFI;
+  return checkWiFiConnection();
 
 }
 
-String getIp(){
-  char          ipstr[20];
-  IPAddress ip  = WiFi.localIP();
+String ip2String(IPAddress ip){
+  char ipstr[20];
   sprintf(ipstr, "%d.%d.%d.%d", ip[0],ip[1],ip[2],ip[3]);
-  String ipString(ipstr);
-  return ipString;
+  return String(ipstr);
+}
+
+String getIp(){
+  return ip2String(WiFi.localIP());
 }
 
 //***** GOOGLE CONF *****//

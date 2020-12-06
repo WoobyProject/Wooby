@@ -3,17 +3,15 @@
 
 #pragma once
 // un-comment this line to print the debugging statements
-#define DEBUG
+#define DEBUGPRINT
 
-#ifdef DEBUG
-  #define DPRINT(...)    Serial.print(__VA_ARGS__)
-  #define DPRINTLN(...)  Serial.println(__VA_ARGS__)
+#ifdef DEBUGPRINT
+#define DPRINT(...) Serial.print(__VA_ARGS__)
+#define DPRINTLN(...) ; Serial.println(__VA_ARGS__)
 #else
-  // define blank line
-  #define DPRINT(...)
-  #define DPRINTLN(...)
+#define DPRINT(...)
+#define DPRINTLN(...)
 #endif
-
 
 
 // un-comment this line to print the debugging statements
@@ -28,7 +26,7 @@
   #define DEEPDPRINTLN(...)
 #endif
 
-#define ERRORPRINT
+// #define ERRORPRINT
 
 #ifdef ERRORPRINT
   #define ERRORPRINT(...)    Serial.print(__VA_ARGS__)

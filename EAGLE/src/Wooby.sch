@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.6.1">
+<eagle version="9.6.2">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -6786,6 +6786,10 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <sheets>
 <sheet>
 <plain>
+<text x="2.54" y="68.58" size="1.778" layer="91">Green</text>
+<text x="2.54" y="78.74" size="1.778" layer="91">Black</text>
+<text x="2.54" y="73.66" size="1.778" layer="91">White</text>
+<text x="2.54" y="83.82" size="1.778" layer="91">Red</text>
 </plain>
 <instances>
 <instance part="U1" gate="G$1" x="0" y="27.94" smashed="yes" rot="R180"/>

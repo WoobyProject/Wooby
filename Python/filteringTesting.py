@@ -6,6 +6,12 @@ Created on Sun Nov  1 21:10:09 2020
 @author: enriquem
 """
 
+import sys
+sys.path.append('../pyWooby')
+import pyWooby
+
+from scipy import signal
+
 ##################################        
 #       Loading file             #
 ##################################
@@ -14,7 +20,7 @@ fileFolder = "/Users/macretina/Documents/Airbus/Humanity Lab/Wooby/Github/Python
 fileName = "Austin_104gr_Measure1.txt"
 fileName = "Austin_104gr_Up_Box_Empty.txt"
 
-WoobyData = readWoobyFile(fileFolder, fileName, verbose=True)
+WoobyData = pyWooby.load.readWoobyFile(fileFolder, fileName, verbose=True)
 WoobyData = extraCalculationWooby(WoobyData)
 
 WoobyDataFrame = WoobyData["data"]
@@ -25,19 +31,30 @@ WoobyDataFrame = WoobyData["data"]
 
 
 ### Basic signal calculations
-
 time = np.array(WoobyDataFrame["timeSim"])/1000
 inputSignal =  np.array(WoobyDataFrame["realValue"])
+# inputSignal =  0+(time>10) # np.ones(time.shape)
+
 
 ### First-order filter
-tauFilter = 0.2
+tauFilter = -0.7/math.log(0.6085)
 Te =  time[1] -  time[0]
+t_out, resultFilter = pyWooby.filtering.filter_1od(time, inputSignal,  tauFilter,  Te)
 
-resultFilter = filter_1od(time, inputSignal,  tauFilter,  Te)
+
+### Discrete first-order filter equivalent 
+b1 = 1 - math.exp(-Te/tauFilter)
+a1 = math.exp(-Te/tauFilter)
+    
+b = np.atleast_1d(np.array((0, 0.3915)))
+a = np.atleast_1d(np.array((1, -0.6085)))
+resultFilterDiscrete, _ = signal.lfilter(b, a, inputSignal, zi=np.array([inputSignal[0]]))
+
 
 ### Moving average (macro-function)
 n = 7
 resultMA = movingAvg(inputSignal, n)
+
 
 ### Moving average (macro-function) RAW
 n = 7
@@ -60,6 +77,16 @@ plt.plot(time, inputSignal,         label="Input signal")
 plt.plot(time, resultMA,            label="Moving Avg")
 plt.plot(time, resultMA_Raw,        '+-',label="resultMA_Raw")
 plt.plot(resultMAWithFilter[0], resultMAWithFilter[1], '--', label="Moving Avg (with filter)")
+plt.legend(loc="best")
+plt.grid(True)
+
+
+
+### Comparison of filtering in different ways
+plt.figure()
+plt.plot(time, inputSignal, '--',       label="Input signal")
+plt.plot(time, resultFilterDiscrete,    label="Discrete filter")
+plt.plot(time, resultFilter,            label="First order filter")
 plt.legend(loc="best")
 plt.grid(True)
 

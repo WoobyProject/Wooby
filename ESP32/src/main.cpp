@@ -9,14 +9,38 @@
 // #include "Filter.h"
 #include "WoobyWiFi.h"
 #include "Debugging.h"
+
+#include <Filters/IIRFilter.hpp>
 #include <RunningAverage.h>
+
+#include <EasyButton.h>
+
+#include <ArduinoJson.h>
+#include "BluetoothSerial.h"
+
+
+// TODO :
+// 4. Unify buffer for display ()
+// 5. Create a progress bar for init
+// 6. Create a boolean to know if the Serial port is connected (harder than I thought)
+//  6.1 Show "USB" when the connected to PC
+// 7. Resynchro the measurement in moving average (done!)
+// 8. Check (if) why accelerations are greater than 1 (myAz!)
+// 9. Batteries only last until 5 V. Maping of the % (done!)
+
 
 //************************//
 //*      VERSION SEL     *//
 //************************//
 
-  #define MODEL 2
-  #define TYPE 1
+  #define MODEL 5
+  // MODEL 1 : Arduino - Wooby 1
+  // MODEL 2 : ESP32 - Wooby 2
+  // MODEL 3 : Arduino - Unknown
+  // MODEL 4 : Arduino - Unknown
+  // MODEL 5 : ESP32 - Wooby Xtrem
+
+  #define TYPE 3
 
   // TYPE = 0 (PROTOTYPE)
   #if TYPE==0
@@ -26,22 +50,26 @@
     bool B_DISPLAY_ANGLES = true;
     bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ACTIVE = false;
-    bool B_HTTPREQ = true;
+    bool B_INACTIVITY_ENABLE = false;
+    bool B_GOOGLE_HTTPREQ = true;
     bool B_SERIALPORT = true;
+    bool B_SERIALTELNET = true;
+    bool B_OTA = true;
   #endif
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)
   #if TYPE==3
-    bool B_ANGLE_ADJUSTMENT = true;
+    bool B_ANGLE_ADJUSTMENT = false;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
     bool B_DISPLAY_ANGLES = true;
     bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ACTIVE = false;
-    bool B_HTTPREQ = false;
+    bool B_INACTIVITY_ENABLE = false;
+    bool B_GOOGLE_HTTPREQ = false;
     bool B_SERIALPORT = true;
+    bool B_SERIALTELNET = true;
+    bool B_OTA = true;
   #endif
 
   // TYPE = 1 (FINAL DELIVERY)
@@ -52,10 +80,19 @@
     bool B_DISPLAY_ANGLES = false;
     bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
-    bool B_INACTIVITY_ACTIVE = true;
-    bool B_HTTPREQ = true;
+    bool B_INACTIVITY_ENABLE = true;
+    bool B_GOOGLE_HTTPREQ = true;
     bool B_SERIALPORT = true;
+    bool B_SERIALTELNET = true;
+    bool B_OTA = false;
   #endif
+
+#include "OTAserver.h"
+
+//************************//
+//*   DEBUG MODE CONF    *//
+//************************//
+  bool B_DEBUG_MODE = true;
 
 //************************//
 //*      SENSOR CONF     *//
@@ -68,26 +105,28 @@
   // For ESP:
   HX711 scale;
 
-  int nMeasures = 7;
-  int nMeasuresTare = 7;
-
   // Model choice
   #if MODEL == 1
-    float calibrationFactor=42.00;
+    float calibrationFactor = 42.0000;
   #endif
 
   #if MODEL == 2
-    float calibrationFactor=42.7461;
+    float calibrationFactor = 42.7461;
   #endif
 
   #if MODEL == 3
     // OLD BOOT LOADER
-    float calibrationFactor=61.7977;
+    float calibrationFactor = 61.7977;
   #endif
 
   #if MODEL == 4
-    float calibrationFactor=38.5299;
+    float calibrationFactor = 38.5299;
   #endif
+
+  #if MODEL == 5
+    float calibrationFactor = 61.7977;
+  #endif
+
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
@@ -104,19 +143,80 @@
 
   char arrayMeasure[8];
 
+  //************************//
+  //*  WEIGHTING ALGO CONF *//
+  //************************//
+
+    const int nMeasures = 7;
+    const int nMeasuresTare = 7;
+
+    struct filterResult {
+      float yk;
+      int   bSync;
+    };
+
+    // Definition of the coeffs for the filter
+    // Remember : Te = nMeasures*100 ms
+    //            b = 1 - math.exp(-Te/tau)
+    //            a = math.exp(-Te/tau)
+    //            tau = 1.4
+    const float b =  0.3915; // Te = nMeasures*100 ms
+    const float a =  0.6085; //
+
+    // FIlter = y/u = b*z-1(1-a)
+    NormalizingIIRFilter<2, 2, float> filterWeight = {{0, b}, {1, -a}};
+
+    filterResult realValueFilterResult;
+
+    const float FILTERING_THR = 20;  // in grams
+
+    float realValue_WU = 0;
+    float realValue;
+    float realValue_1;
+    float realValueFiltered;
+    float realValueFiltered_1;
+    float relativeVal_WU_1;
+
+    float relativeVal_WU = 0;
+    float realValue_WU_AngleAdj = 0;
+    float realValue_WU_MovAvg = 0;
+    float realValue_WU_Filt = 0;
+
+    float correctedValue = 0;
+    RTC_DATA_ATTR float offset = 0;
+
+    bool bSync;
+    unsigned long bSyncTimer = 0 ;
+    unsigned long BSYNC_TIME = 2000;
+
+    const int N_WINDOW_MOV_AVG = nMeasures;
+    RunningAverage weightMovAvg(N_WINDOW_MOV_AVG);
+
 //************************//
 //*   LOAD SENSOR ADJ    *//
 //************************//
+
   float TEMPREF = 26.0;
 
   float const P3 =   -1.2349e-06;
   float const P2 =    1.3114e-05;
   float const P1 =  -46.122436;
-  float const P0 =  0.0;
+  float const P0 =    0.0;
 
   float const calib_theta_2 = -0.00014;
-  float relativeVal_WU = 0;
-  float realValue_WU_AngleAdj = 0;
+
+  // Model choice
+  #if MODEL <= 4
+    float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
+    float K_MYAY_X =  0; float K_MYAY_Y = 1; float K_MYAY_Z = 0;
+    float K_MYAZ_X =  0; float K_MYAZ_Y = 0; float K_MYAZ_Z = 1;
+  #endif
+
+  #if MODEL == 5
+    float K_MYAX_X =  0; float K_MYAX_Y = 0; float K_MYAX_Z = 1;
+    float K_MYAY_X = -1; float K_MYAY_Y = 0; float K_MYAY_Z = 0;
+    float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
+  #endif
 
   float tempCorrectionValue_WU = 0;
   float tempCorrectionValue = 0;
@@ -127,32 +227,36 @@
 
   const int PIN_VCC = 34;
 
-  const float VCCMIN   = 0.0;         // Minimum expected Vcc level, in Volts.
+  const float VCCMIN   = 5.0;         // Minimum expected Vcc level, in Volts.
   const float VCCMAX   = 7.3;         // Maximum expected Vcc level, in Volts.
-  const float VGPIO_MES = 2.766;
-  const float VCC_RATIO  = VCCMAX/VGPIO_MES; // Vcc/measured voltage on GPIO pin  (measured by multimeter)
-  const float ADC_CORRECTION = VGPIO_MES/2520;
 
-  float vccBits = 0;
-  float vccGPIO = 0;
-  float vccVolts = 0;
-  float ratioVCCMAX = 0;
+  // New:
+  const int N_VCC_READ = 10;
+  float K_BITS_TO_VOLTS = 3.3/4095;
 
-  // float myVcc, myVccFiltered;
+  float realMeasureVcc =      7.270;
+  float realMeasureDivider =  2.355;
+  float realMeasureADC =      2.154;
+
+  float RATIO_VCC_DIV = realMeasureVcc/realMeasureDivider;
+  float RATIO_VCC_ADC = realMeasureVcc/realMeasureADC;
+  float RATIO_DIV_ADC = realMeasureDivider/realMeasureADC;
+
+  float vccReadBits = 0;      // Voltage read by the ADC (in bits)
+  float vccReadVolts = 0;     // Voltage read by the ADC (in Volts)
+  float vccGPIO = 0;          // Real voltage on the GPIO pin (in Volts)
+  float vccVolts = 0;         // Real voltage of Vcc (in Volts)
+  float ratioVCCMAX = 0;      // Percentage of the read voltage in Vcc to the full charge voltage
+
 
   bool BF_VCCMNG = false;
 
-  /*Vcc vcc(VCCCORR);
-  Filter VccFilter(0.65, 10); // (Sampling time (depending on the loop execution time), tau for filter
-  */
 
 //************************//
 //*   TARE BUTTON CONF   *//
 //************************//
 
-  #define TARE_BUTTON_PIN 27
-
-  const int PIN_PUSH_BUTTON = 27; // TODO repetead
+  const int PIN_PUSH_BUTTON = 35; // TODO repetead
 
   unsigned long countTimeButton;
 
@@ -162,6 +266,9 @@
 
   unsigned long tStartTareButton = 0;
   unsigned long tEndTareButton = 0;
+
+  /* EasyButton */
+  EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
 
 //************************//
 //*      DISPLAY CONF    *//
@@ -210,33 +317,45 @@
   bool BF_MPU=false;
 
 //************************//
-//*  COMMUNICATION CONF  *//
+//*   GOOGLE COMMS CONF  *//
 //************************//
 
   unsigned long countForGoogleSend = 0;
+  bool BF_GOOGLE_HTTPREQ = false;
 
 //************************//
-//*  WEIGHTING ALGO CONF *//
+//*   TELNET COMMS CONF  *//
 //************************//
-  struct filterResult {
-    float yk;
-    int   bSync;
-  };
 
-  filterResult realValueFilterResult;
+  #define MAX_SRV_CLIENTS 1
+  WiFiServer serverTelnet(23);
+  WiFiClient serverTelnetClients[MAX_SRV_CLIENTS];
+  bool BF_SERIALTELNET = false;
+  int nTelnetClients = 0;
 
-  float FILTERING_THR = 20;  // in grams
-  float realValue;
-  float realValue_1;
-  float realValueFiltered;
-  float realValueFiltered_1;
-  int bSync;
+//************************//
+//*       JSON CONF      *//
+//************************//
+
+  // See https://arduinojson.org/v6/assistant/
+  const int N_FIELDS_JSON = 28;
+  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 1160;
+  DynamicJsonDocument genericJSON(CAPACITY_JSON);
+  String genericJSONString; // TODO  create a String with the right MAX length
+
+//************************//
+//*   SERIAL COMMS CONF  *//
+//************************//
+
+  bool BF_SERIALPORT = false;
+
+//************************//
+//*     BLUETOOTH CONF   *//
+//************************//
 
 
-  float realValue_WU = 0;
-
-  float correctedValue = 0;
-  RTC_DATA_ATTR float offset = 0;
+  BluetoothSerial SerialBT;
+  bool BF_BLUETOOTH = false;
 
   //************************//
   //* GYRO/ACCEL FUNCTIONS *//
@@ -265,19 +384,6 @@
       Wire.endTransmission(true);
   }
 
-
-
-  // TODO: This function may be redundant with readMPU()
-  void readTemp(){
-      Wire.beginTransmission(MPU_ADDR);
-      Wire.write(0x41);
-      Wire.endTransmission(false);
-      Wire.requestFrom(MPU_ADDR,2,true);
-
-      Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-      myTmp = Tmp/340.00+36.53;
-  }
-
   void readMPU(){
 
     Wire.beginTransmission(MPU_ADDR);
@@ -297,14 +403,9 @@
       Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
       Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
 
-      /*
-      myAx =    float(Ax)/16384;
-      myAy = -1*float(Az)/16384;
-      myAz =    float(Ay)/16384;
-      */
-      myAx =    float(Ax)/16384;
-      myAy = -1*float(Ay)/16384;
-      myAz = -1*float(Az)/16384;
+      myAx = (K_MYAX_X*float(Ax)+K_MYAX_Y*float(Ay)+K_MYAX_Z*float(Az))/16384;
+      myAy = (K_MYAY_X*float(Ax)+K_MYAY_Y*float(Ay)+K_MYAY_Z*float(Az))/16384;
+      myAz = (K_MYAZ_X*float(Ax)+K_MYAZ_Y*float(Ay)+K_MYAZ_Z*float(Az))/16384;
 
       myGx =    float(Gx)/131;
       myGy =    float(Gy)/131;
@@ -313,14 +414,15 @@
       myTmp = Tmp/340.00+36.53;
     }
     else{
-      Serial.println("ERROR: Reading MPU");
+      // Serial.println("ERROR: Reading MPU");
       BF_MPU = true;
     }
   }
 
   void angleCalc(){
-    // Keep in mind that atan2() handles the zero div
-      readMPU();
+
+      readMPU(); // This function also updates BF_MPU
+        // Keep in mind that atan2() handles the zero div
       phideg = (180/pi)*atan2(myAy,myAz);
       thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
 
@@ -328,15 +430,13 @@
 
   void angleAdjustment(){
 
-    if (B_ANGLE_ADJUSTMENT){
-      angleCalc();
-      if(!BF_MPU){
+    angleCalc(); // This function also updates BF_MPU
+    if(!BF_MPU && B_ANGLE_ADJUSTMENT){
         realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
-        return;
-      }
     }
+    else{
     realValue_WU_AngleAdj = relativeVal_WU;
-
+    }
   }
 
 //*******************************//
@@ -349,15 +449,16 @@ void myTare(){
   scale.tare(nMeasuresTare);
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
+  // Reinitializing the filters
+  weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG);
+  filterWeight.reset(0);
+
+  // Reading reference temperature
   readTemp();
   TEMPREF = myTmp;
   DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
 
-float correctionTemp(float beforeCorrectionValue){
-  float deltaTemp = myTmp - TEMPREF;
-  return ( beforeCorrectionValue / (P3*pow(deltaTemp,3) + P2*pow(deltaTemp,2) + P1*deltaTemp + P0) );
-}
 
 float correctionAlgo(float realValue){
 
@@ -379,14 +480,11 @@ float correctionAlgo(float realValue){
 }
 
 filterResult filtering(float uk, float uk_1, float yk_1){
-  // Definition of the coeffs for the filter
-  float a =  0.3915;
-  float b =  0.6085;
 
   filterResult myResult;
   if (abs(uk-uk_1) < FILTERING_THR) {
     // Filtering
-    myResult.yk = a*uk_1 + b*yk_1;
+    myResult.yk = b*uk_1 + a*yk_1;
     myResult.bSync = 0;
     }
   else{
@@ -398,29 +496,56 @@ filterResult filtering(float uk, float uk_1, float yk_1){
   return myResult;
 }
 
+
+
 //********************++++****//
 //*   TARE BUTTON FUNCTIONS  *//
 //*********************++++***//
 
+void newTare(){
+    Serial.printf("\nNew tare! \n");
+    myTare();
+}
+
+void setDebugMode(){
+    Serial.printf("\n\nDebug time! \n\n");
+    B_DEBUG_MODE = true;
+}
+
+void couplingBLE(){
+  Serial.printf("\n\nCoupling BLE! \n\n");
+}
+
+
 void initTareButton(){
 
-  //*         TARE BUTTON      *//
   pinMode(PIN_PUSH_BUTTON, INPUT);
 
+  /*
   DPRINTLN("Initializing the tare button ... ");
   tareButtonStateN   = 0;
   tareButtonStateN_1 = 0;
   tareButtonFlank    = 0;
   tStartTareButton = 0;
   tEndTareButton = 0;
+  */
+
+  //*         Easy Button      *//
+  tareButton.begin();
+  // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
+  tareButton.onSequence(1,  2000,  newTare);            // For tare
+  tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
+  tareButton.onPressedFor(3000, couplingBLE );          // For BLE coupling
+
 }
+
 
 int updateTareButton(){
   delay(100);
 
   // Update
   tareButtonStateN_1 = tareButtonStateN;
-  tareButtonStateN = digitalRead(TARE_BUTTON_PIN);
+  tareButtonStateN = digitalRead(PIN_PUSH_BUTTON);
   tareButtonFlank = tareButtonStateN - tareButtonStateN_1;
 
   //if (tareButtonStateN)
@@ -463,28 +588,49 @@ void tareButtonAction()
   }
 }
 
+void newTareButtonAction()
+{
+  tareButton.read();
+}
+
 //************************//
 //* VCC MANAGEMENT FUNCS *//
 //************************//
 
+float readPinAnalogAvg(int n){
+  int sum = 0;
+  for (int i=0; i< n; i++){
+    sum += analogRead(PIN_VCC);
+    // Serial.println(readVal);
+  }
+  return float(sum)/n;
+}
+
+float mapval( float x, float  in_min, float  in_max, float  out_min, float out_max){
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  }
 
 void readVcc(){
 
   // Reading pin
-  vccBits = float(analogRead(PIN_VCC));
-
+  //Old: float(analogRead(PIN_VCC));
+  vccReadBits = readPinAnalogAvg(N_VCC_READ);
+  vccReadVolts = vccReadBits*K_BITS_TO_VOLTS;
 
   // Calulation for displaying
-  vccGPIO = vccBits*ADC_CORRECTION;
-  vccVolts = vccGPIO*VCC_RATIO;
-  ratioVCCMAX = min((vccVolts/VCCMAX), float(1.0));
+  vccGPIO   = vccReadVolts*RATIO_DIV_ADC;
+  vccVolts  = vccReadVolts*RATIO_VCC_ADC;
+  // ratioVCCMAX = min((vccVolts/VCCMAX), float(1.0));
+  ratioVCCMAX = mapval(vccVolts, VCCMIN, VCCMAX, 0, 1);
+  ratioVCCMAX = max(min(ratioVCCMAX, float(1.0)), float(0.0));
 
-
+  /*
   Serial.printf("\nVoltage read (bits): %f", vccBits);
   Serial.printf("\nReal GPIO voltage (V): %f",   vccGPIO);
   Serial.printf("\nVCC_RATIO(V): %f",   VCC_RATIO);
   Serial.printf("\nImage to Vcc (V): %f ",   vccVolts);
-  Serial.printf("\nRatio to Vcc (%): %d \n", int(100*ratioVCCMAX));
+  Serial.printf("\nRatio to Vcc (%%): %f \n", int(100*ratioVCCMAX));
+*/
 
    /* For Arduino:
    myVcc = vcc.Read_Volts();
@@ -527,7 +673,7 @@ void setupDisplay(){
         //u8g.setRot180();
       // For ESP32
       Serial.println("Flipping the screen ");
-      u8g.setFlipMode(1);
+      u8g.setFlipMode(0);
 
 
   // Set up of the default font
@@ -749,20 +895,82 @@ void inactivityCheck() {
   }
 }
 
+//**************************//
+//* GENERIC JSON FUNCTIONS *//
+//**************************//
+
+bool buildGenericJSON(){
+
+  genericJSON["tBeforeMeasure"] = tBeforeMeasure;
+  genericJSON["tAfterMeasure"] = tAfterMeasure;
+  genericJSON["tAfterAlgo"] = tAfterAlgo;
+
+  genericJSON["realValue_WU"] = realValue_WU;
+  genericJSON["OFFSET"] = offset;
+  genericJSON["calibrationFactor"] = calibrationFactor;
+
+  genericJSON["relativeVal_WU"] = relativeVal_WU;
+  genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
+  genericJSON["realValue_WU_MovAvg"] = realValue_WU_MovAvg;
+  genericJSON["realValue_WU_Filt"] = realValue_WU_Filt;
+
+  genericJSON["realValue"] = realValue;
+  genericJSON["realValueFiltered"] = realValueFiltered;
+  genericJSON["correctedValueFiltered"] = correctedValueFiltered;
+
+  genericJSON["myAx"] = myAx;
+  genericJSON["myAy"] = myAy;
+  genericJSON["myAz"] = myAz;
+  genericJSON["myGx"] = myGx;
+  genericJSON["myGy"] = myGy;
+  genericJSON["myGz"] = myGz;
+
+  genericJSON["thetadeg"] = thetadeg;
+  genericJSON["phideg"] = phideg;
+  genericJSON["myTmp"] = myTmp;
+
+  genericJSON["bSync"] = bSync;
+  genericJSON["vccReadBits"] = vccReadBits;
+  genericJSON["vccReadVolts"] = vccReadVolts;
+  genericJSON["vccGPIO"] = vccGPIO;
+  genericJSON["vccVolts"] = vccVolts;
+  genericJSON["ratioVCCMAX"] = ratioVCCMAX;
+
+  genericJSON["B_GOOGLE_HTTPREQ"] = B_GOOGLE_HTTPREQ;
+  genericJSON["B_SERIALPORT"] = B_SERIALPORT;
+  genericJSON["B_SERIALTELNET"] = B_SERIALTELNET;
+  genericJSON["B_ANGLE_ADJUSTMENT"] = B_ANGLE_ADJUSTMENT;
+  genericJSON["B_DEBUG_MODE"] = B_DEBUG_MODE;
+
+  genericJSON["BF_GOOGLE_HTTPREQ"] = BF_GOOGLE_HTTPREQ;
+  genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
+  genericJSON["BF_SERIALTELNET"] = BF_SERIALTELNET;
+  genericJSON["BF_MPU"] = BF_MPU;
+  genericJSON["BF_WIFI"] = BF_WIFI;
+
+  return true;
+}
 
 //**************************//
 //* HTTP REQUEST FUNCTIONS *//
 //**************************//
 
-void setupGoogleComs(){
-  if (B_HTTPREQ){
-  //*       GOOGLE CONNECTION        *//
-     clientForGoogle.setCACert(root_ca);
-  //*         WIFI CONNECTION        *//
-     setupWiFi();
-     // Checking WiFi connection //
-     BF_WIFI = !checkWiFiConnection();
+bool setupGoogleComs(){
+  if (!B_GOOGLE_HTTPREQ){
+    Serial.printf("\nWARNING: Google comms are disabled.");
+    return false;
   }
+
+  // Verifying WiFi connection
+  BF_WIFI = !checkWiFiConnection();
+  if (BF_WIFI){
+    Serial.printf("\nWARNING: WiFi is disabled. Google comms wiil be disabled too.");
+    return false;
+  }
+
+  // Connexion to Google
+  clientForGoogle.setCACert(root_ca);
+
 }
 
 void hashJSON(char* data, unsigned len) {
@@ -770,10 +978,10 @@ void hashJSON(char* data, unsigned len) {
   sha.resetHMAC(key, sizeof(key));
   sha.update(data, len);
   sha.finalizeHMAC(key, sizeof(key), hmacResult, sizeof(hmacResult));
-  Serial.println("DataSize :" + String(len));
-  Serial.println(data);
-  Serial.println("HashSize :" + String(sha.hashSize( )));
-  Serial.println("BlockSize:" + String(sha.blockSize()));
+  DPRINTLN("DataSize :" + String(len));
+  DPRINTLN(data);
+  DPRINTLN("HashSize :" + String(sha.hashSize( )));
+  DPRINTLN("BlockSize:" + String(sha.blockSize()));
   sha.clear();
 
 }
@@ -873,7 +1081,7 @@ bool sendJson(){
 
 bool sendDataToGoogle(){
   // Verify the activation
-  if (!B_HTTPREQ){
+  if (!B_GOOGLE_HTTPREQ){
     return false;
   }
 
@@ -894,112 +1102,135 @@ void printSerial()
 {
   if (!B_SERIALPORT)
     return;
-
-  Serial.print("WS");
-
-  Serial.print("tBeforeMeasure");               Serial.print(":");
-  Serial.print(tBeforeMeasure);                 Serial.print(",\t");
-  Serial.print("tAfterMeasure");                Serial.print(":");
-  Serial.print(tAfterMeasure);                  Serial.print(",\t");
-  Serial.print("tAfterAlgo");                   Serial.print(":");
-  Serial.print(tAfterAlgo);                     Serial.print(",\t");
-
-
-  Serial.print("realValue_WU");                 Serial.print(":");
-  Serial.print(realValue_WU);                   Serial.print(",\t");
-  Serial.print("OFFSET");                       Serial.print(":");
-  Serial.print(offset);                         Serial.print(",\t");
-  Serial.printf("calibrationFactor:%f,\t", calibrationFactor);
-
-  Serial.print("relativeVal_WU");               Serial.print(":");
-  Serial.print(relativeVal_WU);                 Serial.print(",\t");
-  Serial.print("realValue_WU_AngleAdj");        Serial.print(":");
-  Serial.print(realValue_WU_AngleAdj);          Serial.print(",\t");
-  Serial.print("realValue");                    Serial.print(":");
-  Serial.print(realValue, 5);                   Serial.print(",\t");
-  Serial.print("realValueFiltered");            Serial.print(":");
-  Serial.print(realValueFiltered, 5);           Serial.print(",\t");
-  Serial.print("correctedValueFiltered");       Serial.print(":");
-  Serial.print(correctedValueFiltered, 5);      Serial.print(",\t");
-
-
-  Serial.print("myAx");                     Serial.print(":");
-  Serial.print(myAx);                       Serial.print(",\t");
-  Serial.print("myAy");                     Serial.print(":");
-  Serial.print(myAy);                       Serial.print(",\t");
-  Serial.print("myAz");                     Serial.print(":");
-  Serial.print(myAz);                       Serial.print(",\t");
-  Serial.print("myGx");                     Serial.print(":");
-  Serial.print(myGx);                       Serial.print(",\t");
-  Serial.print("myGy");                     Serial.print(":");
-  Serial.print(myGy);                       Serial.print(",\t");
-  Serial.print("myGz");                     Serial.print(":");
-  Serial.print(myGz);                       Serial.print(",\t");
-
-  Serial.print("thetadeg");                     Serial.print(":");
-  Serial.print(thetadeg);                       Serial.print(",\t");
-  Serial.print("phideg");                       Serial.print(":");
-  Serial.print(phideg);                         Serial.print(",\t");
-
-  Serial.print("myTmp");                        Serial.print(":");
-  Serial.print(myTmp);                          Serial.print(",\t");
-
-  Serial.printf("BF_MPU:%d\t",BF_MPU);
-
-
-  Serial.printf("VCC_RATIO:%f\t",VCC_RATIO);
-  Serial.printf("ADC_CORRECTION:%f\t",ADC_CORRECTION);
-  Serial.printf("vccBits:%f\t",vccBits);
-  Serial.printf("vccGPIO:%f\t",vccGPIO);
-  Serial.printf("vccVolts:%f\t",vccVolts);
-
-  Serial.printf("bSync:%d\t",bSync);
-
-  /*
-  Serial.print("tareButtonFlank");              Serial.print(":");
-  Serial.print(tareButtonFlank);                Serial.print(",\t");
-  */
-
-
+    /*
+  if (Serial.read()==-1)
+    BF_SERIALPORT = true;
+  else
+    BF_SERIALPORT = false;
+    */
+  if(buildGenericJSON()){
+    Serial.printf("\nWS");
+    serializeJson(genericJSON, Serial); //serializeJsonPretty TODO this ñight be too slo, check the Telnet as example
+  }
 
   Serial.println("");
 }
 
-void printSerialOld()
-{
+//***************************//
+//* SERIAL TELNET FUNCTIONS *//
+//***************************//
 
-  Serial.print(tAfterAlgo);                     Serial.print(",\t");
-  Serial.print(realValue, 4);                   Serial.print(",\t");
-  Serial.print(correctedValue, 4);              Serial.print(",\t");
-  Serial.print(tBeforeMeasure);                 Serial.print(",\t");
-  Serial.print(tAfterMeasure);                  Serial.print(",\t");
-  Serial.print(realValueFiltered, 4);           Serial.print(",\t");
-  Serial.print(correctedValueFiltered, 4);      Serial.print(",\t");
-  Serial.print(bSync);                          Serial.print(",\t");
-  Serial.print(calibrationFactor,4);           Serial.print(",\t");
-  //Serial.print(valLue_WU/realvalLue,4);Serial.print(",\t");
-  Serial.print(offset, 4);                      Serial.print(",\t");
-  Serial.print(realValue_WU);                   Serial.print(",\t");
-  Serial.print(bInactive);                      Serial.print(",\t");
-  Serial.print(lastTimeActivity);               Serial.print(",\t");
-  Serial.print(vccVolts);                       Serial.print(",\t");
-  // Serial.print((float)scale.get_Vcc_offset(), 4);Serial.print(",\t");
 
-  Serial.print(myAx);                           Serial.print(",\t");
-  Serial.print(myAy);                           Serial.print(",\t");
-  Serial.print(myAz);                           Serial.print(",\t");
-  Serial.print(myGx);                           Serial.print(",\t");
-  Serial.print(myGy);                           Serial.print(",\t");
-  Serial.print(myGz);                           Serial.print(",\t");
+bool setupTelnet() {
 
-  Serial.print(thetadeg);                       Serial.print(",\t");
-  Serial.print(phideg);                         Serial.print(",\t");
+  if (!B_SERIALTELNET){
+    Serial.print("WARNING: Telnet is is turned off. Telnet won't work");
+    return false;
+  }
 
-  Serial.print(myTmp);                          Serial.print(",\t");
-  Serial.print(TEMPREF);                        Serial.print(",\t");
-  Serial.print(tempCorrectionValue);            Serial.print(",\t");
+  // Verifying WiFi connection
+  if (!B_WIFI){
+    Serial.print("WARNING: WiFi is turned off. Telnet won't work");
+    return false;
+  }
+  BF_WIFI = !checkWiFiConnection();
+  if (BF_WIFI){
+    Serial.printf("\nWARNING: WiFi failed. Telnet won't work.");
+    return false;
+  }
 
-  Serial.println("");
+  serverTelnet.begin();
+  serverTelnet.setNoDelay(true);
+  Serial.print("Ready to use Telnet ");
+  Serial.println(WiFi.localIP());
+  return true;
+}
+
+bool checkTelnetClients(){
+
+  int i; // Correction TO DO! A variable should keep track of the numnber of clientes
+
+  // Check for new clients
+  if (serverTelnet.hasClient()) {
+    Serial.printf("\nNew client request!\n");
+    for(i = 0; i < MAX_SRV_CLIENTS; i++){
+        //find free/disconnected spot
+        if (!serverTelnetClients[i] || !serverTelnetClients[i].connected()){
+          if(serverTelnetClients[i]) serverTelnetClients[i].stop();
+          serverTelnetClients[i] = serverTelnet.available();
+          if (!serverTelnetClients[i]){Serial.println("Client communication broken");}
+          Serial.printf("\nNew telnet client(%d) \n", i);
+          Serial.println(serverTelnetClients[i].remoteIP());
+          nTelnetClients++;
+          break;
+        }
+    }
+    if (i >= MAX_SRV_CLIENTS) {
+        //no free/disconnected spot so reject
+        Serial.printf("\nWARNING: Maximum of telnet clients reached!\n");
+        serverTelnet.available().stop();
+    }
+
+  }
+
+  for(i = 0; i < MAX_SRV_CLIENTS; i++){
+    // if (serverTelnetClients[i].connected())
+      //Serial.printf("\nClient %d - Connected: %d -  IP: %s \n", i, serverTelnetClients[i].connected(), ip2String(serverTelnetClients[i].remoteIP()).c_str() );
+  }
+
+  return true;
+
+}
+
+void printSerialTelnet(){
+
+  if (!B_SERIALTELNET)
+    return;
+
+  checkTelnetClients();
+
+  buildGenericJSON();
+
+  // DPRINTF("\nLength minified JSON: \t%d", measureJson(genericJSON));
+  // DPRINTF("\nLength prettified JSON: \t%d\n", measureJsonPretty(genericJSON));
+  for(int i = 0; i < MAX_SRV_CLIENTS; i++){
+    if (serverTelnetClients[i] && serverTelnetClients[i].connected()){
+      serverTelnetClients[i].print("WT");
+      String output;
+      serializeJson(genericJSON, output);
+      serverTelnetClients[i].print(output);
+      // serializeJson(genericJSON, serverTelnetClients[i]); //serializeJsonPretty
+      // serverTelnetClients[i].printf("\n"); Unnecessary, the message already has a /r/n at the end
+      delay(1);
+    }
+  }
+}
+
+
+String json2String(DynamicJsonDocument theJSON) {
+  String theString;
+  serializeJson(theJSON, theString);
+  return theString;
+}
+//***************************//
+//*   BLUETOOTH FUNCTIONS   *//
+//***************************//
+
+bool setupBluetooth(){
+  SerialBT.begin("Wooby", true); //Bluetooth device name
+  BF_BLUETOOTH = false; // TODO !
+
+  return true;
+}
+
+void printSerialBluetooth(){
+  // Creating the JSON
+  buildGenericJSON(); // TODO communalize this function for all comm protocols
+  genericJSONString = json2String(genericJSON);
+
+  // Sending the message via bluetooth
+  SerialBT.print(genericJSONString);
+
 }
 
 //*************************//
@@ -1011,9 +1242,15 @@ void setUpWeightAlgorithm(){
     realValueFiltered = 0;
     realValueFiltered_1 = 0;
     bSync = false;
+
+    weightMovAvg.clear();
+    weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG); // (float)scale.get_offset()
 }
 
 void getWoobyWeight(){
+
+    // Updating for synchro
+    relativeVal_WU_1 = relativeVal_WU;
 
     // Raw weighting //
     tBeforeMeasure = millis();
@@ -1023,11 +1260,46 @@ void getWoobyWeight(){
     offset = (float)scale.get_offset();
     relativeVal_WU = realValue_WU - offset;
 
+    // Synchronization calcualtion
+
+    if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale.get_scale()){
+      bSyncTimer = millis();
+      bSync = true;
+    }
+    else{
+      if (millis()-bSyncTimer > BSYNC_TIME){
+        bSync = false;}
+      else{
+        bSync = true;
+      }
+    }
+
     // Angles correction //
     angleAdjustment();
 
+    // Moving average //
+    if (bSync){
+      weightMovAvg.fillValue(realValue_WU_AngleAdj, N_WINDOW_MOV_AVG);
+      realValue_WU_MovAvg = realValue_WU_AngleAdj;
+    }
+    else{
+      weightMovAvg.addValue(realValue_WU_AngleAdj);
+      realValue_WU_MovAvg = weightMovAvg.getFastAverage(); // or getAverage()
+    }
+
+    // Filtering with Arduino-Filters library
+    if (bSync){
+      realValue_WU_Filt = realValue_WU_MovAvg;
+      filterWeight.reset(realValue_WU_MovAvg);
+    }
+    else{
+      realValue_WU_Filt = filterWeight(realValue_WU_MovAvg);
+    }
+
+
     // Conversion to grams //
-    realValue = (realValue_WU_AngleAdj)/scale.get_scale();
+    realValue = realValue_WU_Filt/scale.get_scale(); // (realValue_WU_AngleAdj)/scale.get_scale();
+    /*
     correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
 
     // Filtering  //
@@ -1040,9 +1312,10 @@ void getWoobyWeight(){
       // Updating for filtering
       realValueFiltered_1 = realValueFiltered;
       realValue_1 = realValue;
+    */
 
     // Final correction  //
-    correctedValueFiltered = correctionAlgo(realValueFiltered);
+    correctedValueFiltered = correctionAlgo(realValue);
 
     tAfterAlgo = millis();
 }
@@ -1136,42 +1409,75 @@ void mainDisplayWooby(){
 
         // Display batterie levels //
 
-          u8g.setFont(u8g_font_6x10);
-          u8g.setFontPosTop();
-          u8g.setCursor(100, 12) ; // (Horiz, Vert)
-          BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
-
-
-          u8g.setFont(u8g_font_6x10);
-          u8g.setFontPosTop();
-          u8g.setCursor(120, 12);
-          u8g.print("%");
-
+          // Drawing the battery outlay
           u8g.drawLine(100,   2,    100+22, 2); // (Horiz, Vert)
           u8g.drawLine(100,   2+7,  100+22, 2+7);
           u8g.drawLine(100,   2,    100,    2+7);
           u8g.drawLine(100+22,2,    100+22, 2+7);
+          u8g.drawBox(100+22+1,2+2,2, 7-4+1); // Tip of the battery
 
-          u8g.drawBox(100+22+1,2+2,2, 7-4+1);
-          u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
+          if (false){ //BF_SERIALPORT
+            u8g.setFont(u8g_font_6x10);
+            u8g.setFontPosTop();
+            u8g.setCursor(100, 12) ; // (Horiz, Vert)
+            u8g.print("USB");
+            // Shadow to show level of battery
+            //u8g.drawBox(100+2,2+2,int((22-4+1)*1.0),7-4+1); // (Horiz, Vert, Width, Height)
+            u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
+            u8g.setFontPosTop();
+            u8g.setCursor(108, 1);
+            u8g.print(char(67));
+
+            // For bluttoh u8g2_font_open_iconic_embedded_1x_t char(74)
+
+          }
+          else{
+            // Shadow to show level of battery
+            u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
+
+            u8g.setFont(u8g_font_6x10);
+            u8g.setFontPosTop();
+            u8g.setCursor(100, 12) ; // (Horiz, Vert)
+            BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
+
+            u8g.setFont(u8g_font_6x10);
+            u8g.setFontPosTop();
+            u8g.setCursor(120, 12);
+            u8g.print("%");
+          }
+
+
+
 
         // Display connections //
           u8g.setFont(u8g2_font_open_iconic_www_1x_t);
           u8g.drawStr( 4, 2, "Q");
-          if (!B_HTTPREQ)
-            u8g.drawLine(2,  11,  11, 2);
+          if (!B_WIFI || BF_WIFI)
+            u8g.drawLine(2, 11, 11, 2);
 
           u8g.setFont(u8g_font_6x10);
           u8g.drawStr( 20, 3, "S");
-          if (!B_SERIALPORT)
-            u8g.drawLine(17,  11,  26, 2);
+          if (!B_SERIALPORT || BF_SERIALPORT)
+            u8g.drawLine(17, 11, 26, 2);
+
+          u8g.setFont(u8g_font_6x10);
+          u8g.drawStr( 33, 3, "G");
+          if (!B_GOOGLE_HTTPREQ || BF_GOOGLE_HTTPREQ)
+            u8g.drawLine(30, 11, 39, 2);
+
+          u8g.setFont(u8g2_font_micro_tr);
+          if (B_DEBUG_MODE){
+            char bufIp[] = "192.168.000.000";
+            getIp().toCharArray(bufIp, 15);
+            u8g.drawStr( 46, 3, bufIp );
+          }
 
 
 
     } while(u8g.nextPage());
   }
 
-  if (B_INACTIVITY_ACTIVE){
+  if (B_INACTIVITY_ENABLE){
     inactivityCheck();
     handleActionInactivity();
   }
@@ -1186,12 +1492,13 @@ void setup(void) {
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
 
-
+  /* TEST ATAN2
   DPRINTLN("If I do tan of something/0");
   DPRINTLN(atan2(1,0));
 
   DPRINTLN("If I do tan of 0/0");
   DPRINTLN(atan2(0,0));
+  */
 
   //*       INACTIVITY MANAGEMENT      *//
   wakeupReason = esp_sleep_get_wakeup_cause();
@@ -1207,6 +1514,7 @@ void setup(void) {
   else{
     Serial.println("Hello! I'm Wooby!! ");
     Serial.println("Initializing to measure tons of smiles ... ");
+    displayImage(logoWooby);
   }
 
   //*       SET UP  WEIGHT SENSOR       *//
@@ -1222,7 +1530,7 @@ void setup(void) {
   setupMPU();
   readMPU();  // Read the info for initializing vars and availability
 
-  //*            FILTERING            *//
+  //*          FILTERING           *//
   setUpWeightAlgorithm();
 
   //*          INACTIVITY          *//
@@ -1231,16 +1539,39 @@ void setup(void) {
   //*          TARE BUTTON         *//
   initTareButton();
 
-  //*          AUTO TARE         *//
+  //*          AUTO TARE           *//
   if(wakeupReason!=2){
       myTare();
   }
 
-  //*          VCC MANAGEMENT        *//
+  //*          VCC MANAGEMENT      *//
+  Serial.printf("\nSetup Vcc management\n");
   setupVccMgnt();
 
-  //*          GOOGLE COMS        *//
+  //*         WIFI CONNECTION        *//
+  Serial.printf("\nSetup WiFi\n");
+  BF_WIFI = !setupWiFi();
+
+  //*          GOOGLE COMS         *//
+  Serial.printf("\nSetup Google Comms\n");
+  // TODO ! Create a Google Coms Failure boolean
   setupGoogleComs();
+
+  //*          SERIAL TELNET       *//
+  Serial.printf("\nSetup Telnet Serial\n");
+  BF_SERIALTELNET = !setupTelnet();
+
+  //*       SERIAL BLUETOOTH       *//
+  Serial.printf("\nSetup BLE Serial\n");
+  BF_BLUETOOTH = !setupBluetooth();
+
+
+
+
+  //*          OTA SERVER      *//
+  Serial.printf("\nSetup OTA\n");
+  // TODO ! Create a OTA Failure boolean
+  setupOTA();
 
   unsigned long setUpTimeEnd =  millis();
   DPRINTLN("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
@@ -1280,7 +1611,6 @@ void loop(void) {
 
   switch (state) {
     case 0:
-            displayImage(logoWooby);
             state++;
     break;
     case 1:
@@ -1305,35 +1635,49 @@ void loop(void) {
     case 3:
     {
 
-            // Main display loop
+      // Main display loop
 
-            // Tare button //
-            tareButtonAction();
+        // Tare button //
+        newTareButtonAction();
 
-            //   //
-            readVcc();
+        //  Vcc management  //
+        readVcc();
 
-            // Weighting //
-            getWoobyWeight();
+        // Weighting //
+        getWoobyWeight();
 
-            // GyroAcc adjustement  //
+        // Temperature algorithm // TODO: create a function
+        tempCorrectionValue_WU = (P1*(myTmp-TEMPREF)+P0); //
+        tempCorrectionValue = (tempCorrectionValue_WU)/scale.get_scale();
 
-            // Temperature algorithm // TODO: create a function
-            tempCorrectionValue_WU = (P1*(myTmp-TEMPREF)+P0); //
-            tempCorrectionValue = (tempCorrectionValue_WU)/scale.get_scale();
+        // Serial monitor outputs  //
+        printSerial();
+        // Serial.printf("\n Free heap: %d", ESP.getFreeHeap()); // getSketchSize getFreeSketchSpace
+        // Serial.printf("\n Skecth size: %d", ESP.getSketchSize());
+        // Serial.printf("\n Vcc: %d", ESP.getVcc());
 
-            // Serial monitor outputs  //
-            printSerial();
+        // Google sheet data Sending  //
+        // unsigned long tBeforeGoogle = millis();
+        sendDataToGoogle();
+        // unsigned long tAfterGoogle  = millis();
+        // Serial.printf("%d ms to send data to Google",tAfterGoogle-tBeforeGoogle);
 
-            // Google sheet data Sending  //
-            sendDataToGoogle();
+        // Serial Telnet outputs  //
+        // unsigned long tBeforeTelnet = millis();
+        printSerialTelnet();
+        // unsigned long tAfterTelnet  = millis();
+        // Serial.printf("%d ms to send data thru Telnet",tAfterTelnet-tBeforeTelnet);
 
-            // Updating for inactivity check
-            displayFinalValue_1 = displayFinalValue;
-            displayFinalValue   = correctedValueFiltered;
 
-            //     Displaying     //
-            mainDisplayWooby();
+        // OTA server   //
+        serverOTA.handleClient();
+
+        // Updating for inactivity check
+        displayFinalValue_1 = displayFinalValue;
+        displayFinalValue   = correctedValueFiltered;
+
+        //     Displaying     //
+        mainDisplayWooby();
 
       break;
     }
