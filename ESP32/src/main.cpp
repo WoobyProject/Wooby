@@ -1,32 +1,17 @@
 // #include "U8glib.h"
 #include <U8g2lib.h>                 // by Oliver
 #include "HX711.h"
-// #include "Vcc.h"
 #include <Wire.h>
 #include <math.h>
 
 #include "WoobyImage.h"
-// #include "Filter.h"
-#include "WoobyWiFi.h"
+
 #include "Debugging.h"
 
-#include <Filters/IIRFilter.hpp>
+#include "Filters/IIRFilter.hpp"
 #include <RunningAverage.h>
 
 #include <EasyButton.h>
-
-#include <ArduinoJson.h>
-#include "BluetoothSerial.h"
-
-
-// TODO :
-// 4. Unify buffer for display ()
-// 5. Create a progress bar for init
-// 6. Create a boolean to know if the Serial port is connected (harder than I thought)
-//  6.1 Show "USB" when the connected to PC
-// 7. Resynchro the measurement in moving average (done!)
-// 8. Check (if) why accelerations are greater than 1 (myAz!)
-// 9. Batteries only last until 5 V. Maping of the % (done!)
 
 
 //************************//
@@ -44,6 +29,7 @@
 
   // TYPE = 0 (PROTOTYPE)
   #if TYPE==0
+    bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
@@ -59,6 +45,7 @@
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)
   #if TYPE==3
+    bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = false;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
@@ -66,14 +53,20 @@
     bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
-    bool B_GOOGLE_HTTPREQ = false;
-    bool B_SERIALPORT = true;
-    bool B_SERIALTELNET = true;
-    bool B_OTA = true;
+    bool B_SERIALPORT = false;
+    bool B_WIFI = true;
+    bool B_WIFI_SMART_CONFIG = false;
+    #define B_SERIALTELNET true 
+    #define B_GOOGLE_HTTPREQ false
+    #define B_OTA true
+    #define B_BLE true 
   #endif
+
+    
 
   // TYPE = 1 (FINAL DELIVERY)
   #if TYPE==1
+    bool B_DEBUG_MODE = false;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = true;
@@ -87,12 +80,18 @@
     bool B_OTA = false;
   #endif
 
-#include "OTAserver.h"
+#include <ArduinoJson.h>            // by Benoit Blanchon
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+// For encryption
+/*
+#include <SHA256.h>
+#include <rBase64.h>                //  by boseji
+*/
 
-//************************//
-//*   DEBUG MODE CONF    *//
-//************************//
-  bool B_DEBUG_MODE = true;
+#include "WoobyWiFi.h"
+
+#include "OTAserver.h"
 
 //************************//
 //*      SENSOR CONF     *//
@@ -100,9 +99,6 @@
   #define DOUT 19     // For Arduino 6
   #define CLK  18     // For Arduino 5
 
-  // For Arduino:
-  // HX711 scale(DOUT, CLK);
-  // For ESP:
   HX711 scale;
 
   // Model choice
@@ -150,11 +146,6 @@
     const int nMeasures = 7;
     const int nMeasuresTare = 7;
 
-    struct filterResult {
-      float yk;
-      int   bSync;
-    };
-
     // Definition of the coeffs for the filter
     // Remember : Te = nMeasures*100 ms
     //            b = 1 - math.exp(-Te/tau)
@@ -163,10 +154,8 @@
     const float b =  0.3915; // Te = nMeasures*100 ms
     const float a =  0.6085; //
 
-    // FIlter = y/u = b*z-1(1-a)
+    // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<2, 2, float> filterWeight = {{0, b}, {1, -a}};
-
-    filterResult realValueFilterResult;
 
     const float FILTERING_THR = 20;  // in grams
 
@@ -187,7 +176,7 @@
 
     bool bSync;
     unsigned long bSyncTimer = 0 ;
-    unsigned long BSYNC_TIME = 2000;
+    const unsigned long BSYNC_TIME = 2000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg(N_WINDOW_MOV_AVG);
@@ -197,11 +186,6 @@
 //************************//
 
   float TEMPREF = 26.0;
-
-  float const P3 =   -1.2349e-06;
-  float const P2 =    1.3114e-05;
-  float const P1 =  -46.122436;
-  float const P0 =    0.0;
 
   float const calib_theta_2 = -0.00014;
 
@@ -218,8 +202,6 @@
     float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
   #endif
 
-  float tempCorrectionValue_WU = 0;
-  float tempCorrectionValue = 0;
 
 //************************//
 //*  VCC MANAGEMENT CONF *//
@@ -234,13 +216,13 @@
   const int N_VCC_READ = 10;
   float K_BITS_TO_VOLTS = 3.3/4095;
 
-  float realMeasureVcc =      7.270;
-  float realMeasureDivider =  2.355;
-  float realMeasureADC =      2.154;
+  const float realMeasureVcc =      7.270;
+  const float realMeasureDivider =  2.355;
+  const float realMeasureADC =      2.154;
 
-  float RATIO_VCC_DIV = realMeasureVcc/realMeasureDivider;
-  float RATIO_VCC_ADC = realMeasureVcc/realMeasureADC;
-  float RATIO_DIV_ADC = realMeasureDivider/realMeasureADC;
+  const float RATIO_VCC_DIV = realMeasureVcc/realMeasureDivider;
+  const float RATIO_VCC_ADC = realMeasureVcc/realMeasureADC;
+  const float RATIO_DIV_ADC = realMeasureDivider/realMeasureADC;
 
   float vccReadBits = 0;      // Voltage read by the ADC (in bits)
   float vccReadVolts = 0;     // Voltage read by the ADC (in Volts)
@@ -276,17 +258,16 @@
 
 // For Arduino:
 //  U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_DEV_0|U8G_I2C_OPT_NO_ACK|U8G_I2C_OPT_FAST); // Fast I2C / TWI
-// For ESP32
+// For ESP32:
   U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // For ESP32, replace 'setPrintPos' by 'setCursor'.
   int state = 0;
-  char static aux[21] = "01234567890123456789";
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
 
-  bool bErrorDisplay = false;
+  bool BF_DISPLAY = false;
 
 //************************//
 //*    INACTIVITY CONF   *//
@@ -316,30 +297,26 @@
 
   bool BF_MPU=false;
 
-//************************//
-//*   GOOGLE COMMS CONF  *//
-//************************//
-
-  unsigned long countForGoogleSend = 0;
-  bool BF_GOOGLE_HTTPREQ = false;
 
 //************************//
 //*   TELNET COMMS CONF  *//
 //************************//
 
+#if B_SERIALTELNET==true
   #define MAX_SRV_CLIENTS 1
   WiFiServer serverTelnet(23);
   WiFiClient serverTelnetClients[MAX_SRV_CLIENTS];
   bool BF_SERIALTELNET = false;
   int nTelnetClients = 0;
+#endif
 
 //************************//
 //*       JSON CONF      *//
 //************************//
 
   // See https://arduinojson.org/v6/assistant/
-  const int N_FIELDS_JSON = 28;
-  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 1160;
+  const int N_FIELDS_JSON = 36;
+  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 0; //1620
   DynamicJsonDocument genericJSON(CAPACITY_JSON);
   String genericJSONString; // TODO  create a String with the right MAX length
 
@@ -353,9 +330,12 @@
 //*     BLUETOOTH CONF   *//
 //************************//
 
-
-  BluetoothSerial SerialBT;
-  bool BF_BLUETOOTH = false;
+  #if B_BLE == true 
+    #include "BluetoothSerial.h"
+    BluetoothSerial SerialBT;
+    bool BF_BLUETOOTH = false;
+    bool BT_CLIENT_CONNECT = false;
+  #endif
 
   //************************//
   //* GYRO/ACCEL FUNCTIONS *//
@@ -388,7 +368,7 @@
 
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x3B);
-    uint8_t errorEndTrans = Wire.endTransmission(false);
+    Wire.endTransmission(false);
 
     uint8_t errorRF = Wire.requestFrom(MPU_ADDR,14,true);
 
@@ -454,7 +434,7 @@ void myTare(){
   filterWeight.reset(0);
 
   // Reading reference temperature
-  readTemp();
+  readMPU();
   TEMPREF = myTmp;
   DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
@@ -467,7 +447,7 @@ float correctionAlgo(float realValue){
   float correctedValue = 0;
 
   // Around zero values deletion //
-    if (realValue< MIN_GR_VALUE && realValue>-1*MIN_GR_VALUE){
+    if (realValue<MIN_GR_VALUE && realValue>-1*MIN_GR_VALUE){
       return correctedValue = 0.0;
     }
 
@@ -478,24 +458,6 @@ float correctionAlgo(float realValue){
 
   return correctedValue;
 }
-
-filterResult filtering(float uk, float uk_1, float yk_1){
-
-  filterResult myResult;
-  if (abs(uk-uk_1) < FILTERING_THR) {
-    // Filtering
-    myResult.yk = b*uk_1 + a*yk_1;
-    myResult.bSync = 0;
-    }
-  else{
-    // Syncing
-    myResult.yk = uk;
-    myResult.bSync = 1;
-  }
-
-  return myResult;
-}
-
 
 
 //********************++++****//
@@ -516,19 +478,9 @@ void couplingBLE(){
   Serial.printf("\n\nCoupling BLE! \n\n");
 }
 
-
 void initTareButton(){
 
   pinMode(PIN_PUSH_BUTTON, INPUT);
-
-  /*
-  DPRINTLN("Initializing the tare button ... ");
-  tareButtonStateN   = 0;
-  tareButtonStateN_1 = 0;
-  tareButtonFlank    = 0;
-  tStartTareButton = 0;
-  tEndTareButton = 0;
-  */
 
   //*         Easy Button      *//
   tareButton.begin();
@@ -537,55 +489,6 @@ void initTareButton(){
   tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
   tareButton.onPressedFor(3000, couplingBLE );          // For BLE coupling
 
-}
-
-
-int updateTareButton(){
-  delay(100);
-
-  // Update
-  tareButtonStateN_1 = tareButtonStateN;
-  tareButtonStateN = digitalRead(PIN_PUSH_BUTTON);
-  tareButtonFlank = tareButtonStateN - tareButtonStateN_1;
-
-  //if (tareButtonStateN)
-  //  DPRINTLN("Tare button pushed! ");
-
-  switch (tareButtonFlank){
-    case   1: DPRINTLN("Up flank!");
-              tStartTareButton = millis();
-              return -1;
-              break;
-    case  -1: DPRINTLN("Down flank!");
-              tEndTareButton = millis();
-              // Serial.print("Time:");
-              // Serial.println(tEndTareButton-tStartTareButton);
-              return (tEndTareButton-tStartTareButton);
-              break;
-    default:  return -1;
-              break;
-  }
-}
-
-/*
-void tareButtonFunction() // TODO: verify if this is ok (and/or used)
-{
-  int Push_button_state = digitalRead(PIN_PUSH_BUTTON);
-  if ( Push_button_state == HIGH )
-  {
-    myTare();
-  }
-}
-*/
-
-void tareButtonAction()
-{
-  int timeButton = updateTareButton();
-  if (timeButton>200){
-    DPRINTLN("Time tare button: ");
-    DPRINTLN(timeButton);
-    myTare();
-  }
 }
 
 void newTareButtonAction()
@@ -632,28 +535,14 @@ void readVcc(){
   Serial.printf("\nRatio to Vcc (%%): %f \n", int(100*ratioVCCMAX));
 */
 
-   /* For Arduino:
-   myVcc = vcc.Read_Volts();
-   // int deltaOFFSETVcc = correctionVcc(myVcc);
-   myVccFiltered = VccFilter.update(myVcc);
-
-   ratioVCCMAX = min(myVccFiltered/VCCMAX, 1.0);
-   */
 
 }
 
 void setupVccMgnt(){
-  // For Arduino:
-  // myVcc = vcc.Read_Volts();
-  // VccFilter.init(myVcc);
 
   analogReadResolution(12);
   analogSetWidth(12);
-  analogSetPinAttenuation(PIN_VCC,ADC_11db); // Sets the input attenuation, default is ADC_11db, range is ADC_0db, ADC_2_5db, ADC_6db, ADC_11db
-                                        // ADC_0db provides no attenuation so IN/OUT = 1 / 1 an input of 3 volts remains at 3 volts before ADC measurement
-                                        // ADC_2_5db provides an attenuation so that IN/OUT = 1 / 1.34 an input of 3 volts is reduced to 2.238 volts before ADC measurement
-                                        // ADC_6db provides an attenuation so that IN/OUT = 1 / 2 an input of 3 volts is reduced to 1.500 volts before ADC measurement
-                                        // ADC_11db provides an attenuation so that IN/OUT = 1 / 3.6 an input of 3 volts is reduced to 0.833 volts before ADC measurement
+  analogSetPinAttenuation(PIN_VCC,ADC_11db); // ADC_11db provides an attenuation so that IN/OUT = 1 / 3.6 an input of 3 volts is reduced to 0.833 volts before ADC measurement
 
   readVcc();
 }
@@ -678,19 +567,17 @@ void setupDisplay(){
 
   // Set up of the default font
     u8g.setFont(u8g2_font_6x10_tf);
-    // u8g.setFont(u8g_font_9x18);
-    // u8g.setFont(u8g2_font_osb18_tf);
 
  // Other display set-ups
     u8g.setFontRefHeightExtendedText();
     // For Arduino: u8g.setDefaultForegroundColor();
     u8g.setFontPosTop();
 
-    bErrorDisplay = false;
+    BF_DISPLAY = false;
   }
   catch(int e){
     Serial.println("Not possible to activate the display");
-    bErrorDisplay = true;
+    BF_DISPLAY = true;
   }
 }
 
@@ -713,7 +600,7 @@ void poweredByDisplay(void){
   u8g.setFont(u8g2_font_osb18_tf);
 
   do {
-      u8g.setFont(u8g_font_6x10);
+      u8g.setFont(u8g2_font_6x10_tf);
       u8g.drawStr( 30, 15, "Powered by");
       u8g.setFont(u8g2_font_osb18_tf);
       u8g.drawStr( 10, 40, "Humanity");
@@ -739,7 +626,7 @@ void sponsorsDisplay(void){
       u8g.setFont(u8g2_font_osb18_tf);
       u8g.drawStr( 15, 25, "AIRBUS");
 
-      u8g.setFont(u8g_font_6x10);
+      u8g.setFont(u8g2_font_6x10_tf);
       u8g.drawStr( 60, 35, "&");
 
       u8g.setFont(u8g2_font_osb18_tf);
@@ -752,35 +639,15 @@ void sponsorsDisplay(void){
 
 }
 
-void clockShoot(int currentTime, int finalTime) {
-
-  int X0 = DISPLAY_WIDTH/2;
-  int Y0 = DISPLAY_HEIGHT/2;
-  int R = int(DISPLAY_HEIGHT*0.5*0.5);
-  int GAP = R*0.25;
-
-  float N = float(currentTime)/float(finalTime);
-  int X = X0 + int((R-GAP)*sin(N*2*3.1416)) ;
-  int Y = Y0 - int((R-GAP)*cos(N*2*3.1416)) ;
-
-  u8g.drawCircle(X0, Y0, R);
-  u8g.drawCircle(X0, Y0, R-2);
-  u8g.drawLine(X0, Y0, X, Y);
-
-  u8g.setCursor(15, 55) ;
-  u8g.print(int((finalTime-currentTime)/1000)+1, 1);
-
-}
-
 void wakingUpDisplay(){
   // Set up the display
   u8g.firstPage();
   u8g.setFont(u8g2_font_osb18_tf);
 
   do{
-    u8g.setFont(u8g2_font_helvR08_tf); //u8g_font_6x10
+    u8g.setFont(u8g2_font_6x10_tf); //u8g2_font_6x10_tf
     u8g.drawStr( 45, 10, "Woooooby!");
-    u8g.setFont(u8g2_font_helvR14_tf);
+    u8g.setFont(u8g2_font_osb18_tf);
     u8g.drawStr( 20, 20, "Waking up");
   }while(u8g.nextPage());
   delay(1000);
@@ -792,11 +659,11 @@ void sleepingDisplay(){
   u8g.setFont(u8g2_font_osb18_tf);
 
   do{
-    u8g.setFont(u8g2_font_artossans8_8r); //u8g_font_6x10
+    u8g.setFont(u8g2_font_6x10_tf); //u8g2_font_6x10_tf
     u8g.drawStr( 55, 10, "zzz");
-    u8g.setFont(u8g2_font_helvR14_tf);
+    u8g.setFont(u8g2_font_osb18_tf);
     u8g.drawStr( 30, 25, "Going to");
-    u8g.setFont(u8g2_font_helvR14_tf);
+    u8g.setFont(u8g2_font_osb18_tf);
     u8g.drawStr( 45, 40, "sleep");
   }while(u8g.nextPage());
 
@@ -816,15 +683,6 @@ void print_wakeup_reason(){
     case 4  : Serial.println("Wakeup caused by touchpad"); break;
     case 5  : Serial.println("Wakeup caused by ULP program"); break;
     default : Serial.println("Wakeup was not caused by deep sleep"); break;
-  }
-}
-
-void manage_wakeup_reason(){
-  if (esp_sleep_get_wakeup_cause()==2){
-    Serial.println("Wakeup caused by external signal using RTC_IO");
-  }
-  else{
-    Serial.println("Wakeup was not caused by deep sleep");
   }
 }
 
@@ -936,163 +794,188 @@ bool buildGenericJSON(){
   genericJSON["vccVolts"] = vccVolts;
   genericJSON["ratioVCCMAX"] = ratioVCCMAX;
 
-  genericJSON["B_GOOGLE_HTTPREQ"] = B_GOOGLE_HTTPREQ;
-  genericJSON["B_SERIALPORT"] = B_SERIALPORT;
-  genericJSON["B_SERIALTELNET"] = B_SERIALTELNET;
-  genericJSON["B_ANGLE_ADJUSTMENT"] = B_ANGLE_ADJUSTMENT;
   genericJSON["B_DEBUG_MODE"] = B_DEBUG_MODE;
 
-  genericJSON["BF_GOOGLE_HTTPREQ"] = BF_GOOGLE_HTTPREQ;
-  genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
-  genericJSON["BF_SERIALTELNET"] = BF_SERIALTELNET;
-  genericJSON["BF_MPU"] = BF_MPU;
-  genericJSON["BF_WIFI"] = BF_WIFI;
+  #if B_GOOGLE_HTTPREQ
+    genericJSON["B_GOOGLE_HTTPREQ"] = B_GOOGLE_HTTPREQ;
+    genericJSON["BF_GOOGLE_HTTPREQ"] = BF_GOOGLE_HTTPREQ;
+  #endif
+
+  #if B_SERIALPORT
+    genericJSON["B_SERIALPORT"] = B_SERIALPORT;
+    genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
+  #endif
+
+  #if B_SERIALTELNET
+    genericJSON["B_SERIALTELNET"] = B_SERIALTELNET;
+    genericJSON["BF_SERIALTELNET"] = BF_SERIALTELNET;
+  #endif
+
+  #if B_ANGLE_ADJUSTMENT
+    genericJSON["B_ANGLE_ADJUSTMENT"] = B_ANGLE_ADJUSTMENT;
+    genericJSON["BF_MPU"] = BF_MPU;
+  #endif
+
+  #if B_WIFI
+    genericJSON["B_WIFI"] = BF_WIFI;
+    genericJSON["BF_WIFI"] = BF_WIFI;
+  #endif
 
   return true;
+}
+
+String json2String(DynamicJsonDocument theJSON) {
+  String theString;
+  serializeJson(theJSON, theString);
+  return theString;
 }
 
 //**************************//
 //* HTTP REQUEST FUNCTIONS *//
 //**************************//
 
-bool setupGoogleComs(){
-  if (!B_GOOGLE_HTTPREQ){
-    Serial.printf("\nWARNING: Google comms are disabled.");
-    return false;
+#if B_GOOGLE_HTTPREQ
+
+  bool setupGoogleComs(){
+    if (!B_GOOGLE_HTTPREQ){
+      Serial.printf("\nWARNING: Google comms are disabled.");
+      return false;
+    }
+
+    // Verifying WiFi connection
+    BF_WIFI = !checkWiFiConnection();
+    if (BF_WIFI){
+      Serial.printf("\nWARNING: WiFi is disabled. Google comms wiil be disabled too.");
+      return false;
+    }
+
+    // Connexion to Google
+    clientForGoogle.setCACert(root_ca);
+
   }
 
-  // Verifying WiFi connection
-  BF_WIFI = !checkWiFiConnection();
-  if (BF_WIFI){
-    Serial.printf("\nWARNING: WiFi is disabled. Google comms wiil be disabled too.");
-    return false;
+  void hashJSON(char* data, unsigned len) {
+    // Hash encryption of the JSON
+    sha.resetHMAC(key, sizeof(key));
+    sha.update(data, len);
+    sha.finalizeHMAC(key, sizeof(key), hmacResult, sizeof(hmacResult));
+    DPRINTLN("DataSize :" + String(len));
+    DPRINTLN(data);
+    DPRINTLN("HashSize :" + String(sha.hashSize( )));
+    DPRINTLN("BlockSize:" + String(sha.blockSize()));
+    sha.clear();
+
   }
 
-  // Connexion to Google
-  clientForGoogle.setCACert(root_ca);
+  String buildJson(){
 
-}
+    Serial.println("IP ADDRESS");
+    Serial.println(getIp());
 
-void hashJSON(char* data, unsigned len) {
-  // Hash encryption of the JSON
-  sha.resetHMAC(key, sizeof(key));
-  sha.update(data, len);
-  sha.finalizeHMAC(key, sizeof(key), hmacResult, sizeof(hmacResult));
-  DPRINTLN("DataSize :" + String(len));
-  DPRINTLN(data);
-  DPRINTLN("HashSize :" + String(sha.hashSize( )));
-  DPRINTLN("BlockSize:" + String(sha.blockSize()));
-  sha.clear();
+    dataItem["tBeforeMeasure"     ]     = tBeforeMeasure;
+    dataItem["tAfterMeasure"     ]      = tAfterMeasure;
+    dataItem["IPadress" ]               = getIp();
+    dataItem["realValueFiltered"     ]  = realValueFiltered;
+    dataItem["correctedValueFiltered"]  = correctedValueFiltered;
+    dataItem["bSync"     ]              = bSync;
+    dataItem["calibrationFactor"     ] = calibrationFactor;
+    dataItem["offset"]                  = offset;
+    dataItem["realValue_WU"     ]       = realValue_WU;
+    dataItem["bInactive"]               = bInactive;
+    dataItem["lastTimeActivity"     ]   = lastTimeActivity;
+    dataItem["myAx"]                    = myAx;
+    dataItem["myAy"]                    = myAy;
+    dataItem["myAz"]                    = myAz;
+    dataItem["thetadeg"]                = thetadeg;
+    dataItem["phideg"]                  = phideg;
+    dataItem["myTmp"]                   = myTmp;
+    dataItem["TEMPREF"]                 = TEMPREF;
+    dataItem["MODEL"]                   = MODEL;
 
-}
+    char name[] = "Wooby";
+    // strcat(ARDUINO_BOARD,name);
+    dataItem["ThisBoard"] =  name; //<char*>
 
-String buildJson(){
+    // Put the json in a string
+    String jsonStr;
+    serializeJson(dataItem, jsonStr);
+    // Put the json string in char array
+    char chBuf[jsonStr.length()];
+    jsonStr.toCharArray(chBuf, jsonStr.length()+1);
 
-  Serial.println("IP ADDRESS");
-  Serial.println(getIp());
+    DPRINTLN("jsonStr :" + String(jsonStr));
+    DPRINTLN("chBuf   :" + String(chBuf  ));
+    DPRINTLN("jsonStr length:" + String(jsonStr.length()));
+    DPRINTLN("chBuf   length:" + String(sizeof(chBuf   )));
 
-  dataItem["tBeforeMeasure"     ]     = tBeforeMeasure;
-  dataItem["tAfterMeasure"     ]      = tAfterMeasure;
-  dataItem["IPadress" ]               = getIp();
-  dataItem["realValueFiltered"     ]  = realValueFiltered;
-  dataItem["correctedValueFiltered"]  = correctedValueFiltered;
-  dataItem["bSync"     ]              = bSync;
-  dataItem["calibrationFactor"     ] = calibrationFactor;
-  dataItem["offset"]                  = offset;
-  dataItem["realValue_WU"     ]       = realValue_WU;
-  dataItem["bInactive"]               = bInactive;
-  dataItem["lastTimeActivity"     ]   = lastTimeActivity;
-  dataItem["myAx"]                    = myAx;
-  dataItem["myAy"]                    = myAy;
-  dataItem["myAz"]                    = myAz;
-  dataItem["thetadeg"]                = thetadeg;
-  dataItem["phideg"]                  = phideg;
-  dataItem["myTmp"]                   = myTmp;
-  dataItem["TEMPREF"]                 = TEMPREF;
-  dataItem["MODEL"]                   = MODEL;
+    // Hashing JSON ??
+    hashJSON(chBuf, sizeof(chBuf));
+    rbase64.encode((char*)hmacResult);
 
-  char name[] = "Wooby";
-  // strcat(ARDUINO_BOARD,name);
-  dataItem["ThisBoard"] =  name; //<char*>
+    String resultHash = String(rbase64.result());
+    DPRINTLN("Hash String: ");
+    DPRINTLN(resultHash);
 
-  // Put the json in a string
-  String jsonStr;
-  serializeJson(dataItem, jsonStr);
-  // Put the json string in char array
-  char chBuf[jsonStr.length()];
-  jsonStr.toCharArray(chBuf, jsonStr.length()+1);
+    String completeJSON = "{\"HMACRes\":\"" + resultHash + "\",\"Data\":" + jsonStr + "}";
+    String payLoad      = "tag=DataESP&value=" + completeJSON;
 
-  DPRINTLN("jsonStr :" + String(jsonStr));
-  DPRINTLN("chBuf   :" + String(chBuf  ));
-  DPRINTLN("jsonStr length:" + String(jsonStr.length()));
-  DPRINTLN("chBuf   length:" + String(sizeof(chBuf   )));
+    DPRINTLN("payload: ");
+    DPRINTLN(payLoad);
 
-  // Hashing JSON ??
-  hashJSON(chBuf, sizeof(chBuf));
-  rbase64.encode((char*)hmacResult);
+    return payLoad;
 
-  String resultHash = String(rbase64.result());
-  DPRINTLN("Hash String: ");
-  DPRINTLN(resultHash);
-
-  String completeJSON = "{\"HMACRes\":\"" + resultHash + "\",\"Data\":" + jsonStr + "}";
-  String payLoad      = "tag=DataESP&value=" + completeJSON;
-
-  DPRINTLN("payload: ");
-  DPRINTLN(payLoad);
-
-  return payLoad;
-
-}
-
-bool sendJson(){
-  String payLoad = buildJson();
-
-  // Connexion to the host
-  DPRINTLN("Connecting to ");
-  DPRINTLN(host);
-
-  if (!clientForGoogle.connect(host, port)){
-    ERRORPRINTLN("Connection failed.");
-    return false;
   }
 
-  try{
-    String postRequest =   "POST "  + String(uri)  + " HTTP/1.1\r\n" +
-                           "Host: " + String(host) + "\r\n" +
-                           "Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" +
-                       //  "Content-Type: application/json; utf-8\r\n" +
-                           "Content-Length: " + payLoad.length() + "\r\n" + "\r\n" + payLoad;
+  bool sendJson(){
+    String payLoad = buildJson();
 
-    DPRINTLN("Post request: ");
-    DPRINTLN(postRequest);
+    // Connexion to the host
+    DPRINTLN("Connecting to ");
+    DPRINTLN(host);
 
-    // Sending the final string
-    clientForGoogle.print(postRequest);
-    clientForGoogle.stop();
-    return true;
-  }
-  catch(int e){
-    ERRORPRINT("Post request not succcessful");
-    ERRORPRINT(e);
-    return false;
-  }
-}
+    if (!clientForGoogle.connect(host, port)){
+      ERRORPRINTLN("Connection failed.");
+      return false;
+    }
 
-bool sendDataToGoogle(){
-  // Verify the activation
-  if (!B_GOOGLE_HTTPREQ){
-    return false;
+    try{
+      String postRequest =   "POST "  + String(uri)  + " HTTP/1.1\r\n" +
+                            "Host: " + String(host) + "\r\n" +
+                            "Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" +
+                        //  "Content-Type: application/json; utf-8\r\n" +
+                            "Content-Length: " + payLoad.length() + "\r\n" + "\r\n" + payLoad;
+
+      DPRINTLN("Post request: ");
+      DPRINTLN(postRequest);
+
+      // Sending the final string
+      clientForGoogle.print(postRequest);
+      clientForGoogle.stop();
+      return true;
+    }
+    catch(int e){
+      ERRORPRINT("Post request not succcessful");
+      ERRORPRINT(e);
+      return false;
+    }
   }
 
-  if (countForGoogleSend == N_GSHEETS){
-    sendJson();
-    countForGoogleSend = 0;
+  bool sendDataToGoogle(){
+    // Verify the activation
+    if (!B_GOOGLE_HTTPREQ){
+      return false;
+    }
+
+    if (countForGoogleSend == N_GSHEETS){
+      sendJson();
+      countForGoogleSend = 0;
+    }
+    else{
+      countForGoogleSend++;
+    }
   }
-  else{
-    countForGoogleSend++;
-  }
-}
+
+#endif
 
 //***************************//
 //* SERIAL COMMS FUNCTIONS  *//
@@ -1102,94 +985,94 @@ void printSerial()
 {
   if (!B_SERIALPORT)
     return;
-    /*
+
+  if (BF_SERIALPORT)
+    return;
+  
+  /*
   if (Serial.read()==-1)
     BF_SERIALPORT = true;
   else
     BF_SERIALPORT = false;
-    */
-  if(buildGenericJSON()){
-    Serial.printf("\nWS");
-    serializeJson(genericJSON, Serial); //serializeJsonPretty TODO this ñight be too slo, check the Telnet as example
-  }
-
-  Serial.println("");
+  */
+  
+  Serial.printf("\nWS");
+  serializeJson(genericJSON, Serial); //serializeJsonPretty TODO this ñight be too slo, check the Telnet as example
 }
 
 //***************************//
 //* SERIAL TELNET FUNCTIONS *//
 //***************************//
 
+#if B_SERIALTELNET==true
 
-bool setupTelnet() {
+  bool setupTelnet() {
 
-  if (!B_SERIALTELNET){
-    Serial.print("WARNING: Telnet is is turned off. Telnet won't work");
-    return false;
+    if (!B_SERIALTELNET){
+      Serial.print("WARNING: Telnet is is turned off. Telnet won't work");
+      return false;
+    }
+
+    // Verifying WiFi connection
+    if (!B_WIFI){
+      Serial.print("WARNING: WiFi is turned off. Telnet won't work");
+      return false;
+    }
+    BF_WIFI = !checkWiFiConnection();
+    if (BF_WIFI){
+      Serial.printf("\nWARNING: WiFi failed. Telnet won't work.");
+      return false;
+    }
+
+    serverTelnet.begin();
+    serverTelnet.setNoDelay(true);
+    Serial.print("Ready to use Telnet ");
+    Serial.println(WiFi.localIP());
+    return true;
   }
 
-  // Verifying WiFi connection
-  if (!B_WIFI){
-    Serial.print("WARNING: WiFi is turned off. Telnet won't work");
-    return false;
-  }
-  BF_WIFI = !checkWiFiConnection();
-  if (BF_WIFI){
-    Serial.printf("\nWARNING: WiFi failed. Telnet won't work.");
-    return false;
-  }
+  bool checkTelnetClients(){
 
-  serverTelnet.begin();
-  serverTelnet.setNoDelay(true);
-  Serial.print("Ready to use Telnet ");
-  Serial.println(WiFi.localIP());
-  return true;
-}
+    int i; // Correction TO DO! A variable should keep track of the numnber of clientes
 
-bool checkTelnetClients(){
+    // Check for new clients
+    if (serverTelnet.hasClient()) {
+      Serial.printf("\nNew client request!\n");
+      for(i = 0; i < MAX_SRV_CLIENTS; i++){
+          //find free/disconnected spot
+          if (!serverTelnetClients[i] || !serverTelnetClients[i].connected()){
+            if(serverTelnetClients[i]) serverTelnetClients[i].stop();
+            serverTelnetClients[i] = serverTelnet.available();
+            if (!serverTelnetClients[i]){Serial.println("Client communication broken");}
+            Serial.printf("\nNew telnet client(%d) \n", i);
+            Serial.println(serverTelnetClients[i].remoteIP());
+            nTelnetClients++;
+            break;
+          }
+      }
+      if (i >= MAX_SRV_CLIENTS) {
+          //no free/disconnected spot so reject
+          Serial.printf("\nWARNING: Maximum of telnet clients reached!\n");
+          serverTelnet.available().stop();
+      }
 
-  int i; // Correction TO DO! A variable should keep track of the numnber of clientes
+    }
 
-  // Check for new clients
-  if (serverTelnet.hasClient()) {
-    Serial.printf("\nNew client request!\n");
     for(i = 0; i < MAX_SRV_CLIENTS; i++){
-        //find free/disconnected spot
-        if (!serverTelnetClients[i] || !serverTelnetClients[i].connected()){
-          if(serverTelnetClients[i]) serverTelnetClients[i].stop();
-          serverTelnetClients[i] = serverTelnet.available();
-          if (!serverTelnetClients[i]){Serial.println("Client communication broken");}
-          Serial.printf("\nNew telnet client(%d) \n", i);
-          Serial.println(serverTelnetClients[i].remoteIP());
-          nTelnetClients++;
-          break;
-        }
+      // if (serverTelnetClients[i].connected())
+        //Serial.printf("\nClient %d - Connected: %d -  IP: %s \n", i, serverTelnetClients[i].connected(), ip2String(serverTelnetClients[i].remoteIP()).c_str() );
     }
-    if (i >= MAX_SRV_CLIENTS) {
-        //no free/disconnected spot so reject
-        Serial.printf("\nWARNING: Maximum of telnet clients reached!\n");
-        serverTelnet.available().stop();
-    }
+
+    return true;
 
   }
 
-  for(i = 0; i < MAX_SRV_CLIENTS; i++){
-    // if (serverTelnetClients[i].connected())
-      //Serial.printf("\nClient %d - Connected: %d -  IP: %s \n", i, serverTelnetClients[i].connected(), ip2String(serverTelnetClients[i].remoteIP()).c_str() );
-  }
-
-  return true;
-
-}
-
-void printSerialTelnet(){
+  void printSerialTelnet(){
 
   if (!B_SERIALTELNET)
     return;
 
   checkTelnetClients();
-
-  buildGenericJSON();
 
   // DPRINTF("\nLength minified JSON: \t%d", measureJson(genericJSON));
   // DPRINTF("\nLength prettified JSON: \t%d\n", measureJsonPretty(genericJSON));
@@ -1201,37 +1084,72 @@ void printSerialTelnet(){
       serverTelnetClients[i].print(output);
       // serializeJson(genericJSON, serverTelnetClients[i]); //serializeJsonPretty
       // serverTelnetClients[i].printf("\n"); Unnecessary, the message already has a /r/n at the end
-      delay(1);
+      delay(100);
     }
   }
 }
 
+#endif
 
-String json2String(DynamicJsonDocument theJSON) {
-  String theString;
-  serializeJson(theJSON, theString);
-  return theString;
-}
 //***************************//
 //*   BLUETOOTH FUNCTIONS   *//
 //***************************//
 
-bool setupBluetooth(){
-  SerialBT.begin("Wooby", true); //Bluetooth device name
-  BF_BLUETOOTH = false; // TODO !
+#if B_BLE == true 
 
-  return true;
-}
+  void bluetoothCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+  {
+    if(event == ESP_SPP_SRV_OPEN_EVT)
+    {
+        Serial.println("Connection established");
+        BT_CLIENT_CONNECT = true;
+    }
+    else if(event == ESP_SPP_CLOSE_EVT)
+    {
+        Serial.println("Connection closed");
+        BT_CLIENT_CONNECT = false;
+        ESP.restart();
+    }
+    /*
+    else if(event == ESP_SPP_DATA_IND_EVT)
+    {
+        Serial.println("Data received");
+        String response = bluetoothReadLine();
+        if(response=="")
+        {
+            Serial.println("EMPTY");
+        }
+    }
+    else if(event == ESP_SPP_WRITE_EVT)
+    {
+        Serial.println("Write operation complete");
+    }
+    */
+  }
+  
+  bool setupBluetooth(){
 
-void printSerialBluetooth(){
-  // Creating the JSON
-  buildGenericJSON(); // TODO communalize this function for all comm protocols
-  genericJSONString = json2String(genericJSON);
+    SerialBT.begin("Wooby", false); //Bluetooth device name
+    BF_BLUETOOTH = false; // TODO !
+    // SerialBT.register_callback(bluetoothCallback);
 
-  // Sending the message via bluetooth
-  SerialBT.print(genericJSONString);
+    return true;
+  }
 
-}
+  void printSerialBluetooth(){
+    
+    if (BF_BLUETOOTH)
+      return;
+
+    if (!SerialBT.hasClient())
+      return;
+    
+    // Sending the message via bluetooth
+    SerialBT.print(genericJSONString);
+    delay(50);
+    
+  }
+#endif
 
 //*************************//
 //*    MACRO FUNCTIONS    *//
@@ -1339,7 +1257,7 @@ void mainDisplayWooby(){
             u8g.setCursor(17, 25) ; // (Horiz, Vert)
             u8g.print(" TARE !");
 
-            u8g.setFont(u8g_font_6x10);
+            u8g.setFont(u8g2_font_6x10_tf);
             u8g.setCursor(23, 45) ; // (Horiz, Vert)
             u8g.print("Negative values");
 
@@ -1351,7 +1269,7 @@ void mainDisplayWooby(){
             u8g.setCursor(17, 30) ; // (Horiz, Vert)
             u8g.print(" OUPS !");
 
-            u8g.setFont(u8g_font_6x10);
+            u8g.setFont(u8g2_font_6x10_tf);
             u8g.setCursor(23, 45) ; // (Horiz, Vert)
             u8g.print("Wooby NOT flat");
 
@@ -1376,25 +1294,25 @@ void mainDisplayWooby(){
         // Display MPU values //
         if (B_DISPLAY_ANGLES){
           // Display trust region //
-          u8g.setFont(u8g_font_6x10);
+          u8g.setFont(u8g2_font_6x10_tf);
           u8g.setFontPosBottom();
           u8g.setCursor(5, DISPLAY_HEIGHT-2);
           BF_MPU? u8g.print("???"): u8g.print(int(thetadeg), 10);
 
 
-          u8g.setFont(u8g_font_6x10);
+          u8g.setFont(u8g2_font_6x10_tf);
           u8g.setFontPosBottom();
           u8g.setCursor(55, DISPLAY_HEIGHT-2);
           BF_MPU? u8g.print("???"): u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
 
-          u8g.setFont(u8g_font_6x10);
+          u8g.setFont(u8g2_font_6x10_tf);
           u8g.setFontPosBottom();
           u8g.setCursor(100, DISPLAY_HEIGHT-2);
           BF_MPU? u8g.print("???"): u8g.print(int(phideg), 10);
         }
 
         if (B_DISPLAY_ACCEL){
-          u8g.setFont(u8g_font_6x10);
+          u8g.setFont(u8g2_font_6x10_tf);
 
           u8g.setCursor(4, 24);
           BF_MPU? u8g.print("???"):u8g.print(roundf(myAx*100.0)/100.0);
@@ -1417,7 +1335,7 @@ void mainDisplayWooby(){
           u8g.drawBox(100+22+1,2+2,2, 7-4+1); // Tip of the battery
 
           if (false){ //BF_SERIALPORT
-            u8g.setFont(u8g_font_6x10);
+            u8g.setFont(u8g2_font_6x10_tf);
             u8g.setFontPosTop();
             u8g.setCursor(100, 12) ; // (Horiz, Vert)
             u8g.print("USB");
@@ -1428,19 +1346,19 @@ void mainDisplayWooby(){
             u8g.setCursor(108, 1);
             u8g.print(char(67));
 
-            // For bluttoh u8g2_font_open_iconic_embedded_1x_t char(74)
+            // For bluetooh u8g2_font_open_iconic_embedded_1x_t char(74)
 
           }
           else{
             // Shadow to show level of battery
             u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
 
-            u8g.setFont(u8g_font_6x10);
+            u8g.setFont(u8g2_font_6x10_tf);
             u8g.setFontPosTop();
             u8g.setCursor(100, 12) ; // (Horiz, Vert)
             BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
 
-            u8g.setFont(u8g_font_6x10);
+            u8g.setFont(u8g2_font_6x10_tf);
             u8g.setFontPosTop();
             u8g.setCursor(120, 12);
             u8g.print("%");
@@ -1455,15 +1373,24 @@ void mainDisplayWooby(){
           if (!B_WIFI || BF_WIFI)
             u8g.drawLine(2, 11, 11, 2);
 
-          u8g.setFont(u8g_font_6x10);
+          u8g.setFont(u8g2_font_6x10_tf);
           u8g.drawStr( 20, 3, "S");
           if (!B_SERIALPORT || BF_SERIALPORT)
             u8g.drawLine(17, 11, 26, 2);
 
-          u8g.setFont(u8g_font_6x10);
-          u8g.drawStr( 33, 3, "G");
-          if (!B_GOOGLE_HTTPREQ || BF_GOOGLE_HTTPREQ)
-            u8g.drawLine(30, 11, 39, 2);
+          #if (B_GOOGLE_HTTPREQ)
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.drawStr( 33, 3, "G");
+            if(BF_GOOGLE_HTTPREQ)
+              u8g.drawLine(30, 11, 39, 2);
+          #endif
+
+          #if B_BLE == true 
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.drawStr( 33, 3, "B");
+            if(BF_BLUETOOTH)
+              u8g.drawLine(30, 11, 39, 2);
+          #endif
 
           u8g.setFont(u8g2_font_micro_tr);
           if (B_DEBUG_MODE){
@@ -1487,18 +1414,43 @@ void mainDisplayWooby(){
 //*       SET UP        *//
 //************************//
 
+void partitionTable(){
+
+  size_t ul;
+  esp_partition_iterator_t _mypartiterator;
+  const esp_partition_t *_mypart;
+  ul = spi_flash_get_chip_size(); Serial.print("Flash chip size: "); Serial.println(ul);
+  Serial.println("Partiton table:");
+  _mypartiterator = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL);
+  if (_mypartiterator) {
+    do {
+      _mypart = esp_partition_get(_mypartiterator);
+      printf("%x - %x - %x - %x - %s - %i\r\n", _mypart->type, _mypart->subtype, _mypart->address, _mypart->size, _mypart->label, _mypart->encrypted);
+    } while (_mypartiterator = esp_partition_next(_mypartiterator));
+  }
+
+  esp_partition_iterator_release(_mypartiterator);
+  _mypartiterator = esp_partition_find(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, NULL);
+  if (_mypartiterator) {
+    do {
+      _mypart = esp_partition_get(_mypartiterator);
+      printf("%x - %x - %x - %x - %s - %i\r\n", _mypart->type, _mypart->subtype, _mypart->address, _mypart->size, _mypart->label, _mypart->encrypted);
+      } while (_mypartiterator = esp_partition_next(_mypartiterator));
+  }
+  esp_partition_iterator_release(_mypartiterator);
+
+}
+
 void setup(void) {
 
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
 
-  /* TEST ATAN2
-  DPRINTLN("If I do tan of something/0");
-  DPRINTLN(atan2(1,0));
-
-  DPRINTLN("If I do tan of 0/0");
-  DPRINTLN(atan2(0,0));
-  */
+  if(wakeupReason == 0){ // Wooby is initializing
+    Serial.println("--- Microcontroller data ---");
+    Serial.printf("Flash size: %d bytes\n", ESP.getFlashChipSize());
+    Serial.println("");
+  }
 
   //*       INACTIVITY MANAGEMENT      *//
   wakeupReason = esp_sleep_get_wakeup_cause();
@@ -1553,25 +1505,31 @@ void setup(void) {
   BF_WIFI = !setupWiFi();
 
   //*          GOOGLE COMS         *//
-  Serial.printf("\nSetup Google Comms\n");
-  // TODO ! Create a Google Coms Failure boolean
-  setupGoogleComs();
+  
+  #if B_GOOGLE_HTTPREQ
+    Serial.printf("\nSetup Google Comms\n");
+    // TODO ! Create a Google Coms Failure boolean
+    setupGoogleComs();
+  #endif
 
   //*          SERIAL TELNET       *//
-  Serial.printf("\nSetup Telnet Serial\n");
-  BF_SERIALTELNET = !setupTelnet();
+  #if B_SERIALTELNET==true
+    Serial.printf("\nSetup Telnet Serial\n");
+    BF_SERIALTELNET = !setupTelnet();
+  #endif
 
   //*       SERIAL BLUETOOTH       *//
-  Serial.printf("\nSetup BLE Serial\n");
-  BF_BLUETOOTH = !setupBluetooth();
-
-
-
+  #if B_BLE
+    Serial.printf("\nSetup BLE Serial\n");
+    BF_BLUETOOTH = !setupBluetooth();
+  #endif
 
   //*          OTA SERVER      *//
-  Serial.printf("\nSetup OTA\n");
-  // TODO ! Create a OTA Failure boolean
-  setupOTA();
+  #if B_OTA == true
+    Serial.printf("\nSetup OTA\n");
+    // TODO ! Create a OTA Failure boolean
+    setupOTA();
+  #endif
 
   unsigned long setUpTimeEnd =  millis();
   DPRINTLN("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
@@ -1596,6 +1554,8 @@ void loop(void) {
                 scale.set_scale(calibrationFactor);
                 break;
       case 't': myTare();
+                break;
+      case 'r': ESP.restart();
                 break;
       default:
                 break;
@@ -1646,31 +1606,43 @@ void loop(void) {
         // Weighting //
         getWoobyWeight();
 
-        // Temperature algorithm // TODO: create a function
-        tempCorrectionValue_WU = (P1*(myTmp-TEMPREF)+P0); //
-        tempCorrectionValue = (tempCorrectionValue_WU)/scale.get_scale();
+        // Creating the JSON
+        buildGenericJSON();
+        genericJSONString = json2String(genericJSON);
 
         // Serial monitor outputs  //
-        printSerial();
+        #if B_SERIALPORT
+          printSerial();
+        #endif
+        
         // Serial.printf("\n Free heap: %d", ESP.getFreeHeap()); // getSketchSize getFreeSketchSpace
         // Serial.printf("\n Skecth size: %d", ESP.getSketchSize());
         // Serial.printf("\n Vcc: %d", ESP.getVcc());
 
         // Google sheet data Sending  //
-        // unsigned long tBeforeGoogle = millis();
-        sendDataToGoogle();
-        // unsigned long tAfterGoogle  = millis();
-        // Serial.printf("%d ms to send data to Google",tAfterGoogle-tBeforeGoogle);
+        #if B_GOOGLE_HTTPREQ
+          // unsigned long tBeforeGoogle = millis();
+          sendDataToGoogle();
+          // unsigned long tAfterGoogle  = millis();
+          // Serial.printf("%d ms to send data to Google",tAfterGoogle-tBeforeGoogle);
+        #endif
 
         // Serial Telnet outputs  //
-        // unsigned long tBeforeTelnet = millis();
-        printSerialTelnet();
-        // unsigned long tAfterTelnet  = millis();
-        // Serial.printf("%d ms to send data thru Telnet",tAfterTelnet-tBeforeTelnet);
-
+        #if B_SERIALTELNET == true
+          // unsigned long tBeforeTelnet = millis();
+          printSerialTelnet();
+          // unsigned long tAfterTelnet  = millis();
+          // Serial.printf("%d ms to send data thru Telnet",tAfterTelnet-tBeforeTelnet);
+        #endif
 
         // OTA server   //
-        serverOTA.handleClient();
+        #if B_OTA == true
+          serverOTA.handleClient();
+        #endif
+
+        #if B_BLE == true
+          printSerialBluetooth();
+        #endif
 
         // Updating for inactivity check
         displayFinalValue_1 = displayFinalValue;
