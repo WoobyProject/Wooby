@@ -25,7 +25,7 @@
   // MODEL 4 : Arduino - Unknown
   // MODEL 5 : ESP32 - Wooby Xtrem
 
-  #define TYPE 3
+  #define TYPE 1
 
   // TYPE = 0 (PROTOTYPE)
   #if TYPE==0
@@ -74,10 +74,17 @@
     bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
     bool B_INACTIVITY_ENABLE = true;
-    bool B_GOOGLE_HTTPREQ = true;
-    bool B_SERIALPORT = true;
-    bool B_SERIALTELNET = true;
-    bool B_OTA = false;
+    #define BDEF_SERIALPORT true
+    bool B_SERIALPORT = BDEF_SERIALPORT;
+    bool B_WIFI = true;
+    bool B_WIFI_SMART_CONFIG = false;
+    bool B_SERIALTELNET = false;
+    #define BDEF_GOOGLE_HTTPREQ true
+    bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
+    #define BDEF_OTA true
+    bool B_OTA = BDEF_OTA;
+    #define BDEF_BLE true
+    bool B_BLE = BDEF_BLE;
   #endif
 
 #include <ArduinoJson.h>            // by Benoit Blanchon
@@ -263,6 +270,7 @@
 
 // For ESP32, replace 'setPrintPos' by 'setCursor'.
   int state = 0;
+  int setupState = 0;
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
@@ -274,7 +282,7 @@
 //************************//
 
   bool bInactive = false;
-  const float MAX_INACTIVITY_TIME = 60*1000; // in milliseconds
+  const float MAX_INACTIVITY_TIME = 180*1000; // in milliseconds
   const float INACTIVE_THR  = 5.0;
 
   unsigned long lastTimeActivity = 0;
@@ -330,7 +338,7 @@
 //*     BLUETOOTH CONF   *//
 //************************//
 
-  #if B_BLE == true 
+  #ifdef BDEF_BLE
     #include "BluetoothSerial.h"
     BluetoothSerial SerialBT;
     bool BF_BLUETOOTH = false;
@@ -447,7 +455,7 @@ float correctionAlgo(float realValue){
   float correctedValue = 0;
 
   // Around zero values deletion //
-    if (realValue<MIN_GR_VALUE && realValue>-1*MIN_GR_VALUE){
+    if (realValue<=MIN_GR_VALUE && realValue>=-1*MIN_GR_VALUE){
       return correctedValue = 0.0;
     }
 
@@ -470,8 +478,35 @@ void newTare(){
 }
 
 void setDebugMode(){
-    Serial.printf("\n\nDebug time! \n\n");
-    B_DEBUG_MODE = true;
+
+    if (B_DEBUG_MODE){
+      Serial.printf("\n\nOut of debug! \n\n");
+      B_DEBUG_MODE = false;
+
+      B_LIMITED_ANGLES = true;
+      B_DISPLAY_ANGLES = false;
+      B_DISPLAY_ACCEL = false;
+      B_INHIB_NEG_VALS = true;
+      B_SERIALTELNET = false;
+      B_WIFI = false;
+      B_OTA = false;
+      B_BLE = false;
+
+    }
+    else{
+      Serial.printf("\n\nDebug time! \n\n");
+      B_DEBUG_MODE = true;
+
+      B_LIMITED_ANGLES = false;
+      B_DISPLAY_ANGLES = true;
+      B_DISPLAY_ACCEL = true;
+      B_INHIB_NEG_VALS = false;
+      B_SERIALTELNET = true;
+      B_WIFI = true;
+      B_OTA = true;
+      B_BLE = true;
+
+    }
 }
 
 void couplingBLE(){
@@ -487,7 +522,7 @@ void initTareButton(){
   // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
   tareButton.onSequence(1,  2000,  newTare);            // For tare
   tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
-  tareButton.onPressedFor(3000, couplingBLE );          // For BLE coupling
+  tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling
 
 }
 
@@ -509,7 +544,7 @@ float readPinAnalogAvg(int n){
   return float(sum)/n;
 }
 
-float mapval( float x, float  in_min, float  in_max, float  out_min, float out_max){
+float mapval(float x, float  in_min, float  in_max, float  out_min, float out_max){
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
   }
 
@@ -546,7 +581,6 @@ void setupVccMgnt(){
 
   readVcc();
 }
-
 
 //************************//
 //*   DISPLAY FUNCTIONS  *//
@@ -660,11 +694,11 @@ void sleepingDisplay(){
 
   do{
     u8g.setFont(u8g2_font_6x10_tf); //u8g2_font_6x10_tf
-    u8g.drawStr( 55, 10, "zzz");
+    u8g.drawStr( 50, 10, "zzz");
     u8g.setFont(u8g2_font_osb18_tf);
-    u8g.drawStr( 30, 25, "Going to");
+    u8g.drawStr( 20, 25, "Going to");
     u8g.setFont(u8g2_font_osb18_tf);
-    u8g.drawStr( 45, 40, "sleep");
+    u8g.drawStr( 40, 40, "sleep");
   }while(u8g.nextPage());
 
   delay(2000);
@@ -682,7 +716,7 @@ void print_wakeup_reason(){
     case 3  : Serial.println("Wakeup caused by timer"); break;
     case 4  : Serial.println("Wakeup caused by touchpad"); break;
     case 5  : Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.println("Wakeup was not caused by deep sleep"); break;
+    default : Serial.println("Wakeup was not caused by deep sleep"); Serial.printf("Cause:%d", esp_sleep_get_wakeup_cause()); break;
   }
 }
 
@@ -700,7 +734,7 @@ void setUpInactivity(){
 }
 
 void updateLastTime() {
-  if (abs(displayFinalValue - displayFinalValue_1 ) > INACTIVE_THR ){
+  if ( (abs(displayFinalValue - displayFinalValue_1 ) > INACTIVE_THR ) || (B_DEBUG_MODE) ) {
       lastTimeActivity =  millis();
   }
 }
@@ -801,9 +835,11 @@ bool buildGenericJSON(){
     genericJSON["BF_GOOGLE_HTTPREQ"] = BF_GOOGLE_HTTPREQ;
   #endif
 
-  #if B_SERIALPORT
-    genericJSON["B_SERIALPORT"] = B_SERIALPORT;
-    genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
+  #if BDEF_SERIALPORT
+    if (B_SERIALPORT){
+      genericJSON["B_SERIALPORT"] = B_SERIALPORT;
+      genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
+    }
   #endif
 
   #if B_SERIALTELNET
@@ -834,7 +870,7 @@ String json2String(DynamicJsonDocument theJSON) {
 //* HTTP REQUEST FUNCTIONS *//
 //**************************//
 
-#if B_GOOGLE_HTTPREQ
+#ifdef B_GOOGLE_HTTPREQ
 
   bool setupGoogleComs(){
     if (!B_GOOGLE_HTTPREQ){
@@ -1004,7 +1040,7 @@ void printSerial()
 //* SERIAL TELNET FUNCTIONS *//
 //***************************//
 
-#if B_SERIALTELNET==true
+#ifdef B_SERIALTELNET
 
   bool setupTelnet() {
 
@@ -1095,7 +1131,7 @@ void printSerial()
 //*   BLUETOOTH FUNCTIONS   *//
 //***************************//
 
-#if B_BLE == true 
+#ifdef BDEF_BLE 
 
   void bluetoothCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   {
@@ -1266,7 +1302,7 @@ void mainDisplayWooby(){
   else if ((abs(thetadeg) > MAX_THETA_VALUE || abs(phideg) > MAX_PHI_VALUE ) && (B_LIMITED_ANGLES)){ // Verification of the maximum allowed angles
        do {
             u8g.setFont(u8g2_font_osb18_tf);
-            u8g.setCursor(17, 30) ; // (Horiz, Vert)
+            u8g.setCursor(17, 20) ; // (Horiz, Vert)
             u8g.print(" OUPS !");
 
             u8g.setFont(u8g2_font_6x10_tf);
@@ -1282,47 +1318,54 @@ void mainDisplayWooby(){
         u8g.setFont(u8g2_font_osb18_tf);
         u8g.setFontPosTop();
         itoa(displayFinalValue, arrayMeasure, 10);
-        u8g.setCursor(DISPLAY_WIDTH/2-u8g.getStrWidth(arrayMeasure)/2, 10) ;
+        u8g.setCursor(DISPLAY_WIDTH/2-u8g.getStrWidth(arrayMeasure)/2, 15) ;
         u8g.print((displayFinalValue), 0);
 
 
         u8g.setFont(u8g2_font_osb18_tf);
         u8g.setFontPosTop();
-        u8g.setCursor(30, 25);
+        u8g.setCursor(30, 30);
         u8g.print("grams");
 
-        // Display MPU values //
-        if (B_DISPLAY_ANGLES){
-          // Display trust region //
-          u8g.setFont(u8g2_font_6x10_tf);
-          u8g.setFontPosBottom();
-          u8g.setCursor(5, DISPLAY_HEIGHT-2);
-          BF_MPU? u8g.print("???"): u8g.print(int(thetadeg), 10);
+        if (B_DEBUG_MODE){
+          // Display MPU values //
+          if (B_DISPLAY_ANGLES){
+            // Display trust region //
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.setFontPosBottom();
+            u8g.setCursor(5, DISPLAY_HEIGHT-2);
+            BF_MPU? u8g.print("???"): u8g.print(int(thetadeg), 10);
 
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.setFontPosBottom();
+            u8g.setCursor(55, DISPLAY_HEIGHT-2);
+            BF_MPU? u8g.print("???"): u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
 
-          u8g.setFont(u8g2_font_6x10_tf);
-          u8g.setFontPosBottom();
-          u8g.setCursor(55, DISPLAY_HEIGHT-2);
-          BF_MPU? u8g.print("???"): u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.setFontPosBottom();
+            u8g.setCursor(100, DISPLAY_HEIGHT-2);
+            BF_MPU? u8g.print("???"): u8g.print(int(phideg), 10);
+          }
 
-          u8g.setFont(u8g2_font_6x10_tf);
-          u8g.setFontPosBottom();
-          u8g.setCursor(100, DISPLAY_HEIGHT-2);
-          BF_MPU? u8g.print("???"): u8g.print(int(phideg), 10);
-        }
+          if (B_DISPLAY_ACCEL){
+            u8g.setFont(u8g2_font_6x10_tf);
 
-        if (B_DISPLAY_ACCEL){
-          u8g.setFont(u8g2_font_6x10_tf);
+            u8g.setCursor(4, 24);
+            BF_MPU? u8g.print("???"):u8g.print(roundf(myAx*100.0)/100.0);
 
-          u8g.setCursor(4, 24);
-          BF_MPU? u8g.print("???"):u8g.print(roundf(myAx*100.0)/100.0);
+            u8g.setCursor(4, 31);
+            BF_MPU? u8g.print("???"):u8g.print(roundf(myAy*100.0)/100.0);
 
-          u8g.setCursor(4, 31);
-          BF_MPU? u8g.print("???"):u8g.print(roundf(myAy*100.0)/100.0);
+            u8g.setCursor(4, 38);
+            BF_MPU? u8g.print("???"):u8g.print(roundf(myAz*100.0)/100.0);
+          }
 
-          u8g.setCursor(4, 38);
-          BF_MPU? u8g.print("???"):u8g.print(roundf(myAz*100.0)/100.0);
-
+          u8g.setFont(u8g2_font_micro_tr);
+          if (B_DEBUG_MODE){
+            char bufIp[] = "192.168.000.000";
+            getIp().toCharArray(bufIp, 15);
+            u8g.drawStr( 46, 8, bufIp );
+          }
         }
 
         // Display batterie levels //
@@ -1345,9 +1388,6 @@ void mainDisplayWooby(){
             u8g.setFontPosTop();
             u8g.setCursor(108, 1);
             u8g.print(char(67));
-
-            // For bluetooh u8g2_font_open_iconic_embedded_1x_t char(74)
-
           }
           else{
             // Shadow to show level of battery
@@ -1365,8 +1405,6 @@ void mainDisplayWooby(){
           }
 
 
-
-
         // Display connections //
           u8g.setFont(u8g2_font_open_iconic_www_1x_t);
           u8g.drawStr( 4, 2, "Q");
@@ -1378,28 +1416,22 @@ void mainDisplayWooby(){
           if (!B_SERIALPORT || BF_SERIALPORT)
             u8g.drawLine(17, 11, 26, 2);
 
-          #if (B_GOOGLE_HTTPREQ)
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.drawStr( 33, 3, "G");
-            if(BF_GOOGLE_HTTPREQ)
-              u8g.drawLine(30, 11, 39, 2);
+          #ifdef B_GOOGLE_HTTPREQ
+            if (B_GOOGLE_HTTPREQ){
+              u8g.setFont(u8g2_font_6x10_tf);
+              u8g.drawStr( 33, 3, "G");
+              if(BF_GOOGLE_HTTPREQ)
+                u8g.drawLine(30, 11, 39, 2);
+            }
           #endif
 
-          #if B_BLE == true 
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.drawStr( 33, 3, "B");
-            if(BF_BLUETOOTH)
+          #ifdef BDEF_BLE
+            u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
+            u8g.drawStr( 33, 3, "J");
+            if(!B_BLE || BF_BLUETOOTH)
               u8g.drawLine(30, 11, 39, 2);
+          
           #endif
-
-          u8g.setFont(u8g2_font_micro_tr);
-          if (B_DEBUG_MODE){
-            char bufIp[] = "192.168.000.000";
-            getIp().toCharArray(bufIp, 15);
-            u8g.drawStr( 46, 3, bufIp );
-          }
-
-
 
     } while(u8g.nextPage());
   }
@@ -1410,10 +1442,16 @@ void mainDisplayWooby(){
   }
 }
 
+void setupBarUpdate(){
+  
+  setupState++;
+
+}
 //************************//
 //*       SET UP        *//
 //************************//
 
+/*
 void partitionTable(){
 
   size_t ul;
@@ -1441,6 +1479,8 @@ void partitionTable(){
 
 }
 
+*/
+
 void setup(void) {
 
   Serial.begin(115200);
@@ -1452,9 +1492,9 @@ void setup(void) {
     Serial.println("");
   }
 
-  //*       INACTIVITY MANAGEMENT      *//
+  //*       INACTIVITY MANAGEMENT      *// 
   wakeupReason = esp_sleep_get_wakeup_cause();
-  // print_wakeup_reason();
+  print_wakeup_reason();
 
   //*          SCREEN SETUP          *//
   setupDisplay();
@@ -1462,11 +1502,13 @@ void setup(void) {
   //*          WELCOME MESSAGE          *//
   if(wakeupReason == 2){ // Wooby is waking up after inactiviy
     Serial.println("Wooby waking up!");     // wakingUpDisplay();
+    state = 3; // Forcing state to measurement display
   }
   else{
     Serial.println("Hello! I'm Wooby!! ");
     Serial.println("Initializing to measure tons of smiles ... ");
     displayImage(logoWooby);
+    state = 0;
   }
 
   //*       SET UP  WEIGHT SENSOR       *//
@@ -1475,26 +1517,32 @@ void setup(void) {
   scale.set_gain(gain);
   scale.set_scale(calibrationFactor);
   scale.set_offset(offset);
+  setupBarUpdate();
 
 
   //*         ACCELEROMETER           *//
   Serial.println("Setting up accelerometer sensor...");
   setupMPU();
   readMPU();  // Read the info for initializing vars and availability
+  setupBarUpdate();
 
   //*          FILTERING           *//
   setUpWeightAlgorithm();
+  setupBarUpdate();
 
   //*          INACTIVITY          *//
   setUpInactivity();
+  setupBarUpdate();
 
   //*          TARE BUTTON         *//
   initTareButton();
+  setupBarUpdate();
 
   //*          AUTO TARE           *//
   if(wakeupReason!=2){
       myTare();
   }
+  setupBarUpdate();
 
   //*          VCC MANAGEMENT      *//
   Serial.printf("\nSetup Vcc management\n");
@@ -1503,36 +1551,42 @@ void setup(void) {
   //*         WIFI CONNECTION        *//
   Serial.printf("\nSetup WiFi\n");
   BF_WIFI = !setupWiFi();
+  setupBarUpdate();
 
   //*          GOOGLE COMS         *//
   
-  #if B_GOOGLE_HTTPREQ
+  #ifdef B_GOOGLE_HTTPREQ
     Serial.printf("\nSetup Google Comms\n");
     // TODO ! Create a Google Coms Failure boolean
     setupGoogleComs();
   #endif
+  setupBarUpdate();
 
   //*          SERIAL TELNET       *//
-  #if B_SERIALTELNET==true
+  #ifdef B_SERIALTELNET
     Serial.printf("\nSetup Telnet Serial\n");
     BF_SERIALTELNET = !setupTelnet();
   #endif
+  setupBarUpdate();
 
   //*       SERIAL BLUETOOTH       *//
-  #if B_BLE
+  #ifdef BDEF_BLE
     Serial.printf("\nSetup BLE Serial\n");
     BF_BLUETOOTH = !setupBluetooth();
   #endif
+  setupBarUpdate();
 
   //*          OTA SERVER      *//
-  #if B_OTA == true
+  #ifdef BDEF_OTA
     Serial.printf("\nSetup OTA\n");
     // TODO ! Create a OTA Failure boolean
     setupOTA();
   #endif
+  setupBarUpdate();
 
+  
   unsigned long setUpTimeEnd =  millis();
-  DPRINTLN("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
+  Serial.println("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
 
 }
 
@@ -1584,8 +1638,8 @@ void loop(void) {
     break;
 
     case 2:
-            // Updating last time for inactivity
-            updateLastTime();
+            // Forcing the last time of activity
+            lastTimeActivity =  millis();
 
             // Displaying and weighting is about to begin
             Serial.println("DATA START");
@@ -1611,8 +1665,9 @@ void loop(void) {
         genericJSONString = json2String(genericJSON);
 
         // Serial monitor outputs  //
-        #if B_SERIALPORT
-          printSerial();
+        #ifdef BDEF_SERIALPORT
+          if(B_SERIALPORT)
+            printSerial();
         #endif
         
         // Serial.printf("\n Free heap: %d", ESP.getFreeHeap()); // getSketchSize getFreeSketchSpace
@@ -1620,28 +1675,34 @@ void loop(void) {
         // Serial.printf("\n Vcc: %d", ESP.getVcc());
 
         // Google sheet data Sending  //
-        #if B_GOOGLE_HTTPREQ
+        #ifdef B_GOOGLE_HTTPREQ
+          if (B_GOOGLE_HTTPREQ){
           // unsigned long tBeforeGoogle = millis();
           sendDataToGoogle();
           // unsigned long tAfterGoogle  = millis();
           // Serial.printf("%d ms to send data to Google",tAfterGoogle-tBeforeGoogle);
+          }
         #endif
 
         // Serial Telnet outputs  //
-        #if B_SERIALTELNET == true
+        #ifdef B_SERIALTELNET
+          if(B_SERIALTELNET){
           // unsigned long tBeforeTelnet = millis();
           printSerialTelnet();
           // unsigned long tAfterTelnet  = millis();
           // Serial.printf("%d ms to send data thru Telnet",tAfterTelnet-tBeforeTelnet);
+          }
         #endif
 
         // OTA server   //
-        #if B_OTA == true
-          serverOTA.handleClient();
+        #ifdef BDEF_OTA
+          if (B_OTA)
+            serverOTA.handleClient();
         #endif
 
-        #if B_BLE == true
-          printSerialBluetooth();
+        #ifdef BDEF_BLE
+          if (B_BLE)
+            printSerialBluetooth();
         #endif
 
         // Updating for inactivity check

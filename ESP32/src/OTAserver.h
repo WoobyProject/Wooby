@@ -1,5 +1,5 @@
 
-#if B_OTA == true
+#if BDEF_OTA
   #include <WiFi.h>
   #include <WiFiClient.h>
   #include <WebServer.h>
