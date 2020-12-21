@@ -32,19 +32,16 @@ myWooby.setupSerial(portWooby, baudRateWooby)
 
 
 N_MAX_MEASURES = 100
-REAL_WEIGHT = 1000
-SUBSET = "WoobyXtrem" 
-SUFFIX = "1"
+REAL_WEIGHT = 2000
+SUBSET = "Wooby1" 
+SUFFIX = "2"
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 FILE_NAME = "{}_{}gr_{}.txt".format(SUBSET, REAL_WEIGHT, SUFFIX)
-FILE_FOLDER = os.path.join("/Users/macretina/Documents/Airbus/Humanity Lab/Wooby/Github/Python/datasets", SUBSET)
-        
+FILE_FOLDER = os.path.join("/Users/macretina/Documents/Humanity Lab/Wooby/Github/Python/datasets", SUBSET)
+OVERWRITE = True
 
-myWooby.readCalibPoint(SUBSET, SUFFIX, REAL_WEIGHT, SOURCE, N_MAX_MEASURES, FILE_NAME, FILE_FOLDER)
+myWooby.readCalibPoint(SUBSET, SUFFIX, REAL_WEIGHT, SOURCE, N_MAX_MEASURES, FILE_NAME, FILE_FOLDER, OVERWRITE)
 
-
-
-
-
+print(myWooby.DataList[-1])
 
 

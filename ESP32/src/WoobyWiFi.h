@@ -4,10 +4,17 @@ bool BF_WIFI = true;
 
 #define WLAN_HOSTNAME   "Wooby"
 #define WLAN_MAX_COUNT  7
+/*
 #define WLAN_LIB_N      4
 String WLAN_NAME_LIB[]  = {"Wooby" ,        "Kike's House"        , "Jose's House",   "Adris's House"};
 String WLAN_SSID_LIB[]  = {"Wooby"     ,    "SFR_6608"            , "SFR-5538",       "Livebox-1D06"};
 String WLAN_PASS_LIB[]  = {"TonsOfSmiles" , "2cwt45yriv2urm57trbx", "VHYWP9A2PVDU",   "bFnRC5bEUkGKmxydKx"};
+*/
+
+#define WLAN_LIB_N      1
+String WLAN_NAME_LIB[]  = {"Wooby" };
+String WLAN_SSID_LIB[]  = {"Wooby"   };
+String WLAN_PASS_LIB[]  = {"TonsOfSmiles"};
 
 
 int count = 0;

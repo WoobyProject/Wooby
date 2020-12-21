@@ -18,8 +18,8 @@
 //*      VERSION SEL     *//
 //************************//
 
-  #define MODEL 5
-  // MODEL 1 : Arduino - Wooby 1
+  #define MODEL 1
+  // MODEL 1 : ESP32 - Wooby 1
   // MODEL 2 : ESP32 - Wooby 2
   // MODEL 3 : Arduino - Unknown
   // MODEL 4 : Arduino - Unknown
@@ -129,7 +129,6 @@
   #if MODEL == 5
     float calibrationFactor = 61.7977;
   #endif
-
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
@@ -274,6 +273,8 @@
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
+  #define FLIP_MODE 0
+  #define NSTATES_SETUP 12
 
   bool BF_DISPLAY = false;
 
@@ -282,12 +283,12 @@
 //************************//
 
   bool bInactive = false;
-  const float MAX_INACTIVITY_TIME = 180*1000; // in milliseconds
+  const float MAX_INACTIVITY_TIME = 10*1000; // in milliseconds
   const float INACTIVE_THR  = 5.0;
 
   unsigned long lastTimeActivity = 0;
-  const gpio_num_t PIN_WAKEUP = GPIO_NUM_27; // GPIO_NUM_27
-  const int WAKEUP_LEVEL = 1;
+  const gpio_num_t PIN_WAKEUP = GPIO_NUM_35;
+  const int WAKEUP_LEVEL = 0;
   esp_sleep_wakeup_cause_t wakeupReason;
 
 //************************//
@@ -303,8 +304,10 @@
   const float MAX_THETA_VALUE = 10;
   const float MAX_PHI_VALUE = 10;
 
-  bool BF_MPU=false;
+  const float OFFSET_THETA = 10;
+  const float OFFSET_PHI = 10;
 
+  bool BF_MPU=false;
 
 //************************//
 //*   TELNET COMMS CONF  *//
@@ -418,9 +421,9 @@
 
   void angleAdjustment(){
 
-    angleCalc(); // This function also updates BF_MPU
+    angleCalc(); // angleCalc() also updates BF_MPU
     if(!BF_MPU && B_ANGLE_ADJUSTMENT){
-        realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow(thetadeg, 2));
+        realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
     }
     else{
     realValue_WU_AngleAdj = relativeVal_WU;
@@ -595,8 +598,9 @@ void setupDisplay(){
       // For Arduino:
         //u8g.setRot180();
       // For ESP32
-      Serial.println("Flipping the screen ");
-      u8g.setFlipMode(0);
+      if (FLIP_MODE)
+        Serial.println("Flipping the screen ");
+      u8g.setFlipMode(FLIP_MODE);
 
 
   // Set up of the default font
@@ -615,13 +619,21 @@ void setupDisplay(){
   }
 }
 
-void displayImage( const unsigned char * u8g_image_bits){
+void initDisplay(const unsigned char * u8g_image_bits){
+  u8g.firstPage();
+  do {
+    u8g.drawXBMP( 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, u8g_image_bits);
+    // Serial.printf("Setup display value:%d\n\n",   int(float(DISPLAY_WIDTH)*float(setupState)/float(NSTATES_SETUP))  );
+    u8g.drawBox(0,DISPLAY_HEIGHT-5,  int(float(DISPLAY_WIDTH)*float(setupState)/float(NSTATES_SETUP))   , 5); // (Horiz, Vert, Width, Height)
+  } while( u8g.nextPage() );
+}
+
+void displayImage(const unsigned char * u8g_image_bits){
    u8g.firstPage();
    do {
        u8g.drawXBMP( 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, u8g_image_bits);
    } while( u8g.nextPage() );
 
-   // Let us see that baby face ! :)
    delay(4000);
 }
 
@@ -704,6 +716,11 @@ void sleepingDisplay(){
   delay(2000);
 }
 
+void nextStepSetup(){
+  setupState++;
+  initDisplay(logoWooby);
+}
+
 //***************************//
 //*  INACTIVITY FUNCTIONS   *//
 //***************************//
@@ -711,11 +728,11 @@ void sleepingDisplay(){
 void print_wakeup_reason(){
   switch(esp_sleep_get_wakeup_cause())
   {
-    case 1  : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case 2  : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case 3  : Serial.println("Wakeup caused by timer"); break;
-    case 4  : Serial.println("Wakeup caused by touchpad"); break;
-    case 5  : Serial.println("Wakeup caused by ULP program"); break;
+    case ESP_SLEEP_WAKEUP_EXT0  :     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1  :     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER  :    Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD  : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP  :      Serial.println("Wakeup caused by ULP program"); break;
     default : Serial.println("Wakeup was not caused by deep sleep"); Serial.printf("Cause:%d", esp_sleep_get_wakeup_cause()); break;
   }
 }
@@ -785,6 +802,18 @@ void inactivityCheck() {
       DEEPDPRINTLN("Active: ");
       bInactive = false;
   }
+}
+
+RTC_RODATA_ATTR int test = 0;
+
+void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
+    esp_default_wake_deep_sleep();
+    // Add additional functionality here
+    ets_delay_us(100);
+    test++;
+    //static RTC_RODATA_ATTR const char fmt_str[] = "Wake count %d\n";
+    //esp_rom_printf(fmt_str, test++);
+
 }
 
 //**************************//
@@ -1442,11 +1471,6 @@ void mainDisplayWooby(){
   }
 }
 
-void setupBarUpdate(){
-  
-  setupState++;
-
-}
 //************************//
 //*       SET UP        *//
 //************************//
@@ -1486,9 +1510,14 @@ void setup(void) {
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
 
+  Serial.printf("\n\nTest value: %d\n\n", test);
+  esp_set_deep_sleep_wake_stub(&esp_wake_deep_sleep);
+  
   if(wakeupReason == 0){ // Wooby is initializing
     Serial.println("--- Microcontroller data ---");
     Serial.printf("Flash size: %d bytes\n", ESP.getFlashChipSize());
+    Serial.printf("SDK version: %s bytes\n", ESP.getSdkVersion());
+    
     Serial.println("");
   }
 
@@ -1507,7 +1536,8 @@ void setup(void) {
   else{
     Serial.println("Hello! I'm Wooby!! ");
     Serial.println("Initializing to measure tons of smiles ... ");
-    displayImage(logoWooby);
+    // initDisplay(logoWooby);
+    // displayImage(logoWooby);
     state = 0;
   }
 
@@ -1517,72 +1547,77 @@ void setup(void) {
   scale.set_gain(gain);
   scale.set_scale(calibrationFactor);
   scale.set_offset(offset);
-  setupBarUpdate();
+  nextStepSetup();
 
 
   //*         ACCELEROMETER           *//
   Serial.println("Setting up accelerometer sensor...");
   setupMPU();
   readMPU();  // Read the info for initializing vars and availability
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          FILTERING           *//
+  Serial.println("Setting up filtering ...");
   setUpWeightAlgorithm();
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          INACTIVITY          *//
+  Serial.println("Setting up inactivity check ...");
   setUpInactivity();
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          TARE BUTTON         *//
+  Serial.println("Setting up tare button ...");
   initTareButton();
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          AUTO TARE           *//
   if(wakeupReason!=2){
+      Serial.println("Setting up the autotare ...");
       myTare();
   }
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          VCC MANAGEMENT      *//
-  Serial.printf("\nSetup Vcc management\n");
+  Serial.println("Setting up Vcc management ...");
   setupVccMgnt();
+  nextStepSetup();
 
   //*         WIFI CONNECTION        *//
-  Serial.printf("\nSetup WiFi\n");
+  Serial.println("Setting up WiFi ...");
   BF_WIFI = !setupWiFi();
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          GOOGLE COMS         *//
   
   #ifdef B_GOOGLE_HTTPREQ
-    Serial.printf("\nSetup Google Comms\n");
+    Serial.println("Setting up Google comms ...");
     // TODO ! Create a Google Coms Failure boolean
     setupGoogleComs();
   #endif
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          SERIAL TELNET       *//
   #ifdef B_SERIALTELNET
-    Serial.printf("\nSetup Telnet Serial\n");
+    Serial.println("Setting up Telnet Serial ... ");
     BF_SERIALTELNET = !setupTelnet();
   #endif
-  setupBarUpdate();
+  nextStepSetup();
 
   //*       SERIAL BLUETOOTH       *//
   #ifdef BDEF_BLE
-    Serial.printf("\nSetup BLE Serial\n");
+    Serial.println("Setting up BLE Serial ... ");
     BF_BLUETOOTH = !setupBluetooth();
   #endif
-  setupBarUpdate();
+  nextStepSetup();
 
   //*          OTA SERVER      *//
   #ifdef BDEF_OTA
-    Serial.printf("\nSetup OTA\n");
+    Serial.println("Setting up OTA ... ");
     // TODO ! Create a OTA Failure boolean
     setupOTA();
   #endif
-  setupBarUpdate();
+  nextStepSetup();
 
   
   unsigned long setUpTimeEnd =  millis();
