@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Nov 11 15:57:05 2020
+
+@author: enriquem
+"""
+from telnetlib import Telnet
+import json 
+import time
+import pandas as pd
+import matplotlib.pyplot as plt
+
+    
+HOST = "192.168.1.43"
+timeout = 5    # seconds
+
+
+try: tn
+except NameError: 
+    tn = Telnet(HOST)
+
+print(tn)
+
+'''
+# Sending a message:
+msg = "Hola from python!\n"
+tn.write(msg.encode("ascii"))
+'''
+
+# Getting a message:
+i = 0
+acc  = 0
+
+plt.figure()
+
+WoobyDataFrame = pd.DataFrame()
+error = 0 ;
+
+while(1):
+    t0 = time.time()
+    try:
+        tn_raw = tn.read_until('\n'.encode("ascii"), timeout)
+        tn_read = tn_raw.decode("utf-8")
+        json_read = json.loads(tn_read)
+    except:
+        continue
+        error = error + 1
+        print("Error reading line")
+        
+    df = pd.json_normalize(json_read)
+    WoobyDataFrame = WoobyDataFrame.append(df,ignore_index=True)
+    tf = time.time()
+    print(df)
+    i = i + 1
+    acc = acc + (tf-t0)
+    
+    plt.cla()
+    plt.plot(WoobyDataFrame["tAfterMeasure"], WoobyDataFrame["realValue_WU_AngleAdj"])
+    plt.plot(WoobyDataFrame["tAfterMeasure"], WoobyDataFrame["realValue_WU_MovAvg"])
+    plt.show()
+    
+    # print("{}".format())
+    print("Time: {} - Avg data speed {:.2f}(s/sample)".format(tf-t0, acc/i))

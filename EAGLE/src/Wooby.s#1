@@ -6793,7 +6793,7 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <attribute name="NAME" x="-5.08" y="88.9" size="1.778" layer="95"/>
 </instance>
 <instance part="ESP32-DEVKITC" gate="G$1" x="73.66" y="38.1" smashed="yes" rot="R90">
-<attribute name="NAME" x="68.58" y="11.43" size="1.27" layer="95" rot="R180"/>
+<attribute name="NAME" x="76.2" y="11.43" size="1.27" layer="95" rot="R180"/>
 </instance>
 <instance part="R1" gate="G$1" x="127" y="71.12" smashed="yes" rot="R90">
 <attribute name="NAME" x="125.5014" y="67.31" size="1.778" layer="95" rot="R90"/>
@@ -6867,25 +6867,19 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 </instance>
 <instance part="CELL" gate="G$1" x="-25.4" y="83.82" smashed="yes" rot="R90">
 <attribute name="NAME" x="-26.162" y="73.66" size="1.778" layer="95" rot="R90"/>
-<attribute name="VALUE" x="-17.78" y="78.74" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="J5" gate="G$1" x="-25.4" y="73.66" smashed="yes" rot="R90">
-<attribute name="VALUE" x="-17.78" y="68.58" size="1.778" layer="96" rot="R90"/>
-</instance>
+<instance part="J5" gate="G$1" x="-25.4" y="73.66" smashed="yes" rot="R90"/>
 <instance part="TARE" gate="G$1" x="152.4" y="60.96" smashed="yes" rot="R270">
 <attribute name="NAME" x="153.162" y="66.04" size="1.778" layer="95" rot="R270"/>
 </instance>
 <instance part="ON_BTN" gate="G$1" x="152.4" y="33.02" smashed="yes" rot="R270">
 <attribute name="NAME" x="153.162" y="38.1" size="1.778" layer="95" rot="R270"/>
-<attribute name="VALUE" x="144.78" y="38.1" size="1.778" layer="96" rot="R270"/>
 </instance>
 <instance part="BAT_TOP" gate="G$1" x="152.4" y="17.78" smashed="yes" rot="R270">
 <attribute name="NAME" x="153.162" y="25.4" size="1.778" layer="95" rot="R270"/>
-<attribute name="VALUE" x="144.78" y="22.86" size="1.778" layer="96" rot="R270"/>
 </instance>
 <instance part="BAT_BOT" gate="G$1" x="152.4" y="7.62" smashed="yes" rot="R270">
 <attribute name="NAME" x="153.162" y="10.16" size="1.778" layer="95" rot="R270"/>
-<attribute name="VALUE" x="144.78" y="12.7" size="1.778" layer="96" rot="R270"/>
 </instance>
 <instance part="LCD" gate="G$1" x="12.7" y="2.54" smashed="yes" rot="R90">
 <attribute name="NAME" x="11.938" y="-7.62" size="1.778" layer="95" rot="R90"/>

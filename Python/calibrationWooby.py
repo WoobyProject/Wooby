@@ -22,6 +22,11 @@ from sklearn.linear_model import LinearRegression
 plt.close('all')
 
 
+import sys
+sys.path.append('../pyWooby')
+import pyWooby
+
+
 ##################################        
 #       Reading of each file     #
 ##################################

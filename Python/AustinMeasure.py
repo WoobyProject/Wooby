@@ -6,6 +6,11 @@ Created on Sat Oct 24 23:17:57 2020
 @author: enriquem
 """
 
+import sys
+
+sys.path.append('../pyWooby')
+
+
 ##################################        
 #       Loading file             #
 ##################################

@@ -10,9 +10,16 @@ import serial
 import os
 import pandas as pd 
 import numpy as np
-from timeit import default_timer as timer
+# from timeit import default_timer as timer
+import time
 import matplotlib.pyplot as plt
 import math
+import json 
+from telnetlib import Telnet
+
+import sys
+sys.path.append('../pyWooby')
+import pyWooby
 
 print("\nCalibration for Wooby\n")
 
@@ -20,89 +27,136 @@ def tare():
     serialPortWooby.write('t'.encode())
 
 ##########################        
+#    Measurement setup   #
+##########################
+
+N_MAX_MEASURES = 700000
+
+REAL_WEIGHT = 1000
+# SUBSET = "UNITARY_TEST"
+SUBSET = "VccMeasurement" # "Austin"
+SUFFIX = "NoWiFI"
+
+SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
+
+
+print("Connecting with Wooby via {}...".format(SOURCE))
+
+##########################        
 # Serial connexion setup #
 ##########################
 
-print("Connecting with Wooby ...")
+if (SOURCE == "SERIAL"):
+    portWooby = '/dev/cu.SLAB_USBtoUART'
+    baudRateWooby = 115200;
+    
+    serialPortWooby = serial.Serial(port = portWooby, baudrate=baudRateWooby,
+                               bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
+    
+    serialPortWooby.reset_input_buffer()
+    serialPortWooby.reset_output_buffer()
+    serialPortWooby.flush()
+    
+    serialPortWooby.flushInput()
+    serialPortWooby.flushOutput()
 
-portWooby = '/dev/cu.SLAB_USBtoUART'
-baudRateWooby = 115200;
+##########################
+# Telnet connexion setup #
+##########################
 
-serialPortWooby = serial.Serial(port = portWooby, baudrate=baudRateWooby,
-                           bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE)
+if (SOURCE == "TELNET"):
+    
+    HOST = "192.168.1.43"
+    timeout = 5    # seconds
+    
+    
+    try: tn
+    except NameError: 
+        tn = Telnet(HOST, 23)
+        
+    if (tn.eof):
+        tn = Telnet(HOST, 23)
+        
 
-serialPortWooby.reset_input_buffer()
-serialPortWooby.reset_output_buffer()
-serialPortWooby.flush()
-
-serialPortWooby.flushInput()
-serialPortWooby.flushOutput()
-
-N_MAX_MEASURES = 400
-
-# Measures configuration 
-REAL_WEIGHT = 104
-# SUBSET = "UNITARY_TEST"
-SUBSET = "Austin" # "Austin"
-SUFFIX = "Up_Box_Empty_Stormy"
 
 ##########################        
 #  Serial data reading   #
 ##########################
 
-# Reading the data
-print("Reading serial data from Wooby ...")
 
 i = 0
 WoobyDataFrame = pd.DataFrame()
 
-
 while (i < N_MAX_MEASURES):
     
-    # Serial read section
-    tStart = timer()
-    dataLineWoobyRaw =  serialPortWooby.readline()
-    tEnd = timer()
-    # print("Reading time: {} ms".format((tEnd - tStart)*1000))
-    # print("Inwaiting: {} bytes".format(serialPortWooby.inWaiting()))
+
+    if (SOURCE == "SERIAL"):
+        # Serial read section
+        tStart = time.time()
+        dataLineWoobyRaw =  serialPortWooby.readline()
+        tEndMeasure = time.time()
     
-    if ( (tEnd - tStart) < 0.500 ):
-        continue
-    
-    try: 
-        dataLineWooby = dataLineWoobyRaw.decode('Ascii')
-    except:
-         print("Cannot read line. Skipping... ")
-         
-    if (dataLineWooby.startswith('WS')!=True):
-        print("Not a complete line or not a measurement line. Skipping... ")
-        print(dataLineWooby)
-        continue
-    
-    
-    dataLineWooby = dataLineWooby[2:]    
-    dataLineWoobyArray = dataLineWooby.split(",\t");
-    tags = []
-    values = []
-    
-    for varCouple in dataLineWoobyArray[0:-1]:
-        varCoupleSplit = varCouple.split(":")
-        tags.append(varCoupleSplit[0])
-        values.append(float(varCoupleSplit[1]))
-    
-    df = pd.DataFrame([values], columns = tags)
-    
-    '''
-    print(tags)
-    print(values)
-    print(df)
-    '''
+        #print("Reading time: {} ms".format((tEndMeasure - tStart)*1000))
+        #print("Inwaiting: {} bytes".format(serialPortWooby.inWaiting()))
+        #print("Data: {} \n\n".format(dataLineWoobyRaw))
+        
+        
+
+        if ( (tEndMeasure - tStart) < 10e-3 ):
+            print("Emptying the buffer... ")
+            continue
+
+        
+        try: 
+            # dataLineWooby = dataLineWoobyRaw.decode('Ascii')
+            dataLineWooby = dataLineWoobyRaw.decode("utf-8")
+            
+            
+        except:
+             print("Cannot read line. Skipping... ")
+             dataLineWooby = ""
+             continue
+             
+        if (dataLineWooby.startswith('WS')!=True):
+            print("Not a complete line or not a measurement line. Skipping... ")
+            print(dataLineWooby)
+            continue
+        
+        try:
+            dataLineWooby = dataLineWooby[2:-2]
+            json_read = json.loads(dataLineWooby)
+            df = pd.json_normalize(json_read)
+        except:
+             print("Unable to convert to JSON. Skipping... ")
+             dataLineWooby = ""
+             continue
+        
+    if (SOURCE == "TELNET"):
+        tStart = time.time()
+        tn_raw = tn.read_until('\n'.encode("ascii"), timeout)
+        tEndMeasure = time.time()
+       
+        if ( (tEndMeasure - tStart) < 0.500 ):
+            continue
+        
+        
+        tn_read = tn_raw.decode("utf-8")
+        tn_read = tn_read[2:]
+        
+        try:
+            json_read = json.loads(tn_read)
+            df = pd.json_normalize(json_read)
+        except:
+            continue
+            # error = error + 1
+            print("Error reading line")
+            
     
     WoobyDataFrame = WoobyDataFrame.append(df,ignore_index=True)
+    tEnd = time.time()
     
-    # print("{}% ".format(int(100*i/N_MAX_MEASURES)), end="", flush=True)
     i = i + 1
-    print("Line read! ({}/{}) Read time: {:.2f} ms".format(i, N_MAX_MEASURES, (tEnd - tStart)*1000 ))
+    print("Line read! ({}/{}) Read time: {:.2f} ms".format(i, N_MAX_MEASURES, (tEndMeasure - tStart)*1000 ))
    
 
 # Closing the serial port would restart the Wooby (not wanted)
@@ -118,6 +172,7 @@ print(WoobyDataFrame.keys())
 ## Adding the real weight
 WoobyDataFrame["realWeight"] = [REAL_WEIGHT] * WoobyDataFrame.shape[0]
 
+## Adding time vectors
 WoobyDataFrame["timeNorm"] = WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
 WoobyDataFrame["timeMeasure"] = WoobyDataFrame["tAfterMeasure"]-WoobyDataFrame["tBeforeMeasure"]
 WoobyDataFrame["timeAlgo"] = WoobyDataFrame["tAfterAlgo"]-WoobyDataFrame["tAfterMeasure"]
@@ -125,20 +180,6 @@ WoobyDataFrame["timeAlgo"] = WoobyDataFrame["tAfterAlgo"]-WoobyDataFrame["tAfter
 WoobyDataFrame["timeSim"] = np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
 # WoobyDataFrame["Te"] =  WoobyDataFrame["timeSim"][1] -  WoobyDataFrame["timeSim"][0]
 
-np.mean(np.diff(WoobyDataFrame["timeNorm"]))
-
-'''
-
-WoobyDataFrame["relativeValue_WU"] = WoobyDataFrame["realValue_WU"]-WoobyDataFrame["OFFSET"]
-
-WoobyDataFrame["myAx"] = WoobyDataFrame["Ax"]/16384
-WoobyDataFrame["myAy"] = WoobyDataFrame["Ay"]/16384
-WoobyDataFrame["myAz"] = WoobyDataFrame["Az"]/16384
-
-WoobyDataFrame["myGx"] = WoobyDataFrame["Gx"]/131
-WoobyDataFrame["myGy"] = WoobyDataFrame["Gy"]/131
-WoobyDataFrame["myGz"] = WoobyDataFrame["Gz"]/131
-'''
 
 ###########################        
 # Formatting and storing  #
@@ -169,8 +210,11 @@ else:
 # WoobyDataFrame = readWoobyFile(fileFolder, fileName)["data"]
 
 ### Time recalculation
+    
+    maxTime = np.max(WoobyDataFrame["timeNorm"].append(WoobyDataFrame["timeSim"] ))
     plt.figure()
     plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeSim"] )
+    plt.plot([0, maxTime], [0, maxTime], '--')
     plt.title("Evaluation of time correction for simulation ")
     plt.ylabel("Real normalize time (ms)")
     plt.xlabel("Simulation time (ms)")
@@ -184,7 +228,7 @@ else:
     plt.grid(True)
     
      
-### Performance in time
+### Algorithm speed performance
 
     plt.figure()
     plt.plot(WoobyDataFrame["timeNorm"][1:], np.diff(WoobyDataFrame["timeNorm"]) )
@@ -196,7 +240,7 @@ else:
     plt.figure()
     plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeMeasure"],  label="Measurement")
     plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["timeAlgo"],     label="Algorithm")
-    plt.title("Times comparison")
+    plt.title("Comparison of the measuremnt time vs. alorigthm exec time")
     plt.ylabel("Times (ms)")
     plt.xlabel("Time (ms) ")
     plt.legend(loc="best")
@@ -226,39 +270,166 @@ else:
 
 
 
+### Filtering analysis (all filters)
+
+    f, (a0, a1) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+
+
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["relativeVal_WU"]/WoobyDataFrame["calibrationFactor"],          'o-' ,  label="Raw")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue_WU_AngleAdj"]/WoobyDataFrame["calibrationFactor"],   'o--',  label="Angle adj")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue_WU_MovAvg"]/WoobyDataFrame["calibrationFactor"],     'o-' ,  label="Moving avg")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue_WU_Filt"]/WoobyDataFrame["calibrationFactor"],       'o--',  label="Filtered")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"],                                                   'o--',  label="realValue")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"],                                           'o--',  label="realValueFiltered")
+    a0.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"],                                      'o--',  label="correctedValueFiltered")
+    
+    a0.grid(True)
+    a0.set_title("Correction algorithms analysis")
+    a0.set_ylabel("Raw weight values (wu)")
+    a0.set_xlabel("Time normalized (ms) ")
+    a0.legend(loc="best")
+
+ ## Synchronisation for filtering analysis
+    a1.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["bSync"],          'o-' ,  label="bSync")
+    a1.grid(True)
+    a1.set_title("Synchronization bool")
+    a1.set_ylabel("Synchronization bool")
+    a1.set_xlabel("Time normalized (ms) ")
+    a1.legend(loc="best")
+    
+### Final displayed value 
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"]/1000, WoobyDataFrame["correctedValueFiltered"], 'o-')
+    plt.show()
+    plt.grid(True)
+    plt.title("Final displayed value")
+    plt.ylabel("Raw weight value (wu)")
+    plt.xlabel("Time (s)")
+
+ 
+
+# Histogram: Weight measurements 
+    plt.figure()
+    WoobyDataFrameFilt = WoobyDataFrame[(WoobyDataFrame["timeNorm"]>0) & (WoobyDataFrame["timeNorm"]<10000000000000000) ]
+    condensed = pd.concat([WoobyDataFrameFilt["relativeVal_WU"], WoobyDataFrameFilt["realValue_WU_AngleAdj"],  
+                           WoobyDataFrameFilt["realValue_WU_MovAvg"], WoobyDataFrameFilt["realValue_WU_Filt"]])
+                          
+    minVal = math.floor(min(condensed)) 
+    maxVal = math.ceil(max(condensed))
+    bins = np.arange(minVal, maxVal, (maxVal-minVal)/20)
+    plt.hist(WoobyDataFrameFilt["relativeVal_WU"],          bins=bins, alpha=0.5, ec='black', label="relativeVal_WU")
+    plt.hist(WoobyDataFrameFilt["realValue_WU_AngleAdj"],   bins=bins, alpha=0.5, ec='black', label="realValue_WU_AngleAdj")
+    plt.hist(WoobyDataFrameFilt["realValue_WU_MovAvg"],     bins=bins, alpha=0.5, ec='black', label="realValue_WU_MovAvg")
+    plt.hist(WoobyDataFrameFilt["realValue_WU_Filt"],       bins=bins, alpha=0.5, ec='black', label="realValue_WU_Filt")
+    
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
+    
+    print("relativeVal_WU: {:2f}".format(       np.std(WoobyDataFrameFilt["relativeVal_WU"]/WoobyDataFrame["calibrationFactor"])))
+    print("realValue_WU_AngleAdj: {:2f}".format(np.std(WoobyDataFrameFilt["realValue_WU_AngleAdj"]/WoobyDataFrame["calibrationFactor"])))
+    print("realValue_WU_MovAvg: {:2f}".format(  np.std(WoobyDataFrameFilt["realValue_WU_MovAvg"]/WoobyDataFrame["calibrationFactor"])))
+    print("realValue_WU_Filt: {:2f}".format(    np.std(WoobyDataFrameFilt["realValue_WU_Filt"]/WoobyDataFrame["calibrationFactor"])))
+    
+    print("realValue: {:2f}".format(             np.std(WoobyDataFrameFilt["realValue"])))
+    print("realValueFiltered: {:2f}".format(     np.std(WoobyDataFrameFilt["realValueFiltered"])))
+    print("correctedValueFiltered: {:2f}".format(np.std(WoobyDataFrameFilt["correctedValueFiltered"])))
+
+
+
+
+### Angles analysis
+
+    # Plot: Angles vs time
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["thetadeg"], label ="thetadeg")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["phideg"], label ="phideg")
+    plt.show()
+    plt.grid(True)
+    plt.legend(loc='best')
+    
+
+### Failures (all filters)
+
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["BF_GOOGLE_HTTPREQ"],   'o--',  label="BF_GOOGLE_HTTPREQ")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["BF_SERIALPORT"],       'o--',  label="BF_SERIALPORT")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["BF_SERIALTELNET"],     'o--',  label="BF_SERIALTELNET")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["BF_MPU"],              'o--',  label="BF_MPU")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["BF_WIFI"],             'o--',  label="BF_WIFI")
+    plt.show()
+    plt.grid(True)
+    plt.title("Failure booleans")
+    plt.ylabel("Failure booleans")
+    plt.xlabel("Time normalized (ms) ")
+    plt.legend(loc="best")
+
+## Correction analysis
+    
+    # Plot: Weight measurements vs time
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"],             'o--', label="realValue")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"],     'o--', label="realValueFiltered")
+    plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"],'o--', label="correctedValueFiltered")
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
+
+    # Histogram: Weight measurements 
+    plt.figure()
+    condensed = WoobyDataFrame["realValue"].append(WoobyDataFrame["realValueFiltered"]).append(WoobyDataFrame["correctedValueFiltered"])
+    minVal = math.floor(min(condensed)) 
+    maxVal = math.ceil(max(condensed))
+    bins = np.arange(minVal, maxVal, 0.25)
+    plt.hist(WoobyDataFrame["realValue"],               bins=bins, alpha=0.5, ec='black', label="realValue")
+    plt.hist(WoobyDataFrame["realValueFiltered"],       bins=bins, alpha=0.5, ec='black', label="realValueFiltered")
+    plt.hist(WoobyDataFrame["correctedValueFiltered"],  bins=bins, alpha=0.5, ec='black', label="correctedValueFiltered")
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
+
+
+### Vcc analysis
+    tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDataFrame["timeSim"]/1000, WoobyDataFrame["vccVolts"], 10, 0.7)
+    ratio = pyWooby.filtering.mapval(vccFiltered, 5.0, 7.4, 0, 1) 
+    
+    # Plot: Vcc vs time
+    plt.figure()
+    plt.plot(WoobyDataFrame["timeNorm"]/1000, WoobyDataFrame["vccVolts"], label ="vccVolts")
+    plt.plot(tout, vccFiltered, label ="Filtered")
+    #plt.plot(tout, ratio*100, label ="Filtered")
+    plt.show()
+    plt.grid(True)
+    plt.legend(loc='best')
+    plt.title("Vcc plot")
+    plt.ylabel("Vcc (Volts)")
+    plt.xlabel("Time normalized (s) ")
+    
+    # Calculation of the actual ON time
+    np.array(WoobyDataFrame[WoobyDataFrame["vccVolts"]>5]["timeNorm"])[-1]/1000/60/60
+    
+    
+    
+### Vcc qnqlysis (histogram)
+    minVal = math.floor(min(WoobyDataFrame["vccVolts"])) 
+    maxVal = math.ceil(max(WoobyDataFrame["vccVolts"]))
+    bins = np.linspace(minVal, maxVal, round(math.sqrt(len(WoobyDataFrame["vccVolts"])))  )
+
+    plt.figure()
+    plt.hist(WoobyDataFrame["vccVolts"], bins=bins, alpha=0.5, ec='black', label="vccVolts")
+    plt.hist(vccFiltered,  bins=bins, alpha=0.5, ec='black', label="Filtered")
+    plt.show()
+    plt.grid(True)
+    plt.legend(loc='best')
+    plt.title("Vcc histogram")
+    plt.xlabel("Vcc (V) ")
+    
+    
 plt.figure()
 plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue_WU"])
 plt.show()
 plt.grid(True)
 
-plt.figure()
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["thetadeg"], label ="thetadeg")
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["phideg"], label ="phideg")
-plt.show()
-plt.grid(True)
-
-
-plt.figure()
-
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValue"]-1003,             label="realValue")
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["realValueFiltered"]-1003,     label="realValueFiltered")
-plt.plot(WoobyDataFrame["timeNorm"], WoobyDataFrame["correctedValueFiltered"]-1003,label="correctedValueFiltered")
-plt.legend(loc='best')
-plt.grid(True)
-plt.show()
-
-
-plt.figure()
-condensed = WoobyDataFrame["realValue"].append(WoobyDataFrame["realValueFiltered"]).append(WoobyDataFrame["correctedValueFiltered"])
-minVal = math.floor(min(condensed)) 
-maxVal = math.ceil(max(condensed))
-bins = np.arange(minVal, maxVal, 0.25)
-plt.hist(WoobyDataFrame["realValue"],               bins=bins, alpha=0.5, ec='black', label="realValue")
-plt.hist(WoobyDataFrame["realValueFiltered"],       bins=bins, alpha=0.5, ec='black', label="realValueFiltered")
-plt.hist(WoobyDataFrame["correctedValueFiltered"],  bins=bins, alpha=0.5, ec='black', label="correctedValueFiltered")
-plt.legend(loc='best')
-plt.grid(True)
-plt.show()
 
 
 plt.figure()
