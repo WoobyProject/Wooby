@@ -95,8 +95,6 @@
   "</script>";
 
   bool setupOTA(){
-
-
     if (!B_OTA){
       return false;
     }

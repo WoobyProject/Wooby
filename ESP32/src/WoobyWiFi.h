@@ -26,7 +26,7 @@ bool checkWiFiConnection(){
   return (WiFi.begin()==WL_CONNECTED);
 }
 
-void WiFiConnectFromLib() {
+bool WiFiConnectFromLib() {
 
   // Setting host name ...
   WiFi.setHostname(WLAN_HOSTNAME);
@@ -60,7 +60,7 @@ void WiFiConnectFromLib() {
       Serial.println("GatewayIP address: ");
       Serial.println(WiFi.gatewayIP());
       Serial.println("");
-      return;
+      return true;
     }
     else{
       Serial.println("Failed to connect to ");
@@ -72,41 +72,58 @@ void WiFiConnectFromLib() {
   }
 
   Serial.println("No successful connection AT ALL!! ");
-  BF_WIFI = true;
+  return false;
+}
+
+bool WiFiConnectSmartConfig(){
+
+  WiFi.mode(WIFI_AP_STA);
+  /* Start SmartConfig */
+  WiFi.beginSmartConfig();
+
+  /* Wait for SmartConfig packet from mobile */
+  Serial.println("Waiting for SmartConfig.");
+  while (!WiFi.smartConfigDone()) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("SmartConfig done.");
+
+  /* Wait for WiFi to connect to AP */
+  // TODO ! This is blocking! Create a counter !
+  Serial.println("Waiting for WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi Connected.");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  return true;
 }
 
 bool setupWiFi (){
-  if (!B_WIFI)
+  if (!BDEF_WIFI){
     return false;
-
+  }
+  if (!B_WIFI){
+    Serial.printf("\tWiFI has been deactivated\n");
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    
+    return false;
+  }
+    
+  // Setting up the WiFi (for real) //
   if (B_WIFI_SMART_CONFIG){
-
-    WiFi.mode(WIFI_AP_STA);
-     /* start SmartConfig */
-    WiFi.beginSmartConfig();
-    /* Wait for SmartConfig packet from mobile */
-    Serial.println("Waiting for SmartConfig.");
-    while (!WiFi.smartConfigDone()) {
-      delay(500);
-      Serial.print(".");
-    }
-    Serial.println("");
-    Serial.println("SmartConfig done.");
-
-    /* Wait for WiFi to connect to AP */
-    // TODO ! This is blocking!
-    Serial.println("Waiting for WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-    Serial.println("WiFi Connected.");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
+    WiFiConnectSmartConfig();
   }
   else{
     WiFiConnectFromLib();
   }
+  delay(50);
 
   return checkWiFiConnection();
 

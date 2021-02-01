@@ -74,17 +74,25 @@
     bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
     bool B_INACTIVITY_ENABLE = true;
+
     #define BDEF_SERIALPORT true
     bool B_SERIALPORT = BDEF_SERIALPORT;
-    bool B_WIFI = true;
+
+    #define BDEF_WIFI true
+    bool B_WIFI = false;
     bool B_WIFI_SMART_CONFIG = false;
+
+    #define BDEF_SERIALTELNET false
     bool B_SERIALTELNET = false;
-    #define BDEF_GOOGLE_HTTPREQ true
+
+    #define BDEF_GOOGLE_HTTPREQ false
     bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
+    
     #define BDEF_OTA true
     bool B_OTA = BDEF_OTA;
+    
     #define BDEF_BLE true
-    bool B_BLE = BDEF_BLE;
+    bool B_BLE = false;
   #endif
 
 #include <ArduinoJson.h>            // by Benoit Blanchon
@@ -157,13 +165,14 @@
     //            b = 1 - math.exp(-Te/tau)
     //            a = math.exp(-Te/tau)
     //            tau = 1.4
+
     const float b =  0.3915; // Te = nMeasures*100 ms
     const float a =  0.6085; //
 
     // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<2, 2, float> filterWeight = {{0, b}, {1, -a}};
 
-    const float FILTERING_THR = 20;  // in grams
+    const float FILTERING_THR = 10;  // in grams
 
     float realValue_WU = 0;
     float realValue;
@@ -197,15 +206,22 @@
 
   // Model choice
   #if MODEL <= 4
-    float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
-    float K_MYAY_X =  0; float K_MYAY_Y = 1; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 0; float K_MYAZ_Z = 1;
+    const float K_MYAX_X = -1; const float K_MYAX_Y = 0; const float K_MYAX_Z = 0;
+    const float K_MYAY_X =  0; const float K_MYAY_Y = 1; const float K_MYAY_Z = 0;
+    const float K_MYAZ_X =  0; const float K_MYAZ_Y = 0; const float K_MYAZ_Z = 1;
+    const float OFFSET_AX =  0.02;
+    const float OFFSET_AY = -0.03;
+    const float OFFSET_AZ =  0.04;
+    
   #endif
 
   #if MODEL == 5
-    float K_MYAX_X =  0; float K_MYAX_Y = 0; float K_MYAX_Z = 1;
-    float K_MYAY_X = -1; float K_MYAY_Y = 0; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
+    const float K_MYAX_X =  0; const float K_MYAX_Y = 0; const float K_MYAX_Z = 1;
+    const float K_MYAY_X = -1; const float K_MYAY_Y = 0; const float K_MYAY_Z = 0;
+    const float K_MYAZ_X =  0; const float K_MYAZ_Y = 1; const float K_MYAZ_Z = 0;
+    const float OFFSET_AX =  0.00;
+    const float OFFSET_AY =  0.00;
+    const float OFFSET_AZ =  0.00;
   #endif
 
 
@@ -283,7 +299,7 @@
 //************************//
 
   bool bInactive = false;
-  const float MAX_INACTIVITY_TIME = 10*1000; // in milliseconds
+  const float MAX_INACTIVITY_TIME = 1800*1000; // in milliseconds
   const float INACTIVE_THR  = 5.0;
 
   unsigned long lastTimeActivity = 0;
@@ -394,9 +410,9 @@
       Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
       Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
 
-      myAx = (K_MYAX_X*float(Ax)+K_MYAX_Y*float(Ay)+K_MYAX_Z*float(Az))/16384;
-      myAy = (K_MYAY_X*float(Ax)+K_MYAY_Y*float(Ay)+K_MYAY_Z*float(Az))/16384;
-      myAz = (K_MYAZ_X*float(Ax)+K_MYAZ_Y*float(Ay)+K_MYAZ_Z*float(Az))/16384;
+      myAx = OFFSET_AX + (K_MYAX_X*float(Ax)+K_MYAX_Y*float(Ay)+K_MYAX_Z*float(Az))/16384;
+      myAy = OFFSET_AY + (K_MYAY_X*float(Ax)+K_MYAY_Y*float(Ay)+K_MYAY_Z*float(Az))/16384;
+      myAz = OFFSET_AZ + (K_MYAZ_X*float(Ax)+K_MYAZ_Y*float(Ay)+K_MYAZ_Z*float(Az))/16384;
 
       myGx =    float(Gx)/131;
       myGy =    float(Gy)/131;
@@ -435,10 +451,10 @@
 //*******************************//
 
 void myTare(){
-  DPRINTLN("TARE starting... ");
+  DPRINTLN("\tTARE starting... ");
   unsigned long bTare = millis();
   scale.tare(nMeasuresTare);
-  DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
+  DPRINT("\tTARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
   // Reinitializing the filters
   weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG);
@@ -447,7 +463,7 @@ void myTare(){
   // Reading reference temperature
   readMPU();
   TEMPREF = myTmp;
-  DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
+  DPRINT("\tReference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
 
 
@@ -492,6 +508,10 @@ void setDebugMode(){
       B_INHIB_NEG_VALS = true;
       B_SERIALTELNET = false;
       B_WIFI = false;
+      // TODO: DO this properly in a function
+        WiFi.disconnect();
+        WiFi.mode(WIFI_OFF);
+
       B_OTA = false;
       B_BLE = false;
 
@@ -506,7 +526,11 @@ void setDebugMode(){
       B_INHIB_NEG_VALS = false;
       B_SERIALTELNET = true;
       B_WIFI = true;
+      // TODO: DO this properly in a function
+        Serial.print("Connecting to WiFi for debug mode");
+        BF_WIFI = !setupWiFi();
       B_OTA = true;
+        setupOTA();
       B_BLE = true;
 
     }
@@ -733,7 +757,7 @@ void print_wakeup_reason(){
     case ESP_SLEEP_WAKEUP_TIMER  :    Serial.println("Wakeup caused by timer"); break;
     case ESP_SLEEP_WAKEUP_TOUCHPAD  : Serial.println("Wakeup caused by touchpad"); break;
     case ESP_SLEEP_WAKEUP_ULP  :      Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.println("Wakeup was not caused by deep sleep"); Serial.printf("Cause:%d", esp_sleep_get_wakeup_cause()); break;
+    default : Serial.println("Wakeup was not caused by deep sleep"); Serial.printf("Cause:%d\n\n", esp_sleep_get_wakeup_cause()); break;
   }
 }
 
@@ -871,7 +895,7 @@ bool buildGenericJSON(){
     }
   #endif
 
-  #if B_SERIALTELNET
+  #if BDEF_SERIALTELNET
     genericJSON["B_SERIALTELNET"] = B_SERIALTELNET;
     genericJSON["BF_SERIALTELNET"] = BF_SERIALTELNET;
   #endif
@@ -881,7 +905,7 @@ bool buildGenericJSON(){
     genericJSON["BF_MPU"] = BF_MPU;
   #endif
 
-  #if B_WIFI
+  #if BDEF_WIFI
     genericJSON["B_WIFI"] = BF_WIFI;
     genericJSON["BF_WIFI"] = BF_WIFI;
   #endif
@@ -1393,7 +1417,10 @@ void mainDisplayWooby(){
           if (B_DEBUG_MODE){
             char bufIp[] = "192.168.000.000";
             getIp().toCharArray(bufIp, 15);
-            u8g.drawStr( 46, 8, bufIp );
+            if (BF_WIFI)
+              u8g.drawStr( 44, 8, "???.???.???.???" );
+            else
+              u8g.drawStr( 44, 8, bufIp );
           }
         }
 
@@ -1456,7 +1483,7 @@ void mainDisplayWooby(){
 
           #ifdef BDEF_BLE
             u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
-            u8g.drawStr( 33, 3, "J");
+            u8g.drawStr( 33, 2, "J");
             if(!B_BLE || BF_BLUETOOTH)
               u8g.drawLine(30, 11, 39, 2);
           

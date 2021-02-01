@@ -12,9 +12,9 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "/Users/macretina/Documents/Humanity Lab/Wooby/Github/ESP32/.pio/build/esp32dev/firmware.elf",
+            "executable": "/Users/enriquem/Documents/HumanityLab/Wooby/Github/ESP32/.pio/build/esp32dev/firmware.elf",
             "projectEnvName": "esp32dev",
-            "toolchainBinDir": "/Users/macretina/.platformio/packages/toolchain-xtensa32@2.50200.80/bin",
+            "toolchainBinDir": "/Users/enriquem/.platformio/packages/toolchain-xtensa32@2.50200.80/bin",
             "preLaunchTask": {
                 "type": "PlatformIO",
                 "task": "Pre-Debug"
@@ -25,9 +25,9 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "/Users/macretina/Documents/Humanity Lab/Wooby/Github/ESP32/.pio/build/esp32dev/firmware.elf",
+            "executable": "/Users/enriquem/Documents/HumanityLab/Wooby/Github/ESP32/.pio/build/esp32dev/firmware.elf",
             "projectEnvName": "esp32dev",
-            "toolchainBinDir": "/Users/macretina/.platformio/packages/toolchain-xtensa32@2.50200.80/bin",
+            "toolchainBinDir": "/Users/enriquem/.platformio/packages/toolchain-xtensa32@2.50200.80/bin",
             "internalConsoleOptions": "openOnSessionStart"
         }
     ]

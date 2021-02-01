@@ -1,8 +1,12 @@
-from .load import readWoobyFile, readWoobyFolder, extraCalculationWooby
-from .plot import plotcorrectedWeight
-from .filtering import genericFilter, filter_1od, movingAvg, myFFT
+from pyWooby.load import readWoobyFile, readWoobyFolder, extraCalculationWooby
+from pyWooby.plot import plotcorrectedWeight
+from pyWooby.filtering import genericFilter, filter_1od, movingAvg, myFFT
 
+
+    
 import os
+import sys
+import glob
 
 from telnetlib import Telnet
 import serial
@@ -75,7 +79,6 @@ class Wooby():
     def tare(self):
         self.serialTare()
 
-
 ##########################
 #     Serial functions   #
 ##########################
@@ -97,9 +100,14 @@ class Wooby():
             self.serialPortWooby.flushOutput()
             
             return True
-        except:
+        except Exception as e:
+            print("ERROR => {}: {}".format(type(e).__name__, str(e)))
             return False
 
+    def availableSerialPorts(self):
+        
+        return [x.name for x in serial.tools.list_ports.comports() ]
+    
     def serialRead(self):
         
         # Serial read section
@@ -146,12 +154,12 @@ class Wooby():
         
         try:
             
-            WoobyDataFrame["timeNorm"] = WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
+            WoobyDataFrame["timeNorm"] =    WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
             
             WoobyDataFrame["timeMeasure"] = WoobyDataFrame["tAfterMeasure"] - WoobyDataFrame["tBeforeMeasure"]
             WoobyDataFrame["timeAlgo"] =    WoobyDataFrame["tAfterAlgo"]    - WoobyDataFrame["tAfterMeasure"]
             WoobyDataFrame["timeTotal"] =   WoobyDataFrame["tAfterAlgo"]    - WoobyDataFrame["tBeforeMeasure"]
-            WoobyDataFrame["timeSim"] = np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
+            WoobyDataFrame["timeSim"] =     np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
     
             return WoobyDataFrame
         except Exception as e:
@@ -192,15 +200,20 @@ class Wooby():
 ##########################        
 #    Reading functions   #
 ##########################
-
+    
+    
     def read(self, commType):
+        # Reads only one valid point
+        
         if (commType == "SERIAL"):
            return self.serialRead()
             
         if (commType == "TELNET"):
            return self.telnetRead()            
-                
+    
+    
     def readNTimes(self, commType, nMeasures):
+        # Reads N valid points
         
         # Initial variables
         WoobyDataFrame = pd.DataFrame()
@@ -227,6 +240,9 @@ class Wooby():
             print("{}: {}".format(type(e).__name__, str(e)))
                    
     def readUntil(self, commType):
+        # Reading until the function sis stopped
+        # However the library sets a maximum of read valid points 
+        
         return self.readNTimes(commType, self.nMaxMeasures)
        
    
@@ -240,7 +256,6 @@ class Wooby():
         except Exception as e:
             print("ERROR => {}: {}".format(type(e).__name__, str(e)))
             return False
-            
             
         
     def readCalibPoint(self, subset, suffix, realWeight, commType, nMeasures, fileName, fileFolder, overwrite=False):

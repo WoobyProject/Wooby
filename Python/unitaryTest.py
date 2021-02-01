@@ -12,7 +12,6 @@ fileFilter = ""
 unityTestResults = readWoobyFolder(fileFolder, fileFilter)
 
 
-
 histUnit = plt.figure()
 plotUnit = plt.figure()
 lineUnit = plt.figure()

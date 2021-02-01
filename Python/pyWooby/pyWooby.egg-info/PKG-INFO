@@ -3,10 +3,15 @@ Name: pyWooby
 Version: 0.0.1
 Summary: A Python package for the dev of Wooby
 Home-page: https://github.com/WoobyProject
-Author: Enriaue Maldonado
+Author: Enrique Maldonado
 Author-email: contact@iamemgineer.com
 License: UNKNOWN
-Description: UNKNOWN
+Description: Install on Your Local Machine
+        
+        If you want to test your application on your local machine, you can install the .whl file using pip:
+        
+        
+        python -m pip install dist/pyWooby-0.0.1-py3-none-any.whl
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
