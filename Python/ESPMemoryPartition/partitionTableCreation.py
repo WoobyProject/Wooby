@@ -27,7 +27,7 @@ for s in myList:
 print("\nTotal size: {}\n".format(sm/1e6))
 
 
-upsize = 0x30000
+upsize = 0x40000
 
 newSizes = [int(x,16) for x in myList]
 newSizes[2] = newSizes[2] + upsize
@@ -45,3 +45,6 @@ for ns in newSizes:
 
 
 print("\nTotal new size: {}\n".format(newsum/1e6))
+
+import pandas as pd
+pd.DataFrame({'name':["nvs","otadata","app0","app1","spiffs"]})

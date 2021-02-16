@@ -20,10 +20,39 @@ String WLAN_PASS_LIB[]  = {"TonsOfSmiles"};
 int count = 0;
 const int N_GSHEETS = 5;
 
+char bufIp[] = "192.168.000.000";
+
+//***** FUNCTIONS SOFT ACCESS POINT *****//
+
+const char* ssidAP = "Wooby";
+const char* passwordAP = "tonsofsmiles";
+IPAddress IP_AP;
+
+
+bool BF_SOFTAP = true;
+
+bool setupSoftAP(){
+
+  BF_SOFTAP = !WiFi.softAP(ssidAP, passwordAP);
+
+  if (BF_SOFTAP){
+    Serial.printf("\n\tSoft Access Point setup NOT succesful !\n\n");
+    return false;
+  }
+
+  IP_AP  = WiFi.softAPIP();
+  Serial.print("url: http://");
+  Serial.print(IP_AP);
+
+  return true;
+
+}
+
+
 //***** FUNCTIONS *****//
 
 bool checkWiFiConnection(){
-  return (WiFi.begin()==WL_CONNECTED);
+  return (WiFi.status()==WL_CONNECTED);
 }
 
 bool WiFiConnectFromLib() {
@@ -108,14 +137,16 @@ bool setupWiFi (){
   if (!BDEF_WIFI){
     return false;
   }
+
   if (!B_WIFI){
     Serial.printf("\tWiFI has been deactivated\n");
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
-    
     return false;
   }
-    
+  
+  WiFi.mode(WIFI_STA);
+
   // Setting up the WiFi (for real) //
   if (B_WIFI_SMART_CONFIG){
     WiFiConnectSmartConfig();
@@ -124,6 +155,11 @@ bool setupWiFi (){
     WiFiConnectFromLib();
   }
   delay(50);
+
+  Serial.printf("\n\n");
+  Serial.printf("From WiFi we have %d\n", WiFi.begin()==WL_CONNECTED);
+  Serial.printf("From function we have %d\n", checkWiFiConnection());
+  
 
   return checkWiFiConnection();
 

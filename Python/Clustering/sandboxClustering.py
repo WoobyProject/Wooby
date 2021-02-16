@@ -78,17 +78,65 @@ kmeans = KMeans(n_clusters=6, random_state=0)
 
 # Create the pipeline
 WoobyPipeline = make_pipeline(std_scaler, kmeans)
-WoobyPipelineData = make_pipeline(std_scaler, normalizer)
+WoobyPipelineData = make_pipeline(std_scaler)
 
-totalDfTrainSImple = totalDf[["realValue_WU", "thetadeg"]]
+totalDfTrainSimple = totalDf[["realValue_WU", "thetadeg"]]
 totalDfTrain = totalDf[["realValue_WU", "thetadeg", "phideg", "myTmp"]]
 
-WoobyPipeline.fit(totalDfTrain)
+
 labels = kmeans.labels_
 totalDf["labels"] = labels
 
 
+
+#####################
+### Normalization and standarization
+#####################
+
+
 newTotalDfTrain = WoobyPipelineData.fit_transform(totalDfTrain)
+
+for i in range(0,newTotalDfTrain.shape[1]):
+    data1 = totalDfTrain.to_numpy()[0:,i] 
+    data2 = newTotalDfTrain[0:,i]
+    
+    fig, ax1 = plt.subplots()
+    
+    color = 'tab:red'
+    ax1.set_ylabel('Raw', color=color)
+    ax1.plot(data1, color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+    
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    color = 'tab:blue'
+    ax2.set_ylabel('Normalized', color=color)  # we already handled the x-label with ax1
+    ax2.plot(data2, color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+    
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    ax1.set_title(totalDfTrain.keys()[i])
+    plt.show()
+
+
+def movingAvg(inputSignal, n):
+    if not isinstance(inputSignal, pd.DataFrame):
+        inputSignalSeries = pd.Series(inputSignal)
+        
+    resultFilter = inputSignalSeries.rolling(window=n).mean()
+    
+    return np.array(resultFilter)
+
+myData =  newTotalDfTrain[0:,2]
+
+plt.figure()
+plt.plot(myData)
+plt.plot( [np.mean(myData)]  * len(myData)  )  
+mvgAvrg = movingAvg(myData, 8)
+plt.plot(mvgAvrg)
+mvgAvrg2 = movingAvg(myData, 16)
+plt.plot(mvgAvrg2)
+mvgAvrg3 = movingAvg(myData, 30)
+plt.plot(mvgAvrg3)
 
 #####################
 ### PCA
@@ -109,6 +157,7 @@ print(pca.components_)
 
 # Plot the explained variances
 features = range(pca.n_components_)
+plt.figure()
 plt.bar(features, pca.explained_variance_)
 plt.xlabel('PCA feature')
 plt.ylabel('variance')

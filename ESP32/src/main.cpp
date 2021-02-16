@@ -1,4 +1,3 @@
-// #include "U8glib.h"
 #include <U8g2lib.h>                 // by Oliver
 #include "HX711.h"
 #include <Wire.h>
@@ -13,11 +12,10 @@
 
 #include <EasyButton.h>
 
-
 //************************//
 //*      VERSION SEL     *//
 //************************//
-
+  #define VERSION 1.0
   #define MODEL 1
   // MODEL 1 : ESP32 - Wooby 1
   // MODEL 2 : ESP32 - Wooby 2
@@ -88,8 +86,11 @@
     #define BDEF_GOOGLE_HTTPREQ false
     bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
     
+    #define BDEF_APSOFT true
+    bool B_SOFTAP = false;
+
     #define BDEF_OTA true
-    bool B_OTA = BDEF_OTA;
+    bool B_OTA = false;
     
     #define BDEF_BLE true
     bool B_BLE = false;
@@ -98,11 +99,6 @@
 #include <ArduinoJson.h>            // by Benoit Blanchon
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-// For encryption
-/*
-#include <SHA256.h>
-#include <rBase64.h>                //  by boseji
-*/
 
 #include "WoobyWiFi.h"
 
@@ -118,7 +114,7 @@
 
   // Model choice
   #if MODEL == 1
-    float calibrationFactor = 42.0000;
+    float calibrationFactor = 42.5725;
   #endif
 
   #if MODEL == 2
@@ -134,14 +130,11 @@
     float calibrationFactor = 38.5299;
   #endif
 
-  #if MODEL == 5
-    float calibrationFactor = 61.7977;
-  #endif
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
   float MAX_GR_VALUE = 11000; // in gr
-  float MIN_GR_VALUE = 5;    // in gr
+  float MIN_GR_VALUE = 5;     // in gr
 
   float correctedValueFiltered = 0;
   float displayFinalValue = 0;
@@ -166,7 +159,7 @@
     //            a = math.exp(-Te/tau)
     //            tau = 1.4
 
-    const float b =  0.3915; // Te = nMeasures*100 ms
+    const float b =  0.3915; // 
     const float a =  0.6085; //
 
     // Filter = y/u = b*z-1(1-a)
@@ -176,11 +169,11 @@
 
     float realValue_WU = 0;
     float realValue;
-    float realValue_1;
-    float realValueFiltered;
-    float realValueFiltered_1;
-    float relativeVal_WU_1;
-
+    // float realValue_1;
+    // float realValueFiltered;
+    //float realValueFiltered_1;
+    
+    float relativeVal_WU_1 = 0;
     float relativeVal_WU = 0;
     float realValue_WU_AngleAdj = 0;
     float realValue_WU_MovAvg = 0;
@@ -231,10 +224,9 @@
 
   const int PIN_VCC = 34;
 
-  const float VCCMIN   = 5.0;         // Minimum expected Vcc level, in Volts.
-  const float VCCMAX   = 7.3;         // Maximum expected Vcc level, in Volts.
+  const float VCCMIN   = 6.0;         // Minimum expected Vcc level, in Volts. (3.0 x 2)
+  const float VCCMAX   = 8.4;         // Maximum expected Vcc level, in Volts. (4.2 x 2)
 
-  // New:
   const int N_VCC_READ = 10;
   float K_BITS_TO_VOLTS = 3.3/4095;
 
@@ -252,9 +244,7 @@
   float vccVolts = 0;         // Real voltage of Vcc (in Volts)
   float ratioVCCMAX = 0;      // Percentage of the read voltage in Vcc to the full charge voltage
 
-
   bool BF_VCCMNG = false;
-
 
 //************************//
 //*   TARE BUTTON CONF   *//
@@ -262,17 +252,9 @@
 
   const int PIN_PUSH_BUTTON = 35; // TODO repetead
 
-  unsigned long countTimeButton;
-
-  int tareButtonStateN   = 0;
-  int tareButtonStateN_1 = 0;
-  int tareButtonFlank    = 0;
-
-  unsigned long tStartTareButton = 0;
-  unsigned long tEndTareButton = 0;
-
   /* EasyButton */
   EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
+  int TIME_DEBUG_MODE = 3000;
 
 //************************//
 //*      DISPLAY CONF    *//
@@ -320,16 +302,13 @@
   const float MAX_THETA_VALUE = 10;
   const float MAX_PHI_VALUE = 10;
 
-  const float OFFSET_THETA = 10;
-  const float OFFSET_PHI = 10;
-
   bool BF_MPU=false;
 
 //************************//
 //*   TELNET COMMS CONF  *//
 //************************//
 
-#if B_SERIALTELNET==true
+#if BDEF_SERIALTELNET
   #define MAX_SRV_CLIENTS 1
   WiFiServer serverTelnet(23);
   WiFiClient serverTelnetClients[MAX_SRV_CLIENTS];
@@ -343,7 +322,7 @@
 
   // See https://arduinojson.org/v6/assistant/
   const int N_FIELDS_JSON = 36;
-  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 0; //1620
+  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 1620; //1620
   DynamicJsonDocument genericJSON(CAPACITY_JSON);
   String genericJSONString; // TODO  create a String with the right MAX length
 
@@ -357,11 +336,12 @@
 //*     BLUETOOTH CONF   *//
 //************************//
 
-  #ifdef BDEF_BLE
+  #if BDEF_BLE
     #include "BluetoothSerial.h"
     BluetoothSerial SerialBT;
-    bool BF_BLUETOOTH = false;
+    bool BF_BLE = false;
     bool BT_CLIENT_CONNECT = false;
+
   #endif
 
   //************************//
@@ -439,10 +419,13 @@
 
     angleCalc(); // angleCalc() also updates BF_MPU
     if(!BF_MPU && B_ANGLE_ADJUSTMENT){
+      if (relativeVal_WU/calibrationFactor> 100)
         realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
+      else
+        realValue_WU_AngleAdj = relativeVal_WU;
     }
     else{
-    realValue_WU_AngleAdj = relativeVal_WU;
+      realValue_WU_AngleAdj = relativeVal_WU;
     }
   }
 
@@ -466,7 +449,6 @@ void myTare(){
   DPRINT("\tReference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
 
-
 float correctionAlgo(float realValue){
 
   int realValueInt = int(realValue);
@@ -484,78 +466,6 @@ float correctionAlgo(float realValue){
     if ( realValueDecim > 0.7) { correctedValue = long(realValueInt)+1; }
 
   return correctedValue;
-}
-
-
-//********************++++****//
-//*   TARE BUTTON FUNCTIONS  *//
-//*********************++++***//
-
-void newTare(){
-    Serial.printf("\nNew tare! \n");
-    myTare();
-}
-
-void setDebugMode(){
-
-    if (B_DEBUG_MODE){
-      Serial.printf("\n\nOut of debug! \n\n");
-      B_DEBUG_MODE = false;
-
-      B_LIMITED_ANGLES = true;
-      B_DISPLAY_ANGLES = false;
-      B_DISPLAY_ACCEL = false;
-      B_INHIB_NEG_VALS = true;
-      B_SERIALTELNET = false;
-      B_WIFI = false;
-      // TODO: DO this properly in a function
-        WiFi.disconnect();
-        WiFi.mode(WIFI_OFF);
-
-      B_OTA = false;
-      B_BLE = false;
-
-    }
-    else{
-      Serial.printf("\n\nDebug time! \n\n");
-      B_DEBUG_MODE = true;
-
-      B_LIMITED_ANGLES = false;
-      B_DISPLAY_ANGLES = true;
-      B_DISPLAY_ACCEL = true;
-      B_INHIB_NEG_VALS = false;
-      B_SERIALTELNET = true;
-      B_WIFI = true;
-      // TODO: DO this properly in a function
-        Serial.print("Connecting to WiFi for debug mode");
-        BF_WIFI = !setupWiFi();
-      B_OTA = true;
-        setupOTA();
-      B_BLE = true;
-
-    }
-}
-
-void couplingBLE(){
-  Serial.printf("\n\nCoupling BLE! \n\n");
-}
-
-void initTareButton(){
-
-  pinMode(PIN_PUSH_BUTTON, INPUT);
-
-  //*         Easy Button      *//
-  tareButton.begin();
-  // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
-  tareButton.onSequence(1,  2000,  newTare);            // For tare
-  tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
-  tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling
-
-}
-
-void newTareButtonAction()
-{
-  tareButton.read();
 }
 
 //************************//
@@ -646,9 +556,18 @@ void setupDisplay(){
 void initDisplay(const unsigned char * u8g_image_bits){
   u8g.firstPage();
   do {
+    // Drawing Wooby's logo
     u8g.drawXBMP( 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, u8g_image_bits);
-    // Serial.printf("Setup display value:%d\n\n",   int(float(DISPLAY_WIDTH)*float(setupState)/float(NSTATES_SETUP))  );
+    
+    // Drawing progress bar
     u8g.drawBox(0,DISPLAY_HEIGHT-5,  int(float(DISPLAY_WIDTH)*float(setupState)/float(NSTATES_SETUP))   , 5); // (Horiz, Vert, Width, Height)
+
+    // Printing version
+    u8g.setFont(u8g2_font_6x10_tf);
+    char versionStr[5];
+    sprintf(versionStr, "V%.2f", VERSION);
+    u8g.drawStr(DISPLAY_WIDTH-10, DISPLAY_HEIGHT-15 , versionStr);
+    
   } while( u8g.nextPage() );
 }
 
@@ -707,6 +626,25 @@ void sponsorsDisplay(void){
   delay(1000);
   Serial.println("");
 
+}
+
+void OTADisplay(){
+  // Set up the display
+  u8g.firstPage();
+  u8g.setFont(u8g2_font_osb18_tf);
+
+  do{
+    u8g.setFont(u8g2_font_6x10_tf); //u8g2_font_6x10_tf
+    u8g.drawStr( 20, 18, "Wooby is ready");
+    u8g.setFont(u8g2_font_6x10_tf);
+    u8g.drawStr( 25, 28, "for an update! :)");
+
+    IP_AP.toString().toCharArray(bufIp, 15);
+    u8g.drawStr( 40, 45, bufIp);
+    
+
+  }while(u8g.nextPage());
+  delay(1000);
 }
 
 void wakingUpDisplay(){
@@ -828,6 +766,7 @@ void inactivityCheck() {
   }
 }
 
+/*
 RTC_RODATA_ATTR int test = 0;
 
 void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
@@ -839,6 +778,7 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
     //esp_rom_printf(fmt_str, test++);
 
 }
+*/
 
 //**************************//
 //* GENERIC JSON FUNCTIONS *//
@@ -860,7 +800,7 @@ bool buildGenericJSON(){
   genericJSON["realValue_WU_Filt"] = realValue_WU_Filt;
 
   genericJSON["realValue"] = realValue;
-  genericJSON["realValueFiltered"] = realValueFiltered;
+  //genericJSON["realValueFiltered"] = realValueFiltered;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
   genericJSON["myAx"] = myAx;
@@ -883,7 +823,7 @@ bool buildGenericJSON(){
 
   genericJSON["B_DEBUG_MODE"] = B_DEBUG_MODE;
 
-  #if B_GOOGLE_HTTPREQ
+  #if BDEF_GOOGLE_HTTPREQ
     genericJSON["B_GOOGLE_HTTPREQ"] = B_GOOGLE_HTTPREQ;
     genericJSON["BF_GOOGLE_HTTPREQ"] = BF_GOOGLE_HTTPREQ;
   #endif
@@ -906,9 +846,21 @@ bool buildGenericJSON(){
   #endif
 
   #if BDEF_WIFI
-    genericJSON["B_WIFI"] = BF_WIFI;
+    genericJSON["B_WIFI"] = B_WIFI;
     genericJSON["BF_WIFI"] = BF_WIFI;
   #endif
+
+  #if BDEF_BLE
+    genericJSON["B_BLE"] = B_BLE;
+    genericJSON["BF_BLE"] = BF_BLE;
+  #endif
+
+  #if BDEF_APSOFT
+    genericJSON["B_SOFTAP"] = B_SOFTAP;
+    genericJSON["BF_SOFTAP"] = BF_SOFTAP;
+    genericJSON["SPA_CON"] = WiFi.softAPgetStationNum();
+  #endif
+
 
   return true;
 }
@@ -923,7 +875,7 @@ String json2String(DynamicJsonDocument theJSON) {
 //* HTTP REQUEST FUNCTIONS *//
 //**************************//
 
-#ifdef B_GOOGLE_HTTPREQ
+#if BDEF_GOOGLE_HTTPREQ
 
   bool setupGoogleComs(){
     if (!B_GOOGLE_HTTPREQ){
@@ -1078,22 +1030,15 @@ void printSerial()
   if (BF_SERIALPORT)
     return;
   
-  /*
-  if (Serial.read()==-1)
-    BF_SERIALPORT = true;
-  else
-    BF_SERIALPORT = false;
-  */
-  
   Serial.printf("\nWS");
-  serializeJson(genericJSON, Serial); //serializeJsonPretty TODO this ñight be too slo, check the Telnet as example
+  serializeJson(genericJSON, Serial); //serializeJsonPretty TODO this is too slow, check the Telnet as example !
 }
 
 //***************************//
 //* SERIAL TELNET FUNCTIONS *//
 //***************************//
 
-#ifdef B_SERIALTELNET
+#if BDEF_SERIALTELNET
 
   bool setupTelnet() {
 
@@ -1184,7 +1129,7 @@ void printSerial()
 //*   BLUETOOTH FUNCTIONS   *//
 //***************************//
 
-#ifdef BDEF_BLE 
+#if BDEF_BLE 
 
   void bluetoothCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
   {
@@ -1197,7 +1142,7 @@ void printSerial()
     {
         Serial.println("Connection closed");
         BT_CLIENT_CONNECT = false;
-        ESP.restart();
+        // ESP.restart();
     }
     /*
     else if(event == ESP_SPP_DATA_IND_EVT)
@@ -1218,20 +1163,24 @@ void printSerial()
   
   bool setupBluetooth(){
 
-    SerialBT.begin("Wooby", false); //Bluetooth device name
-    BF_BLUETOOTH = false; // TODO !
-    // SerialBT.register_callback(bluetoothCallback);
+    if (!B_BLE)
+      return false;
+
+    SerialBT.begin("Wooby"); //Bluetooth device name
+    BF_BLE = false; // TODO !
+    //SerialBT.register_callback(bluetoothCallback);
 
     return true;
   }
 
   void printSerialBluetooth(){
     
-    if (BF_BLUETOOTH)
+    if (BF_BLE)
       return;
 
-    if (!SerialBT.hasClient())
+    if (!SerialBT.hasClient()){
       return;
+    }
     
     // Sending the message via bluetooth
     SerialBT.print(genericJSONString);
@@ -1240,14 +1189,112 @@ void printSerial()
   }
 #endif
 
+//********************++++****//
+//*   TARE BUTTON FUNCTIONS  *//
+//*********************++++***//
+
+void newTare(){
+    Serial.printf("\nNew tare! \n");
+    myTare();
+}
+
+void setDebugMode(){
+
+    if (B_DEBUG_MODE){
+      Serial.printf("\n\nOut of debug! \n\n");
+      B_DEBUG_MODE = false;
+
+      B_LIMITED_ANGLES = true;
+      B_DISPLAY_ANGLES = false;
+      B_DISPLAY_ACCEL = false;
+      B_INHIB_NEG_VALS = true;
+      B_SERIALTELNET = false;
+      B_WIFI = false;
+      B_SOFTAP = false;
+      B_OTA = false;
+      // TODO: DO this properly in a function
+        WiFi.disconnect();
+        WiFi.mode(WIFI_OFF);
+
+      
+      B_BLE = false;
+
+    }
+    else{
+      Serial.printf("\n\nDebug time! \n\n");
+      B_DEBUG_MODE = true;
+
+      B_LIMITED_ANGLES = false;
+      B_DISPLAY_ANGLES = true;
+      B_DISPLAY_ACCEL = true;
+      B_INHIB_NEG_VALS = false;
+      B_SERIALTELNET = true;
+      B_WIFI = true;
+      // TODO: DO this properly in a function
+        // Serial.print("Connecting to WiFi for debug mode");
+        // BF_WIFI = !setupWiFi();
+      B_SOFTAP = true;
+        Serial.print("Enabling WiFi Soft Access point for debug mode");
+        setupSoftAP();
+      B_OTA = true;
+        setupOTA();
+
+      B_BLE = true;
+      #if BDEF_BLE
+        setupBluetooth();
+      #endif
+
+    }
+}
+
+void initTareButton(){
+
+  pinMode(PIN_PUSH_BUTTON, INPUT);
+
+  //*         Easy Button      *//
+  tareButton.begin();
+  // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
+  tareButton.onSequence(1,  2000,  newTare);            // For tare
+  // tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
+  tareButton.onPressedFor(TIME_DEBUG_MODE, setDebugMode);          // For BLE coupling
+
+}
+
+void newTareButtonAction()
+{
+  tareButton.read();
+}
+
 //*************************//
 //*    MACRO FUNCTIONS    *//
 //*************************//
 
+void showLowBattery(){
+
+ do {
+
+    // Drawing the battery outlay
+    u8g.drawFrame(32, 24, 64, 16); // Battery (x, y, w, h)
+    u8g.drawFrame(95, 28,  4,  8); // Tip of the battery (x, y, w, h)
+    u8g.drawLine(48, 48,  80, 16);
+
+  } while(u8g.nextPage());
+
+  delay(3000);
+
+  // Putting the screen in sleep mode
+  u8g.sleepOn();
+
+  //Putting the ESP in sleep mode (deep sleep)
+  esp_deep_sleep_start();
+
+  while(1){}
+}
+
 void setUpWeightAlgorithm(){
-    realValue_1 = 0;
-    realValueFiltered = 0;
-    realValueFiltered_1 = 0;
+    // realValue_1 = 0;
+    // realValueFiltered = 0;
+    // realValueFiltered_1 = 0;
     bSync = false;
 
     weightMovAvg.clear();
@@ -1303,23 +1350,8 @@ void getWoobyWeight(){
       realValue_WU_Filt = filterWeight(realValue_WU_MovAvg);
     }
 
-
     // Conversion to grams //
     realValue = realValue_WU_Filt/scale.get_scale(); // (realValue_WU_AngleAdj)/scale.get_scale();
-    /*
-    correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
-
-    // Filtering  //
-
-      // Filtering for the real value //
-      realValueFilterResult = filtering(realValue, realValue_1, realValueFiltered_1);
-      bSync = realValueFilterResult.bSync;
-      realValueFiltered = realValueFilterResult.yk;
-
-      // Updating for filtering
-      realValueFiltered_1 = realValueFiltered;
-      realValue_1 = realValue;
-    */
 
     // Final correction  //
     correctedValueFiltered = correctionAlgo(realValue);
@@ -1337,10 +1369,10 @@ void mainDisplayWooby(){
             u8g.print(" OVER");
             u8g.setCursor(15, 40) ;
             u8g.print("FLOW !");
-        } while(u8g.nextPage());
+      } while(u8g.nextPage());
 
   }
-  else if ((correctedValueFiltered < -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
+  else if ((correctedValueFiltered <= -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
        do {
             u8g.setFont(u8g2_font_osb18_tf);
             u8g.setCursor(17, 25) ; // (Horiz, Vert)
@@ -1415,12 +1447,17 @@ void mainDisplayWooby(){
 
           u8g.setFont(u8g2_font_micro_tr);
           if (B_DEBUG_MODE){
-            char bufIp[] = "192.168.000.000";
-            getIp().toCharArray(bufIp, 15);
-            if (BF_WIFI)
-              u8g.drawStr( 44, 8, "???.???.???.???" );
-            else
-              u8g.drawStr( 44, 8, bufIp );
+            if (B_SOFTAP){
+              IP_AP.toString().toCharArray(bufIp, 15);
+              u8g.drawStr( 44, 8, bufIp);
+            }
+            else if (BF_WIFI){
+                u8g.drawStr( 44, 8, "???.???.???.???" );
+            }
+            else {
+                getIp().toCharArray(bufIp, 15);
+                u8g.drawStr( 44, 8, bufIp );
+            }
           }
         }
 
@@ -1464,7 +1501,7 @@ void mainDisplayWooby(){
         // Display connections //
           u8g.setFont(u8g2_font_open_iconic_www_1x_t);
           u8g.drawStr( 4, 2, "Q");
-          if (!B_WIFI || BF_WIFI)
+          if ((!B_WIFI || BF_WIFI) && !B_SOFTAP )
             u8g.drawLine(2, 11, 11, 2);
 
           u8g.setFont(u8g2_font_6x10_tf);
@@ -1472,7 +1509,7 @@ void mainDisplayWooby(){
           if (!B_SERIALPORT || BF_SERIALPORT)
             u8g.drawLine(17, 11, 26, 2);
 
-          #ifdef B_GOOGLE_HTTPREQ
+          #if BDEF_GOOGLE_HTTPREQ
             if (B_GOOGLE_HTTPREQ){
               u8g.setFont(u8g2_font_6x10_tf);
               u8g.drawStr( 33, 3, "G");
@@ -1481,10 +1518,10 @@ void mainDisplayWooby(){
             }
           #endif
 
-          #ifdef BDEF_BLE
+          #if BDEF_BLE
             u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
             u8g.drawStr( 33, 2, "J");
-            if(!B_BLE || BF_BLUETOOTH)
+            if(!B_BLE || BF_BLE)
               u8g.drawLine(30, 11, 39, 2);
           
           #endif
@@ -1502,49 +1539,19 @@ void mainDisplayWooby(){
 //*       SET UP        *//
 //************************//
 
-/*
-void partitionTable(){
-
-  size_t ul;
-  esp_partition_iterator_t _mypartiterator;
-  const esp_partition_t *_mypart;
-  ul = spi_flash_get_chip_size(); Serial.print("Flash chip size: "); Serial.println(ul);
-  Serial.println("Partiton table:");
-  _mypartiterator = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL);
-  if (_mypartiterator) {
-    do {
-      _mypart = esp_partition_get(_mypartiterator);
-      printf("%x - %x - %x - %x - %s - %i\r\n", _mypart->type, _mypart->subtype, _mypart->address, _mypart->size, _mypart->label, _mypart->encrypted);
-    } while (_mypartiterator = esp_partition_next(_mypartiterator));
-  }
-
-  esp_partition_iterator_release(_mypartiterator);
-  _mypartiterator = esp_partition_find(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, NULL);
-  if (_mypartiterator) {
-    do {
-      _mypart = esp_partition_get(_mypartiterator);
-      printf("%x - %x - %x - %x - %s - %i\r\n", _mypart->type, _mypart->subtype, _mypart->address, _mypart->size, _mypart->label, _mypart->encrypted);
-      } while (_mypartiterator = esp_partition_next(_mypartiterator));
-  }
-  esp_partition_iterator_release(_mypartiterator);
-
-}
-
-*/
-
 void setup(void) {
 
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
 
-  Serial.printf("\n\nTest value: %d\n\n", test);
   esp_set_deep_sleep_wake_stub(&esp_wake_deep_sleep);
   
   if(wakeupReason == 0){ // Wooby is initializing
     Serial.println("--- Microcontroller data ---");
     Serial.printf("Flash size: %d bytes\n", ESP.getFlashChipSize());
     Serial.printf("SDK version: %s bytes\n", ESP.getSdkVersion());
-    
+    Serial.printf("Free heap: %d bytes\n", ESP.getFreeHeap()); // getSketchSize getFreeSketchSpace
+    Serial.printf("Skecth size: %d bytes\n", ESP.getSketchSize());
     Serial.println("");
   }
 
@@ -1563,9 +1570,22 @@ void setup(void) {
   else{
     Serial.println("Hello! I'm Wooby!! ");
     Serial.println("Initializing to measure tons of smiles ... ");
+    Serial.printf("\n\tVersion: %.2f\n", VERSION);
+
     // initDisplay(logoWooby);
     // displayImage(logoWooby);
     state = 0;
+  }
+
+  //*          VCC MANAGEMENT      *//
+  Serial.println("Setting up Vcc management ...");
+  setupVccMgnt();
+  readVcc();
+
+  //*      LOW BATTERY RESPONSE   *//
+  if ((ratioVCCMAX<0.01) && false){
+    Serial.printf("\nLow battery level: %d percent\n Going into deep sleep... ", int(100*ratioVCCMAX));
+    showLowBattery();
   }
 
   //*       SET UP  WEIGHT SENSOR       *//
@@ -1605,19 +1625,13 @@ void setup(void) {
   }
   nextStepSetup();
 
-  //*          VCC MANAGEMENT      *//
-  Serial.println("Setting up Vcc management ...");
-  setupVccMgnt();
-  nextStepSetup();
-
   //*         WIFI CONNECTION        *//
   Serial.println("Setting up WiFi ...");
   BF_WIFI = !setupWiFi();
   nextStepSetup();
 
   //*          GOOGLE COMS         *//
-  
-  #ifdef B_GOOGLE_HTTPREQ
+  #if BDEF_GOOGLE_HTTPREQ
     Serial.println("Setting up Google comms ...");
     // TODO ! Create a Google Coms Failure boolean
     setupGoogleComs();
@@ -1625,21 +1639,21 @@ void setup(void) {
   nextStepSetup();
 
   //*          SERIAL TELNET       *//
-  #ifdef B_SERIALTELNET
+  #if BDEF_SERIALTELNET
     Serial.println("Setting up Telnet Serial ... ");
     BF_SERIALTELNET = !setupTelnet();
   #endif
   nextStepSetup();
 
   //*       SERIAL BLUETOOTH       *//
-  #ifdef BDEF_BLE
+  #if BDEF_BLE
     Serial.println("Setting up BLE Serial ... ");
-    BF_BLUETOOTH = !setupBluetooth();
+    BF_BLE = !setupBluetooth();
   #endif
   nextStepSetup();
 
   //*          OTA SERVER      *//
-  #ifdef BDEF_OTA
+  #if BDEF_OTA
     Serial.println("Setting up OTA ... ");
     // TODO ! Create a OTA Failure boolean
     setupOTA();
@@ -1648,15 +1662,17 @@ void setup(void) {
 
   
   unsigned long setUpTimeEnd =  millis();
+  Serial.println("");
   Serial.println("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
 
 }
 
 //************************//
-//*        LOOP         *//
+//*         LOOP         *//
 //************************//
 
 void loop(void) {
+
 
   //*  READING OF SERIAL ENTRIES   *//
     if(Serial.available())
@@ -1690,12 +1706,6 @@ void loop(void) {
             state++;
     break;
     case 1:
-            // sponsorsDisplay();
-            /* for (int i=0; i<10; i++){
-              clockShoot(i, 10);
-              delay(1000);
-            }
-            */
             state++;
     break;
 
@@ -1710,7 +1720,6 @@ void loop(void) {
     break;
     case 3:
     {
-
       // Main display loop
 
         // Tare button //
@@ -1731,13 +1740,9 @@ void loop(void) {
           if(B_SERIALPORT)
             printSerial();
         #endif
-        
-        // Serial.printf("\n Free heap: %d", ESP.getFreeHeap()); // getSketchSize getFreeSketchSpace
-        // Serial.printf("\n Skecth size: %d", ESP.getSketchSize());
-        // Serial.printf("\n Vcc: %d", ESP.getVcc());
 
         // Google sheet data Sending  //
-        #ifdef B_GOOGLE_HTTPREQ
+        #if BDEF_GOOGLE_HTTPREQ
           if (B_GOOGLE_HTTPREQ){
           // unsigned long tBeforeGoogle = millis();
           sendDataToGoogle();
@@ -1747,7 +1752,7 @@ void loop(void) {
         #endif
 
         // Serial Telnet outputs  //
-        #ifdef B_SERIALTELNET
+        #if BDEF_SERIALTELNET
           if(B_SERIALTELNET){
           // unsigned long tBeforeTelnet = millis();
           printSerialTelnet();
@@ -1758,11 +1763,20 @@ void loop(void) {
 
         // OTA server   //
         #ifdef BDEF_OTA
-          if (B_OTA)
+          if (B_OTA){
             serverOTA.handleClient();
+            if (WiFi.softAPgetStationNum()>0){
+              Serial.printf("\n\n Getting into the inifite loop for OTA\n\n");    
+              OTADisplay();         
+              while(1){
+                serverOTA.handleClient();
+                delay(10);
+              }
+            }
+          }
         #endif
 
-        #ifdef BDEF_BLE
+        #if BDEF_BLE
           if (B_BLE)
             printSerialBluetooth();
         #endif
@@ -1783,4 +1797,4 @@ void loop(void) {
     }
   }
 
-  }
+}

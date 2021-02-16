@@ -17,6 +17,19 @@ import numpy as np
 import time
 import json
 
+
+import signal
+
+from sklearn.linear_model import LinearRegression
+
+
+def keyboardInterruptHandler(signal, frame):
+    print("KeyboardInterrupt (ID: {}) has been caught. Cleaning up...".format(signal))
+    exit(0)
+
+signal.signal(signal.SIGINT, keyboardInterruptHandler)
+
+    
 class Wooby():
     
     serialPortWooby = None
@@ -30,6 +43,23 @@ class Wooby():
         self.telnetPortWooby = None
         
 
+##########################        
+#    General functions   #
+##########################
+
+    def availablePorts(self):
+        if sys.platform.startswith('win'):
+            ports = ['COM%s' % (i + 1) for i in range(256)]
+        elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            # this excludes your current terminal "/dev/tty"
+            ports = glob.glob('/dev/tty[A-Za-z]*')
+        elif sys.platform.startswith('darwin'):
+            ports = glob.glob('/dev/tty.*')
+        else:
+            ports = []
+            raise EnvironmentError('Unsupported platform')
+        return ports
+        
 ##########################        
 #     Telnet functions   #
 ##########################
@@ -166,6 +196,10 @@ class Wooby():
             print("ERROR => {}: {}".format(type(e).__name__, str(e)))
             return None
 
+    def closeSerial(self):
+        if ( self.serialPortWooby):
+            self.serialPortWooby.close()
+        
 ##########################        
 #     Export functions   #
 ##########################  
@@ -195,7 +229,13 @@ class Wooby():
             fileWooby.write(WoobyDataFrame.to_csv(index=False))
             fileWooby.close()
 
+##########################        
+#     Import functions   #
+##########################
 
+    def importCSV(self,fileName, fileFolder):
+        return pd.read_csv(os.path.join(fileFolder, fileName))
+        
 
 ##########################        
 #    Reading functions   #
@@ -234,10 +274,20 @@ class Wooby():
                     print("Line read! ({}/{}) Read time: {:.2f} ms".format(i, nMeasures, (tEnd - tStart)*1000 ))
        
             return WoobyDataFrame
-            
+        ## TODO ! This is not reallt working well
+        except KeyboardInterrupt:
+            return WoobyDataFrame
         except Exception as e:
-            print("ERROR: reading line in readNTimes()")
-            print("{}: {}".format(type(e).__name__, str(e)))
+                print (str(e) )
+                if "'exit'" in str(e):
+                    
+                    print( "WARNING: reading stopped before end with 'KeyboardInterrupt'" )
+                    return WoobyDataFrame
+                else:
+                    print("ERROR: reading line in readNTimes()")
+                    print("{}: {}".format(type(e).__name__, str(e)))
+                
+                
                    
     def readUntil(self, commType):
         # Reading until the function sis stopped
@@ -269,5 +319,34 @@ class Wooby():
         
                  
 
+##################################     
+#           Calibration          #
+################################## 
+
+    def basicCalibration(self, WoobyDataFrame, verbose=False):
+        X = np.array(WoobyDataFrame["realValue_WU"]) #  relativeValue_WU
+        y = np.array(WoobyDataFrame["realWeight"])
+        
+        X = X.reshape((-1, 1))
+        y = y.reshape((-1, 1))
+        
+        reg = LinearRegression().fit(X, y)
+        
+        # The coefficients & interception
+        coeffsreg = reg.coef_
+        intercept = reg.intercept_
+        
+        SLOPE_basic = 1/coeffsreg[0][0]
+        
+        if (verbose):
+            print('\n')
+            print('Coefficients: \n',   coeffsreg)
+            print('Intercept: \n',      intercept)
+            print('\n')
+            
+            print("\n\nVariable to code as 'calibration_factor': {}\n\n".format(SLOPE_basic))
+        
+        return reg
+    
 
     
