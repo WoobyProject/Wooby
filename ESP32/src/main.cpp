@@ -106,7 +106,7 @@
   #define DOUT 19     // For Arduino 6
   #define CLK  18     // For Arduino 5
 
-  HX711 scale;
+  HX711 scale1;
 
   // Model choice
   #if MODEL == 1
@@ -437,7 +437,7 @@
 void myTare(){
   DPRINTLN("TARE starting... ");
   unsigned long bTare = millis();
-  scale.tare(nMeasuresTare);
+  scale1.tare(nMeasuresTare);
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
   // Reinitializing the filters
@@ -1227,7 +1227,7 @@ void setUpWeightAlgorithm(){
     bSync = false;
 
     weightMovAvg.clear();
-    weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG); // (float)scale.get_offset()
+    weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG); // (float)scale1.get_offset()
 }
 
 void getWoobyWeight(){
@@ -1237,15 +1237,15 @@ void getWoobyWeight(){
 
     // Raw weighting //
     tBeforeMeasure = millis();
-    realValue_WU = scale.read_average(nMeasures);
+    realValue_WU = scale1.read_average(nMeasures);
     tAfterMeasure = millis();
 
-    offset = (float)scale.get_offset();
+    offset = (float)scale1.get_offset();
     relativeVal_WU = realValue_WU - offset;
 
     // Synchronization calcualtion
 
-    if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale.get_scale()){
+    if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale1.get_scale()){
       bSyncTimer = millis();
       bSync = true;
     }
@@ -1281,7 +1281,7 @@ void getWoobyWeight(){
 
 
     // Conversion to grams //
-    realValue = realValue_WU_Filt/scale.get_scale(); // (realValue_WU_AngleAdj)/scale.get_scale();
+    realValue = realValue_WU_Filt/scale1.get_scale(); // (realValue_WU_AngleAdj)/scale1.get_scale();
     /*
     correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
 
@@ -1543,10 +1543,10 @@ void setup(void) {
 
   //*       SET UP  WEIGHT SENSOR       *//
   Serial.println("Setting up weight sensor...");
-  scale.begin(DOUT, CLK);
-  scale.set_gain(gain);
-  scale.set_scale(calibrationFactor);
-  scale.set_offset(offset);
+  scale1.begin(DOUT, CLK);
+  scale1.set_gain(gain);
+  scale1.set_scale(calibrationFactor);
+  scale1.set_offset(offset);
   nextStepSetup();
 
 
@@ -1637,10 +1637,10 @@ void loop(void) {
       char temp = Serial.read();
       switch(temp){
       case '+': calibrationFactor += 0.01;
-                scale.set_scale(calibrationFactor);
+                scale1.set_scale(calibrationFactor);
                 break;
       case '-': calibrationFactor -= 0.01;
-                scale.set_scale(calibrationFactor);
+                scale1.set_scale(calibrationFactor);
                 break;
       case 't': myTare();
                 break;
