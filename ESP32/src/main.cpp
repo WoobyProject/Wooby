@@ -106,7 +106,7 @@
   #define DOUT 19     // For Arduino 6
   #define CLK  18     // For Arduino 5
 
-  HX711 scale1;
+  HX711 scale[2];
 
   // Model choice
   #if MODEL == 1
@@ -135,14 +135,13 @@
   float MAX_GR_VALUE = 11000; // in gr
   float MIN_GR_VALUE = 5;    // in gr
 
-  float correctedValueFiltered = 0;
+  float correctedValueFiltered[2] = {0.0, 0.0};
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
-  unsigned long tBeforeMeasure = 0;
-  unsigned long tAfterMeasure = 0;
-  unsigned long tAfterAlgo = 0;
-
+  unsigned long tBeforeMeasure[2] = {0, 0};
+  unsigned long tAfterMeasure[2] = {0, 0};
+  unsigned long tAfterAlgo[2] = {0, 0};
   char arrayMeasure[8];
 
   //************************//
@@ -161,31 +160,31 @@
     const float a =  0.6085; //
 
     // Filter = y/u = b*z-1(1-a)
-    NormalizingIIRFilter<2, 2, float> filterWeight = {{0, b}, {1, -a}};
+    NormalizingIIRFilter<2, 2, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
     const float FILTERING_THR = 20;  // in grams
 
-    float realValue_WU = 0;
-    float realValue;
+    float realValue_WU[2] = {0.0, 0.0};
+    float realValue[2];
     float realValue_1;
     float realValueFiltered;
     float realValueFiltered_1;
-    float relativeVal_WU_1;
+    float relativeVal_WU_1[2];
 
-    float relativeVal_WU = 0;
+    float relativeVal_WU[2] = {0.0, 0.0};
     float realValue_WU_AngleAdj = 0;
-    float realValue_WU_MovAvg = 0;
-    float realValue_WU_Filt = 0;
+    float realValue_WU_MovAvg[2] = {0.0, 0.0};
+    float realValue_WU_Filt[2] = {0.0, 0.0};
 
     float correctedValue = 0;
-    RTC_DATA_ATTR float offset = 0;
+    RTC_DATA_ATTR float offset[2] = {0.0, 0.0};
 
     bool bSync;
-    unsigned long bSyncTimer = 0 ;
+    unsigned long bSyncTimer[2] = {0, 0};
     const unsigned long BSYNC_TIME = 2000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
-    RunningAverage weightMovAvg(N_WINDOW_MOV_AVG);
+    RunningAverage weightMovAvg[] = { RunningAverage(N_WINDOW_MOV_AVG), RunningAverage(N_WINDOW_MOV_AVG) };
 
 //************************//
 //*   LOAD SENSOR ADJ    *//
@@ -422,27 +421,35 @@
   void angleAdjustment(){
 
     angleCalc(); // angleCalc() also updates BF_MPU
+    /* (PH) Comment TBR
     if(!BF_MPU && B_ANGLE_ADJUSTMENT){
         realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
     }
     else{
     realValue_WU_AngleAdj = relativeVal_WU;
-    }
+    } */
   }
 
 //*******************************//
 //*      WEIGHTING ALGORITHM    *//
 //*******************************//
 
-void myTare(){
+void myTare()
+{
+  int i;
+
   DPRINTLN("TARE starting... ");
   unsigned long bTare = millis();
-  scale1.tare(nMeasuresTare);
+  scale[0].tare(nMeasuresTare);
+  scale[1].tare(nMeasuresTare);
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
   // Reinitializing the filters
-  weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG);
-  filterWeight.reset(0);
+  for(i=0;i < 2;i++)
+  {
+    weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
+    filterWeight[i].reset(0);
+  }
 
   // Reading reference temperature
   readMPU();
@@ -531,6 +538,7 @@ void initTareButton(){
 
 void newTareButtonAction()
 {
+  // Constinuously update the button state
   tareButton.read();
 }
 
@@ -820,24 +828,41 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
 //* GENERIC JSON FUNCTIONS *//
 //**************************//
 
-bool buildGenericJSON(){
+bool buildGenericJSON()
+{
+  genericJSON["tBeforeMeasure1"] = tBeforeMeasure[0];
+  genericJSON["tAfterMeasure1"] = tAfterMeasure[0];
+  genericJSON["tAfterAlgo1"] = tAfterAlgo[0];
 
-  genericJSON["tBeforeMeasure"] = tBeforeMeasure;
-  genericJSON["tAfterMeasure"] = tAfterMeasure;
-  genericJSON["tAfterAlgo"] = tAfterAlgo;
-
-  genericJSON["realValue_WU"] = realValue_WU;
-  genericJSON["OFFSET"] = offset;
+  genericJSON["realValue_WU1"] = realValue_WU[0];
+  genericJSON["offset1"] = offset[0];
   genericJSON["calibrationFactor"] = calibrationFactor;
 
-  genericJSON["relativeVal_WU"] = relativeVal_WU;
+  genericJSON["relativeVal_WU1"] = relativeVal_WU[0];
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
-  genericJSON["realValue_WU_MovAvg"] = realValue_WU_MovAvg;
-  genericJSON["realValue_WU_Filt"] = realValue_WU_Filt;
+  genericJSON["realValue_WU_MovAvg1"] = realValue_WU_MovAvg[0];
+  genericJSON["realValue_WU_Filt1"] = realValue_WU_Filt[0];
 
-  genericJSON["realValue"] = realValue;
+  genericJSON["realValue1"] = realValue[0];
   genericJSON["realValueFiltered"] = realValueFiltered;
-  genericJSON["correctedValueFiltered"] = correctedValueFiltered;
+  genericJSON["correctedValueFiltered1"] = correctedValueFiltered[0];
+
+  genericJSON["tBeforeMeasure2"] = tBeforeMeasure[1];
+  genericJSON["tAfterMeasure2"] = tAfterMeasure[1];
+  genericJSON["tAfterAlgo2"] = tAfterAlgo[1];
+
+  genericJSON["realValue_WU2"] = realValue_WU[1];
+  genericJSON["offset2"] = offset[1];
+  // (PH) genericJSON["calibrationFactor"] = calibrationFactor;
+
+  genericJSON["relativeVal_WU2"] = relativeVal_WU[1];
+  genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
+  genericJSON["realValue_WU_MovAvg2"] = realValue_WU_MovAvg[1];
+  genericJSON["realValue_WU_Filt2"] = realValue_WU_Filt[1];
+
+  genericJSON["realValue2"] = realValue[1];
+  // (PH) genericJSON["realValueFiltered"] = realValueFiltered;
+  genericJSON["correctedValueFiltered2"] = correctedValueFiltered[1];
 
   genericJSON["myAx"] = myAx;
   genericJSON["myAy"] = myAy;
@@ -1220,94 +1245,114 @@ void printSerial()
 //*    MACRO FUNCTIONS    *//
 //*************************//
 
-void setUpWeightAlgorithm(){
+void setUpWeightAlgorithm()
+{
+    int i;
+
     realValue_1 = 0;
     realValueFiltered = 0;
     realValueFiltered_1 = 0;
     bSync = false;
-
-    weightMovAvg.clear();
-    weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG); // (float)scale1.get_offset()
+    for(i=0;i < 2;i++)
+    {
+      weightMovAvg[i].clear();
+      weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG); // (float)scale1.get_offset()
+    }
 }
 
 void getWoobyWeight(){
+    int i;
 
-    // Updating for synchro
-    relativeVal_WU_1 = relativeVal_WU;
+    for(i=0;i < 2;i++)
+    {
+      // Updating for synchro
+      relativeVal_WU_1[i] = relativeVal_WU[i];
 
-    // Raw weighting //
-    tBeforeMeasure = millis();
-    realValue_WU = scale1.read_average(nMeasures);
-    tAfterMeasure = millis();
+      // Raw weighting //
+      tBeforeMeasure[i] = millis();
+      realValue_WU[i] = scale[i].read_average(nMeasures);
+      tAfterMeasure[i] = millis();
 
-    offset = (float)scale1.get_offset();
-    relativeVal_WU = realValue_WU - offset;
+      offset[i] = (float)scale[i].get_offset();
+      relativeVal_WU[i] = realValue_WU[i] - offset[i];
 
-    // Synchronization calcualtion
+      // Synchronization calcualtion
 
-    if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale1.get_scale()){
-      bSyncTimer = millis();
-      bSync = true;
-    }
-    else{
-      if (millis()-bSyncTimer > BSYNC_TIME){
-        bSync = false;}
-      else{
+      if (abs(relativeVal_WU[i] - relativeVal_WU_1[i]) > (FILTERING_THR * scale[i].get_scale()))
+      {
+        bSyncTimer[i] = millis();
         bSync = true;
       }
+      else
+      {
+        if ((millis() - bSyncTimer[i]) > BSYNC_TIME)
+        {
+          bSync = false;
+        }
+        else
+        {
+          bSync = true;
+        }
+      }
+
+      // Angles correction //
+      // angleAdjustment();
+      angleCalc();
+
+      // Moving average //
+      if (bSync)
+      {
+        weightMovAvg[i].fillValue(relativeVal_WU[i], N_WINDOW_MOV_AVG);
+        realValue_WU_MovAvg[i] = relativeVal_WU[i];
+      }
+      else
+      {
+        weightMovAvg[i].addValue(relativeVal_WU[i]);
+        realValue_WU_MovAvg[i] = weightMovAvg[i].getFastAverage(); // or getAverage()
+      }
+
+      // Filtering with Arduino-Filters library
+      if (bSync)
+      {
+        realValue_WU_Filt[i] = realValue_WU_MovAvg[i];
+        filterWeight[i].reset(realValue_WU_MovAvg[i]);
+      }
+      else
+      {
+        realValue_WU_Filt[i] = filterWeight[i](realValue_WU_MovAvg[i]);
+      }
+
+
+      // Conversion to grams //
+      realValue[i] = realValue_WU_Filt[i]/scale[i].get_scale(); // (realValue_WU_AngleAdj)/scale1.get_scale();
+      /*
+      correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
+
+      // Filtering  //
+
+        // Filtering for the real value //
+        realValueFilterResult = filtering(realValue, realValue_1, realValueFiltered_1);
+        bSync = realValueFilterResult.bSync;
+        realValueFiltered = realValueFilterResult.yk;
+
+        // Updating for filtering
+        realValueFiltered_1 = realValueFiltered;
+        realValue_1 = realValue;
+      */
+
+      // Final correction  //
+      correctedValueFiltered[i] = correctionAlgo(realValue[i]);
+
+      tAfterAlgo[i] = millis();
     }
-
-    // Angles correction //
-    angleAdjustment();
-
-    // Moving average //
-    if (bSync){
-      weightMovAvg.fillValue(realValue_WU_AngleAdj, N_WINDOW_MOV_AVG);
-      realValue_WU_MovAvg = realValue_WU_AngleAdj;
-    }
-    else{
-      weightMovAvg.addValue(realValue_WU_AngleAdj);
-      realValue_WU_MovAvg = weightMovAvg.getFastAverage(); // or getAverage()
-    }
-
-    // Filtering with Arduino-Filters library
-    if (bSync){
-      realValue_WU_Filt = realValue_WU_MovAvg;
-      filterWeight.reset(realValue_WU_MovAvg);
-    }
-    else{
-      realValue_WU_Filt = filterWeight(realValue_WU_MovAvg);
-    }
-
-
-    // Conversion to grams //
-    realValue = realValue_WU_Filt/scale1.get_scale(); // (realValue_WU_AngleAdj)/scale1.get_scale();
-    /*
-    correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
-
-    // Filtering  //
-
-      // Filtering for the real value //
-      realValueFilterResult = filtering(realValue, realValue_1, realValueFiltered_1);
-      bSync = realValueFilterResult.bSync;
-      realValueFiltered = realValueFilterResult.yk;
-
-      // Updating for filtering
-      realValueFiltered_1 = realValueFiltered;
-      realValue_1 = realValue;
-    */
-
-    // Final correction  //
-    correctedValueFiltered = correctionAlgo(realValue);
-
-    tAfterAlgo = millis();
 }
 
 void mainDisplayWooby(){
   // Set up the display
   u8g.firstPage();
 
-  if (correctedValueFiltered > MAX_GR_VALUE) { // Verification of the max value in grams
+  // (PH) Next line : to modify correctedValueFiltered[0]
+  if (correctedValueFiltered[0] > MAX_GR_VALUE) { // Verification of the max value in grams
       do {
             u8g.setCursor(15, 15) ;
             u8g.print(" OVER");
@@ -1316,7 +1361,8 @@ void mainDisplayWooby(){
         } while(u8g.nextPage());
 
   }
-  else if ((correctedValueFiltered < -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
+  // (PH) Next line : to modify correctedValueFiltered[0]
+  else if ((correctedValueFiltered[0] < -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
        do {
             u8g.setFont(u8g2_font_osb18_tf);
             u8g.setCursor(17, 25) ; // (Horiz, Vert)
@@ -1543,10 +1589,15 @@ void setup(void) {
 
   //*       SET UP  WEIGHT SENSOR       *//
   Serial.println("Setting up weight sensor...");
-  scale1.begin(DOUT, CLK);
-  scale1.set_gain(gain);
-  scale1.set_scale(calibrationFactor);
-  scale1.set_offset(offset);
+  scale[0].begin(DOUT, CLK);
+  scale[0].set_gain(gain);
+  scale[0].set_scale(calibrationFactor);
+  scale[0].set_offset(offset[0]);
+  // (PH) Change the pins DOUT and CLK
+  scale[1].begin(DOUT, CLK);
+  scale[1].set_gain(gain);
+  scale[1].set_scale(calibrationFactor);
+  scale[1].set_offset(offset[1]);
   nextStepSetup();
 
 
@@ -1637,10 +1688,12 @@ void loop(void) {
       char temp = Serial.read();
       switch(temp){
       case '+': calibrationFactor += 0.01;
-                scale1.set_scale(calibrationFactor);
+                scale[0].set_scale(calibrationFactor);
+                scale[1].set_scale(calibrationFactor);
                 break;
       case '-': calibrationFactor -= 0.01;
-                scale1.set_scale(calibrationFactor);
+                scale[0].set_scale(calibrationFactor);
+                scale[1].set_scale(calibrationFactor);
                 break;
       case 't': myTare();
                 break;
@@ -1742,7 +1795,8 @@ void loop(void) {
 
         // Updating for inactivity check
         displayFinalValue_1 = displayFinalValue;
-        displayFinalValue   = correctedValueFiltered;
+        // (PH) Next line : to modify correctedValueFiltered[0]
+        displayFinalValue   = correctedValueFiltered[0];
 
         //     Displaying     //
         mainDisplayWooby();
