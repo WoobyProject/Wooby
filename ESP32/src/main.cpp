@@ -1,92 +1,10 @@
 // #include "U8glib.h"
 #include <U8g2lib.h>                 // by Oliver
-#include "HX711.h"
-#include <Wire.h>
 #include <math.h>
-
-#include "WoobyImage.h"
-
-#include "Debugging.h"
-
 #include "Filters/IIRFilter.hpp"
 #include <RunningAverage.h>
-
 #include <EasyButton.h>
-
-
-//************************//
-//*      VERSION SEL     *//
-//************************//
-
-  #define MODEL 1
-  // MODEL 1 : ESP32 - Wooby 1
-  // MODEL 2 : ESP32 - Wooby 2
-  // MODEL 3 : Arduino - Unknown
-  // MODEL 4 : Arduino - Unknown
-  // MODEL 5 : ESP32 - Wooby Xtrem
-
-  #define TYPE 1
-
-  // TYPE = 0 (PROTOTYPE)
-  #if TYPE==0
-    bool B_DEBUG_MODE = true;
-    bool B_ANGLE_ADJUSTMENT = true;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
-    bool B_DISPLAY_ACCEL = true;
-    bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ENABLE = false;
-    bool B_GOOGLE_HTTPREQ = true;
-    bool B_SERIALPORT = true;
-    bool B_SERIALTELNET = true;
-    bool B_OTA = true;
-  #endif
-
-// TYPE = 3 (PROTOTYPE-connectToWiFi)
-  #if TYPE==3
-    bool B_DEBUG_MODE = true;
-    bool B_ANGLE_ADJUSTMENT = false;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
-    bool B_DISPLAY_ACCEL = true;
-    bool B_INHIB_NEG_VALS = false;
-    bool B_INACTIVITY_ENABLE = false;
-    bool B_SERIALPORT = false;
-    bool B_WIFI = true;
-    bool B_WIFI_SMART_CONFIG = false;
-    #define B_SERIALTELNET true 
-    #define B_GOOGLE_HTTPREQ false
-    #define B_OTA true
-    #define B_BLE true 
-  #endif
-
-    
-
-  // TYPE = 1 (FINAL DELIVERY)
-  #if TYPE==1
-    bool B_DEBUG_MODE = false;
-    bool B_ANGLE_ADJUSTMENT = true;
-    bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = true;
-    bool B_DISPLAY_ANGLES = false;
-    bool B_DISPLAY_ACCEL = false;
-    bool B_INHIB_NEG_VALS = true;
-    bool B_INACTIVITY_ENABLE = true;
-    #define BDEF_SERIALPORT true
-    bool B_SERIALPORT = BDEF_SERIALPORT;
-    bool B_WIFI = true;
-    bool B_WIFI_SMART_CONFIG = false;
-    bool B_SERIALTELNET = false;
-    #define BDEF_GOOGLE_HTTPREQ true
-    bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
-    #define BDEF_OTA true
-    bool B_OTA = BDEF_OTA;
-    #define BDEF_BLE true
-    bool B_BLE = BDEF_BLE;
-  #endif
-
+#include "HX711.h"
 #include <ArduinoJson.h>            // by Benoit Blanchon
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -95,16 +13,23 @@
 #include <SHA256.h>
 #include <rBase64.h>                //  by boseji
 */
-
+#include "mapping.h"
+#include "version.h"
+#include "main.h"
+#include "mpu6050.h"
+#include "WoobyImage.h"
 #include "WoobyWiFi.h"
-
 #include "OTAserver.h"
+#include "Debugging.h"
+
+//************************//
+//*      VERSION SEL     *//
+//************************//
+
 
 //************************//
 //*      SENSOR CONF     *//
 //************************//
-  #define DOUT 19     // For Arduino 6
-  #define CLK  18     // For Arduino 5
 
   HX711 scale;
 
@@ -193,8 +118,6 @@
 
   float TEMPREF = 26.0;
 
-  float const calib_theta_2 = -0.00014;
-
   // Model choice
   #if MODEL <= 4
     float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
@@ -212,8 +135,6 @@
 //************************//
 //*  VCC MANAGEMENT CONF *//
 //************************//
-
-  const int PIN_VCC = 34;
 
   const float VCCMIN   = 5.0;         // Minimum expected Vcc level, in Volts.
   const float VCCMAX   = 7.3;         // Maximum expected Vcc level, in Volts.
@@ -243,8 +164,6 @@
 //************************//
 //*   TARE BUTTON CONF   *//
 //************************//
-
-  const int PIN_PUSH_BUTTON = 35; // TODO repetead
 
   unsigned long countTimeButton;
 
@@ -295,19 +214,6 @@
 //*    GYROSCOPE CONF    *//
 //************************//
 
-  const int MPU_ADDR=0x68;
-  const float pi = 3.1416;
-  int16_t Ax,Ay,Az,Tmp,Gx,Gy,Gz;
-  float myAx, myAy, myAz, myTmp, myGx, myGy, myGz;
-  float thetadeg, phideg ;
-
-  const float MAX_THETA_VALUE = 10;
-  const float MAX_PHI_VALUE = 10;
-
-  const float OFFSET_THETA = 10;
-  const float OFFSET_PHI = 10;
-
-  bool BF_MPU=false;
 
 //************************//
 //*   TELNET COMMS CONF  *//
@@ -352,83 +258,6 @@
   //* GYRO/ACCEL FUNCTIONS *//
   //************************//
 
-  void setupMPU(){
-
-      Wire.begin();
-
-   // Waking up the chip
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x6B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the gyroscope (+-200 deg/s)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the accelerometer (+-2 g)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-  }
-
-  void readMPU(){
-
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-
-    uint8_t errorRF = Wire.requestFrom(MPU_ADDR,14,true);
-
-    if(errorRF){
-      BF_MPU = false;
-
-      Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
-      Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
-      Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
-      Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-      Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
-      Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
-      Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
-
-      myAx = (K_MYAX_X*float(Ax)+K_MYAX_Y*float(Ay)+K_MYAX_Z*float(Az))/16384;
-      myAy = (K_MYAY_X*float(Ax)+K_MYAY_Y*float(Ay)+K_MYAY_Z*float(Az))/16384;
-      myAz = (K_MYAZ_X*float(Ax)+K_MYAZ_Y*float(Ay)+K_MYAZ_Z*float(Az))/16384;
-
-      myGx =    float(Gx)/131;
-      myGy =    float(Gy)/131;
-      myGz =    float(Gz)/131;
-
-      myTmp = Tmp/340.00+36.53;
-    }
-    else{
-      // Serial.println("ERROR: Reading MPU");
-      BF_MPU = true;
-    }
-  }
-
-  void angleCalc(){
-
-      readMPU(); // This function also updates BF_MPU
-        // Keep in mind that atan2() handles the zero div
-      phideg = (180/pi)*atan2(myAy,myAz);
-      thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
-
-  }
-
-  void angleAdjustment(){
-
-    angleCalc(); // angleCalc() also updates BF_MPU
-    if(!BF_MPU && B_ANGLE_ADJUSTMENT){
-        realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
-    }
-    else{
-    realValue_WU_AngleAdj = relativeVal_WU;
-    }
-  }
 
 //*******************************//
 //*      WEIGHTING ALGORITHM    *//
