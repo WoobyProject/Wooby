@@ -103,8 +103,10 @@
 //************************//
 //*      SENSOR CONF     *//
 //************************//
-  #define DOUT 19     // For Arduino 6
-  #define CLK  18     // For Arduino 5
+#define DOUT 19     // For Arduino 6
+#define CLK  18     // For Arduino 5
+#define DOUT2 12
+#define CLK2  14
 
   HX711 scale[2];
 
@@ -1593,8 +1595,7 @@ void setup(void) {
   scale[0].set_gain(gain);
   scale[0].set_scale(calibrationFactor);
   scale[0].set_offset(offset[0]);
-  // (PH) Change the pins DOUT and CLK
-  scale[1].begin(DOUT, CLK);
+  scale[1].begin(DOUT2, CLK2);
   scale[1].set_gain(gain);
   scale[1].set_scale(calibrationFactor);
   scale[1].set_offset(offset[1]);
