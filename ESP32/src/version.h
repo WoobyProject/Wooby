@@ -37,13 +37,13 @@
   extern bool B_DISPLAY_ACCEL;
   extern bool B_INHIB_NEG_VALS;
   extern bool B_INACTIVITY_ENABLE;
-  extern bool B_SERIALPORT = BDEF_SERIALPORT;
+  extern bool B_SERIALPORT;
   extern bool B_WIFI;
   extern bool B_WIFI_SMART_CONFIG;
   extern bool B_SERIALTELNET;
-  extern bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
-  extern bool B_OTA = BDEF_OTA;
-  extern bool B_BLE = BDEF_BLE;
+  extern bool B_GOOGLE_HTTPREQ;
+  extern bool B_OTA;
+  extern bool B_BLE;
 #endif
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)

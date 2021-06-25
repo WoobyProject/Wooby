@@ -4,6 +4,19 @@
 #include "mpu6050.h"
 #include "main.h"
 
+  // Model choice
+  #if MODEL <= 4
+    float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
+    float K_MYAY_X =  0; float K_MYAY_Y = 1; float K_MYAY_Z = 0;
+    float K_MYAZ_X =  0; float K_MYAZ_Y = 0; float K_MYAZ_Z = 1;
+  #endif
+
+  #if MODEL == 5
+    float K_MYAX_X =  0; float K_MYAX_Y = 0; float K_MYAX_Z = 1;
+    float K_MYAY_X = -1; float K_MYAY_Y = 0; float K_MYAY_Z = 0;
+    float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
+  #endif
+
 #define MPU_ADDR 0x68
 const float pi = 3.1416;
 const float calib_theta_2 = -0.00014;
@@ -86,7 +99,7 @@ void angleAdjustment()
   angleCalc(); // angleCalc() also updates BF_MPU
   if(!BF_MPU && B_ANGLE_ADJUSTMENT)
   {
-    realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
+    realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( fminf(fabsf(thetadeg), MAX_THETA_VALUE) , 2));
   }
   else
   {

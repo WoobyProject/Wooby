@@ -1,6 +1,6 @@
 // #include "U8glib.h"
 #include <U8g2lib.h>                 // by Oliver
-#include <math.h>
+#include <Math.h>
 #include "Filters/IIRFilter.hpp"
 #include <RunningAverage.h>
 #include <EasyButton.h>
@@ -117,20 +117,6 @@
 //************************//
 
   float TEMPREF = 26.0;
-
-  // Model choice
-  #if MODEL <= 4
-    float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
-    float K_MYAY_X =  0; float K_MYAY_Y = 1; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 0; float K_MYAZ_Z = 1;
-  #endif
-
-  #if MODEL == 5
-    float K_MYAX_X =  0; float K_MYAX_Y = 0; float K_MYAX_Z = 1;
-    float K_MYAY_X = -1; float K_MYAY_Y = 0; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
-  #endif
-
 
 //************************//
 //*  VCC MANAGEMENT CONF *//

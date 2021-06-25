@@ -1,1 +1,1 @@
-extern const unsigned char logoWooby[];
+extern const unsigned char logoWooby[] U8X8_PROGMEM;
