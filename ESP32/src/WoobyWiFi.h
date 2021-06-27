@@ -7,7 +7,7 @@ extern bool BF_WIFI;
 
 extern bool checkWiFiConnection();
 extern bool setupWiFi();
-String getIp();
+extern String getIp();
 #if B_GOOGLE_HTTPREQ == true
   extern const char *host;
   // const char  *GScriptId = "AKfycbzATY3EipQ9N2ups-5LlyD91IbE4rKa1A-9CkzC1LkojDGyA1A"; // within Sheets

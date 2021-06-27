@@ -1,3 +1,4 @@
+extern bool BF_VCCMNG;
 extern float vccReadBits;
 extern float vccReadVolts;
 extern float vccGPIO;

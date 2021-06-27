@@ -3,6 +3,7 @@
 #include "mapping.h"
 #include "battery.h"
 
+bool BF_VCCMNG = false;
 float vccReadBits = 0;      // Voltage read by the ADC (in bits)
 float vccReadVolts = 0;     // Voltage read by the ADC (in Volts)
 float vccGPIO = 0;          // Real voltage on the GPIO pin (in Volts)
