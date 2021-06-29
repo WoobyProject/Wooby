@@ -27,9 +27,11 @@ for s in myList:
 print("\nTotal size: {}\n".format(sm/1e6))
 
 
-upsize = 0x40000
+upsize = 0x90000
 
 newSizes = [int(x,16) for x in myList]
+#newSizes[0] = newSizes[0] - 0x1000
+
 newSizes[2] = newSizes[2] + upsize
 newSizes[3] = newSizes[3] + upsize
 newSizes[4] = newSizes[4] - 2*upsize
@@ -37,14 +39,24 @@ newSizes[4] = newSizes[4] - 2*upsize
 init_offset = int("0x9000", 16)
 offset = init_offset
 newsum = 0
+
+offset_list = []
+size_list = []
+
 for ns in newSizes:
     
     print("{}, {}".format(hex(offset), hex(int(ns))))
     offset = offset + int(ns)
     newsum = newsum + int(ns)
+    
+    offset_list.append(offset)
+    size_list.append(int(ns))
 
 
 print("\nTotal new size: {}\n".format(newsum/1e6))
 
 import pandas as pd
-pd.DataFrame({'name':["nvs","otadata","app0","app1","spiffs"]})
+import numpy as np
+
+newDataTableParition = pd.DataFrame({'Name':["nvs","otadata","app0","app1","spiffs"], "Offset": np.array(offset_list)/(1024*1024) , "Size": np.array(size_list)/(1024*1024) } )
+print(newDataTableParition)

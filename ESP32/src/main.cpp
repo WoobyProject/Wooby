@@ -74,7 +74,7 @@
     bool B_INACTIVITY_ENABLE = true;
 
     #define BDEF_SERIALPORT true
-    bool B_SERIALPORT = BDEF_SERIALPORT;
+    bool B_SERIALPORT = true;
 
     #define BDEF_WIFI true
     bool B_WIFI = false;
@@ -148,7 +148,7 @@
 
   //************************//
   //*  WEIGHTING ALGO CONF *//
-  //************************//
+  //************************//O
 
     const int nMeasures = 7;
     const int nMeasuresTare = 7;
@@ -1216,7 +1216,6 @@ void setDebugMode(){
         WiFi.disconnect();
         WiFi.mode(WIFI_OFF);
 
-      
       B_BLE = false;
 
     }
@@ -1254,9 +1253,9 @@ void initTareButton(){
   //*         Easy Button      *//
   tareButton.begin();
   // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
-  tareButton.onSequence(1,  2000,  newTare);            // For tare
-  // tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
-  tareButton.onPressedFor(TIME_DEBUG_MODE, setDebugMode);          // For BLE coupling
+  tareButton.onSequence(1,  2000,  newTare);                        // For tare
+  // tareButton.onSequence(10, 5000, setDebugMode);                 // 
+  tareButton.onPressedFor(TIME_DEBUG_MODE, setDebugMode);           // For debug mode
 
 }
 
@@ -1314,8 +1313,7 @@ void getWoobyWeight(){
     offset = (float)scale.get_offset();
     relativeVal_WU = realValue_WU - offset;
 
-    // Synchronization calcualtion
-
+    // Synchronization calculation
     if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale.get_scale()){
       bSyncTimer = millis();
       bSync = true;
@@ -1660,7 +1658,6 @@ void setup(void) {
   #endif
   nextStepSetup();
 
-  
   unsigned long setUpTimeEnd =  millis();
   Serial.println("");
   Serial.println("Total setup time: " + String(float((setUpTimeEnd-setUpTime))/1000) + " s");
@@ -1673,7 +1670,7 @@ void setup(void) {
 
 void loop(void) {
 
-
+  
   //*  READING OF SERIAL ENTRIES   *//
     if(Serial.available())
     {

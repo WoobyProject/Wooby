@@ -6790,8 +6790,8 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <text x="2.54" y="78.74" size="1.778" layer="91">Black</text>
 <text x="2.54" y="73.66" size="1.778" layer="91">White</text>
 <text x="2.54" y="83.82" size="1.778" layer="91">Red</text>
-<text x="-5.08" y="-15.24" size="1.778" layer="91">SCL(GPIO22)</text>
-<text x="-5.08" y="-10.16" size="1.778" layer="91">SDA(GPIO21)</text>
+<text x="-5.08" y="-10.16" size="1.778" layer="91">SCL(GPIO22)</text>
+<text x="-5.08" y="-15.24" size="1.778" layer="91">SDA(GPIO21)</text>
 </plain>
 <instances>
 <instance part="U1" gate="G$1" x="0" y="27.94" smashed="yes" rot="R180"/>
