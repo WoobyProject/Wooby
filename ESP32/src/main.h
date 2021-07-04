@@ -8,5 +8,6 @@ extern float realValue_WU_Filt;
 extern float TEMPREF;
 extern HX711 scale;
 
+extern void myTare();
 extern void handleActionInactivity();   // (PH) TBR when creating source code for inactivity
 extern void inactivityCheck();          // (PH) TBR when creating source code for inactivity

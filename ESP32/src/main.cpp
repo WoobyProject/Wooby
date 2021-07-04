@@ -3,7 +3,6 @@
 #include <Math.h>
 #include "Filters/IIRFilter.hpp"
 #include <RunningAverage.h>
-#include <EasyButton.h>
 #include "HX711.h"
 #include <ArduinoJson.h>            // by Benoit Blanchon
 #include <WiFi.h>
@@ -20,6 +19,7 @@
 #include "display.h"
 #include "mpu6050.h"
 #include "serial_com.h"
+#include "tare.h"
 #include "weight.h"
 #include "WoobyImage.h"
 #include "WoobyWiFi.h"
@@ -68,8 +68,6 @@
   //*  WEIGHTING ALGO CONF *//
   //************************//
 
-    const int nMeasuresTare = 7;
-
     float correctedValue = 0;
 
 //************************//
@@ -95,9 +93,6 @@
 
   unsigned long tStartTareButton = 0;
   unsigned long tEndTareButton = 0;
-
-  /* EasyButton */
-  EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
 
 //************************//
 //*      DISPLAY CONF    *//
@@ -187,63 +182,8 @@ void myTare(){
 //*   TARE BUTTON FUNCTIONS  *//
 //*********************++++***//
 
-void newTare(){
-    Serial.printf("\nNew tare! \n");
-    myTare();
-}
-
-void setDebugMode(){
-
-    if (B_DEBUG_MODE){
-      Serial.printf("\n\nOut of debug! \n\n");
-      B_DEBUG_MODE = false;
-
-      B_LIMITED_ANGLES = true;
-      B_DISPLAY_ANGLES = false;
-      B_DISPLAY_ACCEL = false;
-      B_INHIB_NEG_VALS = true;
-      B_SERIALTELNET = false;
-      B_WIFI = false;
-      B_OTA = false;
-      B_BLE = false;
-
-    }
-    else{
-      Serial.printf("\n\nDebug time! \n\n");
-      B_DEBUG_MODE = true;
-
-      B_LIMITED_ANGLES = false;
-      B_DISPLAY_ANGLES = true;
-      B_DISPLAY_ACCEL = true;
-      B_INHIB_NEG_VALS = false;
-      B_SERIALTELNET = true;
-      B_WIFI = true;
-      B_OTA = true;
-      B_BLE = true;
-
-    }
-}
-
 void couplingBLE(){
   Serial.printf("\n\nCoupling BLE! \n\n");
-}
-
-void initTareButton(){
-
-  pinMode(PIN_PUSH_BUTTON, INPUT);
-
-  //*         Easy Button      *//
-  tareButton.begin();
-  // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
-  tareButton.onSequence(1,  2000,  newTare);            // For tare
-  tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
-  tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling
-
-}
-
-void newTareButtonAction()
-{
-  tareButton.read();
 }
 
 //************************//
