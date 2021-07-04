@@ -20,6 +20,7 @@
 #include "display.h"
 #include "mpu6050.h"
 #include "serial_com.h"
+#include "weight.h"
 #include "WoobyImage.h"
 #include "WoobyWiFi.h"
 #include "OTAserver.h"
@@ -60,55 +61,16 @@
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
-  float correctedValueFiltered = 0;
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
-
-  unsigned long tBeforeMeasure = 0;
-  unsigned long tAfterMeasure = 0;
-  unsigned long tAfterAlgo = 0;
 
   //************************//
   //*  WEIGHTING ALGO CONF *//
   //************************//
 
-    const int nMeasures = 7;
     const int nMeasuresTare = 7;
 
-    // Definition of the coeffs for the filter
-    // Remember : Te = nMeasures*100 ms
-    //            b = 1 - math.exp(-Te/tau)
-    //            a = math.exp(-Te/tau)
-    //            tau = 1.4
-    const float b =  0.3915; // Te = nMeasures*100 ms
-    const float a =  0.6085; //
-
-    // Filter = y/u = b*z-1(1-a)
-    NormalizingIIRFilter<2, 2, float> filterWeight = {{0, b}, {1, -a}};
-
-    const float FILTERING_THR = 20;  // in grams
-
-    float realValue_WU = 0;
-    float realValue;
-    float realValue_1;
-    float realValueFiltered;
-    float realValueFiltered_1;
-    float relativeVal_WU_1;
-
-    float relativeVal_WU = 0;
-    float realValue_WU_AngleAdj = 0;
-    float realValue_WU_MovAvg = 0;
-    float realValue_WU_Filt = 0;
-
     float correctedValue = 0;
-    RTC_DATA_ATTR float offset = 0;
-
-    bool bSync;
-    unsigned long bSyncTimer = 0 ;
-    const unsigned long BSYNC_TIME = 2000;
-
-    const int N_WINDOW_MOV_AVG = nMeasures;
-    RunningAverage weightMovAvg(N_WINDOW_MOV_AVG);
 
 //************************//
 //*   LOAD SENSOR ADJ    *//
@@ -220,27 +182,6 @@ void myTare(){
   TEMPREF = myTmp;
   DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
-
-
-float correctionAlgo(float realValue){
-
-  int realValueInt = int(realValue);
-  float realValueDecim = (realValue - float(realValueInt)) ;
-  float correctedValue = 0;
-
-  // Around zero values deletion //
-    if (realValue<=MIN_GR_VALUE && realValue>=-1*MIN_GR_VALUE){
-      return correctedValue = 0.0;
-    }
-
-  // Round algorithm //
-    if ( realValueDecim < 0.4) { correctedValue = long(realValueInt);}
-    if ( realValueDecim >= 0.4 && realValueDecim <= 0.7) { correctedValue = long(realValueInt)+0.5 ; }
-    if ( realValueDecim > 0.7) { correctedValue = long(realValueInt)+1; }
-
-  return correctedValue;
-}
-
 
 //********************++++****//
 //*   TARE BUTTON FUNCTIONS  *//
@@ -728,88 +669,6 @@ String json2String(DynamicJsonDocument theJSON) {
 //*    MACRO FUNCTIONS    *//
 //*************************//
 
-void setUpWeightAlgorithm(){
-    realValue_1 = 0;
-    realValueFiltered = 0;
-    realValueFiltered_1 = 0;
-    bSync = false;
-
-    weightMovAvg.clear();
-    weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG); // (float)scale.get_offset()
-}
-
-void getWoobyWeight(){
-
-    // Updating for synchro
-    relativeVal_WU_1 = relativeVal_WU;
-
-    // Raw weighting //
-    tBeforeMeasure = millis();
-    realValue_WU = scale.read_average(nMeasures);
-    tAfterMeasure = millis();
-
-    offset = (float)scale.get_offset();
-    relativeVal_WU = realValue_WU - offset;
-
-    // Synchronization calcualtion
-
-    if (abs(relativeVal_WU-relativeVal_WU_1) > FILTERING_THR*scale.get_scale()){
-      bSyncTimer = millis();
-      bSync = true;
-    }
-    else{
-      if (millis()-bSyncTimer > BSYNC_TIME){
-        bSync = false;}
-      else{
-        bSync = true;
-      }
-    }
-
-    // Angles correction //
-    angleAdjustment();
-
-    // Moving average //
-    if (bSync){
-      weightMovAvg.fillValue(realValue_WU_AngleAdj, N_WINDOW_MOV_AVG);
-      realValue_WU_MovAvg = realValue_WU_AngleAdj;
-    }
-    else{
-      weightMovAvg.addValue(realValue_WU_AngleAdj);
-      realValue_WU_MovAvg = weightMovAvg.getFastAverage(); // or getAverage()
-    }
-
-    // Filtering with Arduino-Filters library
-    if (bSync){
-      realValue_WU_Filt = realValue_WU_MovAvg;
-      filterWeight.reset(realValue_WU_MovAvg);
-    }
-    else{
-      realValue_WU_Filt = filterWeight(realValue_WU_MovAvg);
-    }
-
-
-    // Conversion to grams //
-    realValue = realValue_WU_Filt/scale.get_scale(); // (realValue_WU_AngleAdj)/scale.get_scale();
-    /*
-    correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
-
-    // Filtering  //
-
-      // Filtering for the real value //
-      realValueFilterResult = filtering(realValue, realValue_1, realValueFiltered_1);
-      bSync = realValueFilterResult.bSync;
-      realValueFiltered = realValueFilterResult.yk;
-
-      // Updating for filtering
-      realValueFiltered_1 = realValueFiltered;
-      realValue_1 = realValue;
-    */
-
-    // Final correction  //
-    correctedValueFiltered = correctionAlgo(realValue);
-
-    tAfterAlgo = millis();
-}
 
 
 //************************//

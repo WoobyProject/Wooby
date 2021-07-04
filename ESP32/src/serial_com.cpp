@@ -1,9 +1,13 @@
 #include <ArduinoJson.h>            // by Benoit Blanchon
+#include <RunningAverage.h>
+#include "Filters/IIRFilter.hpp"
+#include "HX711.h"
 #include "version.h"
 #include "serial_com.h"
 #include "battery.h"
 #include "main.h"
 #include "mpu6050.h"
+#include "weight.h"
 
 bool BF_SERIALPORT = false;
 
@@ -57,7 +61,8 @@ bool buildGenericJSON()
   #endif
 
   #if BDEF_SERIALPORT
-    if (B_SERIALPORT){
+    if (B_SERIALPORT)
+    {
       genericJSON["B_SERIALPORT"] = B_SERIALPORT;
       genericJSON["BF_SERIALPORT"] = BF_SERIALPORT;
     }

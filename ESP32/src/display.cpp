@@ -1,4 +1,5 @@
 #include <U8g2lib.h>                 // by Oliver
+#include "HX711.h"
 #include "version.h"
 #include "display.h"
 #include "battery.h"

@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <math.h>
+#include "HX711.h"
 #include "version.h"
 #include "mpu6050.h"
 #include "main.h"
