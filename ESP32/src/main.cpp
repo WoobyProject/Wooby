@@ -65,7 +65,6 @@
   //*  WEIGHTING ALGO CONF *//
   //************************//
 
-    float correctedValue = 0;
 
 //************************//
 //*   LOAD SENSOR ADJ    *//
@@ -81,6 +80,7 @@
 //*   TARE BUTTON CONF   *//
 //************************//
 
+/* (PH) TBR following variables are not used 
   unsigned long countTimeButton;
 
   int tareButtonStateN   = 0;
@@ -89,6 +89,7 @@
 
   unsigned long tStartTareButton = 0;
   unsigned long tEndTareButton = 0;
+*/
 
 //************************//
 //*      DISPLAY CONF    *//
@@ -143,9 +144,11 @@
 //*   TARE BUTTON FUNCTIONS  *//
 //*********************++++***//
 
+/* (PH) TBR unused function
 void couplingBLE(){
   Serial.printf("\n\nCoupling BLE! \n\n");
 }
+*/
 
 //************************//
 //* VCC MANAGEMENT FUNCS *//
