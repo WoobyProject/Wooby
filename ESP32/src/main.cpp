@@ -5,7 +5,6 @@
 #include <RunningAverage.h>
 #include "HX711.h"
 #include <ArduinoJson.h>            // by Benoit Blanchon
-#include "mapping.h"
 #include "version.h"
 #include "main.h"
 #include "battery.h"
@@ -32,8 +31,6 @@
 //*      SENSOR CONF     *//
 //************************//
 
-  HX711 scale;
-
   // Model choice
   #if MODEL == 1
     float calibrationFactor = 42.0000;
@@ -55,8 +52,6 @@
   #if MODEL == 5
     float calibrationFactor = 61.7977;
   #endif
-
-  int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
@@ -273,10 +268,7 @@ void setup(void) {
 
   //*       SET UP  WEIGHT SENSOR       *//
   Serial.println("Setting up weight sensor...");
-  scale.begin(DOUT, CLK);
-  scale.set_gain(gain);
-  scale.set_scale(calibrationFactor);
-  scale.set_offset(offset);
+  initializeWeight();
   nextStepSetup();
 
 

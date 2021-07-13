@@ -14,6 +14,8 @@ extern RTC_DATA_ATTR float offset;
 extern float realValue;
 extern float correctedValueFiltered;
 extern NormalizingIIRFilter<2, 2, float> filterWeight;
+extern HX711 scale;
 
+extern void initializeWeight(void);
 extern void setUpWeightAlgorithm();
 extern void getWoobyWeight();

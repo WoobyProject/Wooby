@@ -1,5 +1,6 @@
 #include "Filters/IIRFilter.hpp"
 #include <RunningAverage.h>
+#include "HX711.h"
 #include <Wire.h>
 #include <math.h>
 #include "version.h"
