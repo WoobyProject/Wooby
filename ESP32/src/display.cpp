@@ -6,6 +6,7 @@
 #include "inactivity.h"
 #include "main.h"
 #include "mpu6050.h"
+#include "tare.h"
 #include "WoobyImage.h"
 #include "WoobyWiFi.h"
 

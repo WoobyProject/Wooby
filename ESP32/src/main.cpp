@@ -71,7 +71,6 @@
 //*   LOAD SENSOR ADJ    *//
 //************************//
 
-  float TEMPREF = 26.0;
 
 //************************//
 //*  VCC MANAGEMENT CONF *//

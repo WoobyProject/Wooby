@@ -12,6 +12,8 @@
 
 const int nMeasuresTare = 7;
 
+float TEMPREF = 26.0;
+
 /* EasyButton */
 EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
 
