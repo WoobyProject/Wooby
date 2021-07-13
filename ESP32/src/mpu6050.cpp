@@ -1,9 +1,10 @@
+#include "Filters/IIRFilter.hpp"
+#include <RunningAverage.h>
 #include <Wire.h>
 #include <math.h>
-#include "HX711.h"
 #include "version.h"
 #include "mpu6050.h"
-#include "main.h"
+#include "weight.h"
 
   // Model choice
   #if MODEL <= 4

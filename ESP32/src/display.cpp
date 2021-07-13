@@ -1,11 +1,12 @@
 #include <U8g2lib.h>                 // by Oliver
-#include "HX711.h"
+#include <ArduinoJson.h>
 #include "version.h"
 #include "display.h"
 #include "battery.h"
+#include "bluetooth_com.h"
 #include "inactivity.h"
-#include "main.h"
 #include "mpu6050.h"
+#include "serial_com.h"
 #include "tare.h"
 #include "WoobyImage.h"
 #include "WoobyWiFi.h"
