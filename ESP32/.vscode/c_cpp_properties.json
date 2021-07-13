@@ -10,8 +10,8 @@
             "includePath": [
                 "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/include",
                 "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/src",
-                "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/HX711-ESP",
                 "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/Arduino Filters/src",
+                "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/HX711-ESP",
                 "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src",
                 "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                 "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",
@@ -116,8 +116,8 @@
                 "path": [
                     "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/include",
                     "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/src",
-                    "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/HX711-ESP",
                     "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/Arduino Filters/src",
+                    "C:/Users/pasca/Wooby/WoobyProject_refactoring/ESP32/lib/HX711-ESP",
                     "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src",
                     "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                     "C:/Users/pasca/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",

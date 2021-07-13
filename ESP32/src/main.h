@@ -8,7 +8,7 @@ extern float realValue_WU_Filt;
 extern float TEMPREF;
 extern HX711 scale;
 extern String genericJSONString;
+extern float displayFinalValue;
+extern float displayFinalValue_1;
 
 extern void myTare();
-extern void handleActionInactivity();   // (PH) TBR when creating source code for inactivity
-extern void inactivityCheck();          // (PH) TBR when creating source code for inactivity

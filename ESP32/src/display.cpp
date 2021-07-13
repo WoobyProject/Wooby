@@ -3,6 +3,7 @@
 #include "version.h"
 #include "display.h"
 #include "battery.h"
+#include "inactivity.h"
 #include "main.h"
 #include "mpu6050.h"
 #include "WoobyImage.h"
