@@ -139,21 +139,6 @@
 //*      WEIGHTING ALGORITHM    *//
 //*******************************//
 
-void myTare(){
-  DPRINTLN("TARE starting... ");
-  unsigned long bTare = millis();
-  scale.tare(nMeasuresTare);
-  DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
-
-  // Reinitializing the filters
-  weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG);
-  filterWeight.reset(0);
-
-  // Reading reference temperature
-  readMPU();
-  TEMPREF = myTmp;
-  DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
-}
 
 //********************++++****//
 //*   TARE BUTTON FUNCTIONS  *//

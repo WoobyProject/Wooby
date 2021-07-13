@@ -1,14 +1,36 @@
+#include "Filters/IIRFilter.hpp"
+#include <RunningAverage.h>
 #include <EasyButton.h>
 #include "HX711.h"
 #include "mapping.h"
 #include "version.h"
 #include "tare.h"
 #include "main.h"
+#include "mpu6050.h"
+#include "weight.h"
+#include "Debugging.h"
 
 const int nMeasuresTare = 7;
 
 /* EasyButton */
 EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
+
+void myTare()
+{
+  DPRINTLN("TARE starting... ");
+  unsigned long bTare = millis();
+  scale.tare(nMeasuresTare);
+  DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
+
+  // Reinitializing the filters
+  weightMovAvg.fillValue(0, N_WINDOW_MOV_AVG);
+  filterWeight.reset(0);
+
+  // Reading reference temperature
+  readMPU();
+  TEMPREF = myTmp;
+  DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
+}
 
 void setDebugMode()
 {
