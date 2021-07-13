@@ -105,7 +105,7 @@
 //************************//
 #define DOUT 19     // For Arduino 6
 #define CLK  18     // For Arduino 5
-#define DOUT2 12
+#define DOUT2 27
 #define CLK2  14
 
   HX711 scale[2];
