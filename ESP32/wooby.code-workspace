@@ -1,11 +1,8 @@
 {
 	"folders": [
 		{
-			"path": "."
-		},
-		{
-			"name": "TestScreen",
-			"path": "../../../../PlatformIO/Projects/TestScreen"
+			"name": "ESP32",
+			"path": "../../../Github/ESP32"
 		}
 	],
 	"settings": {}

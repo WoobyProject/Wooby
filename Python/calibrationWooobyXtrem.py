@@ -18,6 +18,8 @@ print(pckgdir)
 
 from pyWooby import Wooby
 
+#%% Creation of the Serial communication
+
 
 myWooby = Wooby()
 
@@ -27,9 +29,12 @@ baudRateWooby = 115200;
 myWooby.setupSerial(portWooby, baudRateWooby)
 
 
+
+
+#%% Reading of a calibration point
+
 # print(myWooby.readUntil("SERIAL"))
 # myWooby.readNTimes("SERIAL", 10)
-
 
 N_MAX_MEASURES = 100
 REAL_WEIGHT = 2000
