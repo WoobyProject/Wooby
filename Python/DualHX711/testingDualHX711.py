@@ -18,6 +18,8 @@ print(pckgdir)
 
 from pyWooby import Wooby
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 #%% Creation of the Serial communication
 
@@ -38,13 +40,13 @@ N_MAX_MEASURES = 15
 SUBSET = "WoobyDualHX711" 
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
-REAL_WEIGHT = 1000      # in gr
-SUFFIX = "MID_LEFT"
+REAL_WEIGHT = 2000      # in gr
+SUFFIX = "1"
 
-FILE_NAME = "{}_{}gr_{}.txt".format(SUBSET, REAL_WEIGHT, SUFFIX)
+FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, SUFFIX)
 FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", SUBSET)
                        
-OVERWRITE = True
+OVERWRITE = False
 
 # 
 # myWooby.tare()
@@ -52,6 +54,41 @@ dfDualLoadCell = myWooby.readNTimes("SERIAL", N_MAX_MEASURES)
 
 # Export
 myWooby.exportCSV(dfDualLoadCell, FILE_NAME, FILE_FOLDER, OVERWRITE)
+
+#%% Reading of a calibration point - Loop
+
+REAL_WEIGHT = 500  # in gr
+
+print("\n\nRemove everything from Wooby. ")
+input("Once it's done press enter to continue...")
+
+myWooby.tare()
+
+for ii in range(5):
+    
+    print("\n\nPut the weight of {} gr for the run #{}".format(REAL_WEIGHT, ii+1))
+    input("Once it's done, press enter to measure...")
+    
+    N_MAX_MEASURES = 15
+    SUBSET = "WoobyDualHX711" 
+    SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
+    
+    
+    FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, ii+1)
+    FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", SUBSET)
+                           
+    OVERWRITE = False
+    
+    # 
+    # myWooby.tare()
+    dfDualLoadCell = myWooby.readNTimes("SERIAL", N_MAX_MEASURES)
+    
+    # Export
+    myWooby.exportCSV(dfDualLoadCell, FILE_NAME, FILE_FOLDER, OVERWRITE)
+    
+    # 
+    print("End of the run #{}".format(ii+1))
+    
 
 
 #%% Plots for testing
@@ -88,12 +125,18 @@ plt.show()
 
 #%% Reading of the batch
 
-fileNameList = ["WoobyDualHX711_1000gr_CENTER.txt",
-                "WoobyDualHX711_1000gr_LEFT.txt",
-                "WoobyDualHX711_1000gr_RIGHT.txt",
-                "WoobyDualHX711_1000gr_MID_LEFT.txt",
-                "WoobyDualHX711_1000gr_MID_RIGHT.txt",
+fileNameList = ["WoobyDualHX711_1000gr_CENTER.csv",
+                "WoobyDualHX711_1000gr_LEFT.csv",
+                "WoobyDualHX711_1000gr_RIGHT.csv",
+                "WoobyDualHX711_1000gr_MID_LEFT.csv",
+                "WoobyDualHX711_1000gr_MID_RIGHT.csv",
                 ]
+
+
+fileNameList = ["WoobyDualHX711_2050gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList = ["WoobyDualHX711_2000gr_{}.csv".format(ii) for ii in range(1,6) ]
+#fileNameList = ["WoobyDualHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]
+
 
 allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
 
@@ -103,12 +146,14 @@ fig, axs = plt.subplots(3,1)
 
 fig, axs2 = plt.subplots(2,1)
 
+KPIs = pd.DataFrame(np.nan, index=range(len(allDfDualSensor)), columns=["run", "mean1", "std1", "mean2", "std2", "meanSum", "stdSum"])
+
 for ii, df in enumerate(allDfDualSensor):
     
     plt.sca(axs[0])
     # Plot of two sensors - normalized data !
-    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  df["relativeVal_WU1"] , label="Sensor 1")
-    plt.plot(df["tBeforeMeasure2"]-df["tBeforeMeasure2"][0] ,  df["relativeVal_WU2"] , label="Sensor 2")
+    pltMain, = plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  df["relativeVal_WU1"] , label="Sensor 1")
+    plt.plot(df["tBeforeMeasure2"]-df["tBeforeMeasure2"][0] ,  df["relativeVal_WU2"] , label="Sensor 2", color = pltMain.get_color())
     plt.grid(True)
     plt.legend()
     plt.show()
@@ -116,28 +161,47 @@ for ii, df in enumerate(allDfDualSensor):
     
     plt.sca(axs[1])
     # Plot of the sum of the two sensors
-    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0],  df["relativeVal_WU1"] + df["relativeVal_WU2"] , label="Sum")
+    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0],  df["relativeVal_WU1"] + df["relativeVal_WU2"] , label="Sum", color = pltMain.get_color())
     plt.grid(True)
     plt.legend()
     plt.show()
-    
     
     
     plt.sca(axs[2])
     # Plot of the mult of the two sensors
-    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  (df["realValue_WU1"] * df["realValue_WU2"]) , label="Skewness")
+    #plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  (df["realValue_WU1"] * df["realValue_WU2"]) , label="Skewness", color = pltMain.get_color())
+    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  1-0.5*abs(df["realValue_WU1"] - df["realValue_WU2"])/(df["realValue_WU1"] + df["realValue_WU2"]) , label="Skewness", color = pltMain.get_color())
     plt.grid(True)
     plt.legend()
     plt.show()
-
-
 
 
     plt.sca(axs2[0])
-    plt.scatter([fileNameList[ii]]*len(df),  (df["realValue_WU1"]) , label="Sensor1")
-    plt.scatter([fileNameList[ii]]*len(df),  (df["realValue_WU2"]) , label="Sensor2")
+    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU1"]) , label="Sensor1", marker='o', s=60, color = pltMain.get_color())
+    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU2"]) , label="Sensor2", marker='x', s=40, color = pltMain.get_color())
     plt.grid(True)
-    plt.legend()
+    l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
+    plt.subplots_adjust(right=0.8)
     plt.show()
-
     
+    plt.sca(axs2[1])
+    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU1"]) + (df["relativeVal_WU2"]) , label="Sensor1")
+    plt.grid(True)
+    l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
+    plt.subplots_adjust(right=0.8)
+    plt.show()
+    
+    # KPIs calculation 
+    
+    KPIs["run"].iloc[ii] = ii +1 
+    KPIs["mean1"].iloc[ii] = np.mean(df["relativeVal_WU1"])
+    KPIs["std1"].iloc[ii] = np.std(df["relativeVal_WU1"])
+    
+    KPIs["mean2"].iloc[ii] = np.mean(df["relativeVal_WU2"])
+    KPIs["std2"].iloc[ii] = np.std(df["relativeVal_WU2"])
+    
+    KPIs["meanSum"].iloc[ii] = np.mean(df["relativeVal_WU1"] +df["relativeVal_WU1"])
+    KPIs["stdSum"].iloc[ii] = np.std(df["relativeVal_WU1"] +df["relativeVal_WU1"])
+    
+    
+print(KPIs)
