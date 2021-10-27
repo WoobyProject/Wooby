@@ -37,16 +37,16 @@ myWooby.tare()
 #%% Reading of a calibration point
 
 N_MAX_MEASURES = 15
-SUBSET = "WoobyDualHX711" 
+SUBSET = "WoobyDualHX711_Final" 
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
-REAL_WEIGHT = 2000      # in gr
+REAL_WEIGHT = 4840      # in gr
 SUFFIX = "1"
 
 FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, SUFFIX)
 FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", SUBSET)
                        
-OVERWRITE = False
+OVERWRITE = True
 
 # 
 # myWooby.tare()
@@ -57,7 +57,7 @@ myWooby.exportCSV(dfDualLoadCell, FILE_NAME, FILE_FOLDER, OVERWRITE)
 
 #%% Reading of a calibration point - Loop
 
-REAL_WEIGHT = 4840  # in gr
+REAL_WEIGHT = 700  # in gr
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
@@ -177,9 +177,15 @@ fileNameList =  fileNameList1 + fileNameList2 + fileNameList3 + fileNameList4 + 
 
 FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", "WoobyDualHX711_Final")
 
-fileNameList = ([ "WoobyDualHX711_Final_3000gr_{}.csv".format(ii) for ii in range(1,6) ]  +
-                [ "WoobyDualHX711_Final_3500gr_{}.csv".format(ii) for ii in range(1,6) ]  +
-                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,6) ] )
+fileNameList = ([ "WoobyDualHX711_Final_70gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_700gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_2500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_2510gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_3000gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_3500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_4840gr_{}.csv".format(ii) for ii in range(1,7) ]  
+                 )
 
 
 allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
