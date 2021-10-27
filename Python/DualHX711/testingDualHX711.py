@@ -57,27 +57,40 @@ myWooby.exportCSV(dfDualLoadCell, FILE_NAME, FILE_FOLDER, OVERWRITE)
 
 #%% Reading of a calibration point - Loop
 
-REAL_WEIGHT = 500  # in gr
+REAL_WEIGHT = 4840  # in gr
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
 
 myWooby.tare()
 
-for ii in range(5):
+dfTestForTare = myWooby.readNTimes("SERIAL", 1)
+
+threshold = 200
+
+if ( abs(dfTestForTare["relativeVal_WU1"][0]) > threshold) or  (abs(dfTestForTare["relativeVal_WU2"][0]) > threshold)  :
+    print("\n\nERROR WITH THE TARE !! ")
+    print("Measure sensor 1: {}".format(dfTestForTare["relativeVal_WU1"][0]))
+    print("Measure sensor 2: {}".format(dfTestForTare["relativeVal_WU2"][0]))
+
+else:
+     print("\n\nGOOD TARE ! :) ")
+
+
+for ii in range(6):
     
     print("\n\nPut the weight of {} gr for the run #{}".format(REAL_WEIGHT, ii+1))
     input("Once it's done, press enter to measure...")
     
     N_MAX_MEASURES = 15
-    SUBSET = "WoobyDualHX711" 
+    SUBSET = "WoobyDualHX711_Final" 
     SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
     
     
     FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, ii+1)
     FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", SUBSET)
                            
-    OVERWRITE = False
+    OVERWRITE = True
     
     # 
     # myWooby.tare()
@@ -134,8 +147,39 @@ fileNameList = ["WoobyDualHX711_1000gr_CENTER.csv",
 
 
 fileNameList = ["WoobyDualHX711_2050gr_{}.csv".format(ii) for ii in range(1,6) ]
-fileNameList = ["WoobyDualHX711_2000gr_{}.csv".format(ii) for ii in range(1,6) ]
-#fileNameList = ["WoobyDualHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]
+# fileNameList = ["WoobyDualHX711_2000gr_{}.csv".format(ii) for ii in range(1,6) ]
+# fileNameList = ["WoobyDualHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList = ["WoobyDualHX711_501gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList = ["WoobyDualHX711_550gr_{}.csv".format(ii) for ii in range(1,6) ]
+
+
+"""
+# For different configurations study 
+
+FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", "WoobyDualHX711_Study_Configurations")
+
+fileNameList1 = ["WoobyDualHX711_501gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList2 = ["WoobyDualHX711_550gr_{}.csv".format(ii) for ii in range(1,6) ]
+
+
+fileNameList3 = ["WoobyDualHX711_OuterPos_500gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList4 = ["WoobyDualHX711_OuterPos_550gr_{}.csv".format(ii) for ii in range(1,6) ]
+
+
+fileNameList5 = ["WoobyDualHX711_OuterPos_SamePlace_500gr_{}.csv".format(ii) for ii in range(1,6) ]
+fileNameList6 = ["WoobyDualHX711_OuterPos_SamePlace_550gr_{}.csv".format(ii) for ii in range(1,6) ]
+
+
+fileNameList =  fileNameList1 + fileNameList2 + fileNameList3 + fileNameList4 + fileNameList5 + fileNameList6
+"""
+
+# For final configurations datasets 
+
+FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", "WoobyDualHX711_Final")
+
+fileNameList = ([ "WoobyDualHX711_Final_3000gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyDualHX711_Final_3500gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,6) ] )
 
 
 allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
@@ -145,6 +189,9 @@ allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
 fig, axs = plt.subplots(3,1)
 
 fig, axs2 = plt.subplots(2,1)
+
+fig, axs3 = plt.subplots(2,1)
+
 
 KPIs = pd.DataFrame(np.nan, index=range(len(allDfDualSensor)), columns=["run", "mean1", "std1", "mean2", "std2", "meanSum", "stdSum"])
 
@@ -185,7 +232,7 @@ for ii, df in enumerate(allDfDualSensor):
     plt.show()
     
     plt.sca(axs2[1])
-    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU1"]) + (df["relativeVal_WU2"]) , label="Sensor1")
+    plt.scatter([fileNameList[ii]]*len(df), ((df["relativeVal_WU1"]) + (df["relativeVal_WU2"]) )*(500/23200) , label="Sensor1")
     plt.grid(True)
     l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
     plt.subplots_adjust(right=0.8)
