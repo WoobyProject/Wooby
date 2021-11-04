@@ -261,7 +261,7 @@ print(KPIs)
 
 
 
-#%% Training - Data preration
+#%% Training - Data preparation
 
 import re
 
@@ -332,13 +332,19 @@ print("RMSE: {} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
 print("R: {}".format(pipe.score(XfinalPipe, yfinal)))
 
 
+plt.figure()
+plt.scatter(allDataPipe["realWeight"], allDataPipe["absError"], c="blue")
+plt.scatter(allData["realWeight"], allData["absError"], c="red")
+plt.grid(True)
+plt.show()
+
 
 #  Plots
 true_value = yfinal
 predicted_value = yfinalPredPipe
 
 plt.figure(figsize=(10,10))
-plt.scatter(true_value, predicted_value, c='crimson')
+plt.scatter(true_value, predicted_value, c='red')
 plt.yscale('log')
 plt.xscale('log')
 
@@ -348,6 +354,7 @@ plt.plot([p1, p2], [p1, p2], 'b-')
 plt.xlabel('True Values', fontsize=15)
 plt.ylabel('Predictions', fontsize=15)
 plt.axis('equal')
+plt.grid(True)
 plt.show()
 
 
