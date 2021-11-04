@@ -258,3 +258,213 @@ for ii, df in enumerate(allDfDualSensor):
     
     
 print(KPIs)
+
+
+
+#%% Training - Data preration
+
+import re
+
+
+for ii, file in enumerate(fileNameList):
+    print(file)
+    mtch = re.search(r"(\d*)gr", file)
+    print(mtch.group(1))
+    allDfDualSensor[ii]["realWeight"] = float(mtch.group(1))
+    
+    
+dfTraining = pd.concat(allDfDualSensor, ignore_index=True) 
+
+
+X = dfTraining[["relativeVal_WU1", "relativeVal_WU2"]]
+y = dfTraining["realWeight"]
+
+# X["skewness"] = X["relativeVal_WU1"] * X["relativeVal_WU1"] /(X["relativeVal_WU1"] + X["relativeVal_WU1"] )
+X["skewness"] = X["relativeVal_WU1"] * X["relativeVal_WU1"] 
+
+# Suplementary mirrored data
+Xsup = X.copy()
+Xsup["relativeVal_WU1"] = X["relativeVal_WU2"]
+Xsup["relativeVal_WU2"] = X["relativeVal_WU1"]
+
+ysup = y
+
+# Total data
+
+Xfinal = X.append(Xsup, ignore_index=True)
+yfinal = y.append(ysup, ignore_index=True)
+
+allData  = pd.concat([Xfinal, yfinal], axis=1)
+Xarray = Xfinal.to_numpy()
+yarray = yfinal.to_numpy()
+
+#%% Training - Pipeline with Poly Feat
+
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+
+pipe = Pipeline([('PolyFeat', PolynomialFeatures(2)), 
+                 ('LinearReg', LinearRegression())  ] )
+
+
+XfinalPipe = Xfinal[["relativeVal_WU1","relativeVal_WU2"]]
+pipe.fit(XfinalPipe, yfinal)
+
+
+coefsPipe = pipe["LinearReg"].coef_
+interceptPipe = pipe["LinearReg"].intercept_
+print(coefsPipe)
+print(interceptPipe)
+
+
+yfinalPredPipe =  pipe.predict(XfinalPipe)
+
+allDataPipe = allData.copy()
+allDataPipe["predictWeight"] = yfinalPredPipe
+allDataPipe["absError"] = allDataPipe["predictWeight"] - allDataPipe["realWeight"]
+allDataPipe["relativeError"] = ( allDataPipe["predictWeight"] - allDataPipe["realWeight"])/ allDataPipe["realWeight"]
+
+
+print("MAE: {} gr".format(np.abs(allDataPipe["absError"]).mean()))
+print("RMSE: {} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
+print("R: {}".format(pipe.score(XfinalPipe, yfinal)))
+
+
+
+#  Plots
+true_value = yfinal
+predicted_value = yfinalPredPipe
+
+plt.figure(figsize=(10,10))
+plt.scatter(true_value, predicted_value, c='crimson')
+plt.yscale('log')
+plt.xscale('log')
+
+p1 = max(max(predicted_value), max(true_value))
+p2 = min(min(predicted_value), min(true_value))
+plt.plot([p1, p2], [p1, p2], 'b-')
+plt.xlabel('True Values', fontsize=15)
+plt.ylabel('Predictions', fontsize=15)
+plt.axis('equal')
+plt.show()
+
+
+#%% Linear regression 
+
+
+reg = LinearRegression()
+reg.fit(Xfinal, yfinal)
+
+
+coefs = reg.coef_
+intercept = reg.intercept_
+print(coefs)
+print(intercept)
+
+
+# Make predictions using the testing set
+yfinalPred = reg.predict(Xfinal)
+
+allData["predictWeight"] = yfinalPred
+allData["absError"] = allData["predictWeight"] - allData["realWeight"]
+allData["relativeError"] = ( allData["predictWeight"] - allData["realWeight"])/ allData["realWeight"]
+
+# Scores
+absError = abs(yfinal-yfinalPred)
+relativeError = (yfinal-yfinalPred)/yfinal
+    
+print("MAE: {} gr".format(np.abs(allData["absError"]).mean()))
+print("RMSE: {} gr".format(np.sqrt(((allData["absError"])**2).mean()  )) )
+print("R: {}".format(reg.score(Xfinal, yfinal)))
+
+
+#  Plots
+
+true_value = yfinal
+predicted_value = yfinalPred
+
+plt.figure(figsize=(10,10))
+plt.scatter(true_value, predicted_value, c='crimson')
+plt.yscale('log')
+plt.xscale('log')
+
+p1 = max(max(predicted_value), max(true_value))
+p2 = min(min(predicted_value), min(true_value))
+plt.plot([p1, p2], [p1, p2], 'b-')
+plt.xlabel('True Values', fontsize=15)
+plt.ylabel('Predictions', fontsize=15)
+plt.axis('equal')
+plt.show()
+
+
+"""
+plt.figure()
+dataOK = allData[allData["absError"] < 20.0]
+dataKO = allData[allData["absError"] >= 20.0]
+
+plt.scatter(dataOK["relativeVal_WU1"],dataOK["relativeVal_WU2"], c="green")
+plt.scatter(dataKO["relativeVal_WU1"],dataKO["relativeVal_WU2"], c="red")
+plt.axis('equal')
+plt.show()
+"""
+
+#%% Plots
+
+
+plt.figure()
+plt.plot(allDataPipe["absError"], label = "Pipeline")
+plt.plot(allData["absError"], label = "Linear Regression")
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.hist(allDataPipe["absError"], label = "Pipeline",       bins=np.arange(-30, 40, 5)-2.5, alpha=0.5)
+plt.hist(allData["absError"], label = "Linear Regression",  bins=np.arange(-30, 40, 5)-2.5, alpha=0.5)
+plt.legend()
+plt.show()
+
+import seaborn as sns
+sns.set_theme(style="ticks")
+
+
+plt.figure()
+sns.pairplot(allData, hue="realWeight")
+
+
+plt.figure()
+sns.set_theme(style="darkgrid")
+
+g = sns.jointplot(x="relativeVal_WU1", y="realWeight", data=allData,
+                  kind="reg", truncate=False,
+                 #xlim=(0, 60), ylim=(0, 12),
+                  color="m", height=7)
+
+# %%
+
+from sklearn.decomposition import PCA
+
+pca = PCA(n_components=2).fit(Xarray)
+
+plt.scatter(Xarray[:, 0], Xarray[:, 1], s=100, alpha=0.8, label="samples")
+
+for i, (comp, var) in enumerate(zip(pca.components_, pca.explained_variance_)):
+    comp = comp * var  # scale component by its variance explanation power
+    plt.plot(
+        [0, comp[0]],
+        [0, comp[1]],
+        label=f"Component {i}",
+        linewidth=2,
+        color=f"C{i + 2}",
+    )
+plt.gca().set(
+    aspect="equal",
+    title="2-dimensional dataset with principal components",
+    xlabel="first feature",
+    ylabel="second feature",
+)
+plt.legend()
+plt.show()
+
+

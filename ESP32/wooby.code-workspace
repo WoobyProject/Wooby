@@ -1,9 +1,25 @@
 {
 	"folders": [
 		{
-			"name": "ESP32",
+			"path": "../../../../../PlatformIO/Projects/Minka/dev-alejo/SmartGarden/ESP32"
+		},
+		{
 			"path": "../../../Github/ESP32"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"array": "cpp",
+			"cmath": "cpp",
+			"cstdint": "cpp",
+			"cstdlib": "cpp",
+			"initializer_list": "cpp",
+			"limits": "cpp",
+			"new": "cpp",
+			"numeric": "cpp",
+			"tuple": "cpp",
+			"type_traits": "cpp",
+			"utility": "cpp"
+		}
+	}
 }
