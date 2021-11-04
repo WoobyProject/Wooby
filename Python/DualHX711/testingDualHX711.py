@@ -179,12 +179,17 @@ FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2T
 
 fileNameList = ([ "WoobyDualHX711_Final_70gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_700gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_1100gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_1600gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_2500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_2510gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_3000gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_3500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
-                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,7) ]  +
-                [ "WoobyDualHX711_Final_4840gr_{}.csv".format(ii) for ii in range(1,7) ]  
+                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,7) ]   +
+                [ "WoobyDualHX711_Final_4840gr_{}.csv".format(ii) for ii in range(1,7) ]   +
+                [ "WoobyDualHX711_Final_5500gr_{}.csv".format(ii) for ii in range(1,7) ]   +
+                [ "WoobyDualHX711_Final_6200gr_{}.csv".format(ii) for ii in range(1,7) ]   +
+                [ "WoobyDualHX711_Final_7000gr_{}.csv".format(ii) for ii in range(1,7) ]   
                  )
 
 
@@ -332,13 +337,6 @@ print("RMSE: {} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
 print("R: {}".format(pipe.score(XfinalPipe, yfinal)))
 
 
-plt.figure()
-plt.scatter(allDataPipe["realWeight"], allDataPipe["absError"], c="blue")
-plt.scatter(allData["realWeight"], allData["absError"], c="red")
-plt.grid(True)
-plt.show()
-
-
 #  Plots
 true_value = yfinal
 predicted_value = yfinalPredPipe
@@ -382,9 +380,9 @@ allData["relativeError"] = ( allData["predictWeight"] - allData["realWeight"])/ 
 absError = abs(yfinal-yfinalPred)
 relativeError = (yfinal-yfinalPred)/yfinal
     
-print("MAE: {} gr".format(np.abs(allData["absError"]).mean()))
-print("RMSE: {} gr".format(np.sqrt(((allData["absError"])**2).mean()  )) )
-print("R: {}".format(reg.score(Xfinal, yfinal)))
+print("MAE:  {:.2f} gr".format(np.abs(allData["absError"]).mean()))
+print("RMSE: {:.2f} gr".format(np.sqrt(((allData["absError"])**2).mean()  )) )
+print("R:    {:.2f}".format(reg.score(Xfinal, yfinal)))
 
 
 #  Plots
@@ -417,12 +415,12 @@ plt.axis('equal')
 plt.show()
 """
 
-#%% Plots
+#%% Plots - comparison
 
 
 plt.figure()
-plt.plot(allDataPipe["absError"], label = "Pipeline")
-plt.plot(allData["absError"], label = "Linear Regression")
+plt.scatter(allDataPipe["realWeight"], allDataPipe["absError"],   label = "Pipeline")
+plt.scatter(allData["realWeight"], allData["absError"],           label = "Linear Regression")
 plt.legend()
 plt.show()
 
@@ -431,6 +429,9 @@ plt.hist(allDataPipe["absError"], label = "Pipeline",       bins=np.arange(-30, 
 plt.hist(allData["absError"], label = "Linear Regression",  bins=np.arange(-30, 40, 5)-2.5, alpha=0.5)
 plt.legend()
 plt.show()
+
+
+#%%
 
 import seaborn as sns
 sns.set_theme(style="ticks")
