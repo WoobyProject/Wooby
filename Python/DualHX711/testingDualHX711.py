@@ -185,11 +185,20 @@ fileNameList = ([ "WoobyDualHX711_Final_70gr_{}.csv".format(ii) for ii in range(
                 [ "WoobyDualHX711_Final_2510gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_3000gr_{}.csv".format(ii) for ii in range(1,7) ]  +
                 [ "WoobyDualHX711_Final_3500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
-                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,7) ]   +
-                [ "WoobyDualHX711_Final_4840gr_{}.csv".format(ii) for ii in range(1,7) ]   +
-                [ "WoobyDualHX711_Final_5500gr_{}.csv".format(ii) for ii in range(1,7) ]   +
-                [ "WoobyDualHX711_Final_6200gr_{}.csv".format(ii) for ii in range(1,7) ]   +
-                [ "WoobyDualHX711_Final_7000gr_{}.csv".format(ii) for ii in range(1,7) ]   
+                [ "WoobyDualHX711_Final_3700gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_4840gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_5500gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_6200gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_7000gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_2120gr_{}.csv".format(ii) for ii in range(1,7) ]  + 
+                [ "WoobyDualHX711_Final_4010gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_4300gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_5100gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_4010gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_6600gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_8100gr_{}.csv".format(ii) for ii in range(1,7) ]  +  
+                [ "WoobyDualHX711_Final_9050gr_{}.csv".format(ii) for ii in range(1,7) ]  +
+                [ "WoobyDualHX711_Final_9500gr_{}.csv".format(ii) for ii in range(1,7) ]
                  )
 
 
@@ -307,11 +316,19 @@ yarray = yfinal.to_numpy()
 
 
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 
-pipe = Pipeline([('PolyFeat', PolynomialFeatures(2)), 
-                 ('LinearReg', LinearRegression())  ] )
+from scipy.linalg import lstsq
+
+from scipy.stats import norm
+from scipy.stats import kurtosis, skew
+import math
+
+
+pipe = Pipeline([('PolyFeat',   PolynomialFeatures(2, include_bias=True)), 
+                 ('LinearReg',  LinearRegression())  ] )
 
 
 XfinalPipe = Xfinal[["relativeVal_WU1","relativeVal_WU2"]]
@@ -332,14 +349,54 @@ allDataPipe["absError"] = allDataPipe["predictWeight"] - allDataPipe["realWeight
 allDataPipe["relativeError"] = ( allDataPipe["predictWeight"] - allDataPipe["realWeight"])/ allDataPipe["realWeight"]
 
 
-print("MAE: {} gr".format(np.abs(allDataPipe["absError"]).mean()))
-print("RMSE: {} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
-print("R: {}".format(pipe.score(XfinalPipe, yfinal)))
+print("MAE:  {:.2f} gr".format(np.abs(allDataPipe["absError"]).mean()))
+print("RMSE: {:.2f} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
+print("R:    {:.2f}".format(pipe.score(XfinalPipe, yfinal)))
 
 
 #  Plots
 true_value = yfinal
 predicted_value = yfinalPredPipe
+
+plt.figure(figsize=(10,10))
+plt.scatter(true_value, predicted_value, c='red')
+plt.yscale('log')
+plt.xscale('log')
+
+p1 = max(max(predicted_value), max(true_value))
+p2 = min(min(predicted_value), min(true_value))
+plt.plot([p1, p2], [p1, p2], 'b-')
+plt.xlabel('True Values', fontsize=15)
+plt.ylabel('Predictions', fontsize=15)
+plt.axis('equal')
+plt.grid(True)
+plt.show()
+
+# %% 
+
+yfinalPredPolyFeatZero = yfinal 
+
+PolyFeatZero = PolynomialFeatures(2, include_bias=False)
+XfinalPolyFeat =  PolyFeatZero.fit_transform(XfinalPipe)
+coeffs_PolyFeatZero, res, rnk, s = lstsq(XfinalPolyFeat, yfinalPredPolyFeatZero)
+
+print(coeffs_PolyFeatZero)
+
+yfinalPredPolyFeatZero = np.matmul(XfinalPolyFeat, coeffs_PolyFeatZero)
+
+allDataPolyFeatZero = allData.copy()
+allDataPolyFeatZero["predictWeight"] = yfinalPredPolyFeatZero
+allDataPolyFeatZero["absError"] = allDataPolyFeatZero["predictWeight"] - allDataPolyFeatZero["realWeight"]
+allDataPolyFeatZero["relativeError"] = ( allDataPolyFeatZero["predictWeight"] - allDataPolyFeatZero["realWeight"])/ allDataPolyFeatZero["realWeight"]
+
+print("MAE:  {:.2f} gr".format(np.abs(allDataPolyFeatZero["absError"]).mean()))
+print("RMSE: {:.2f} gr".format(np.sqrt(((allDataPolyFeatZero["absError"])**2).mean()  )) )
+# print("R:    {:.2f}".format(pipe.score(XfinalPipe, yfinal)))
+
+
+#  Plots
+true_value = yfinal
+predicted_value = yfinalPredPolyFeatZero
 
 plt.figure(figsize=(10,10))
 plt.scatter(true_value, predicted_value, c='red')
@@ -401,6 +458,7 @@ plt.plot([p1, p2], [p1, p2], 'b-')
 plt.xlabel('True Values', fontsize=15)
 plt.ylabel('Predictions', fontsize=15)
 plt.axis('equal')
+plt.grid(True)
 plt.show()
 
 
@@ -417,17 +475,94 @@ plt.show()
 
 #%% Plots - comparison
 
-
 plt.figure()
-plt.scatter(allDataPipe["realWeight"], allDataPipe["absError"],   label = "Pipeline")
-plt.scatter(allData["realWeight"], allData["absError"],           label = "Linear Regression")
+plt.scatter(allDataPipe["realWeight"],          allDataPipe["absError"],            label = "Pipeline")
+plt.scatter(allData["realWeight"],              allData["absError"],                label = "Linear Regression")
+plt.scatter(allDataPolyFeatZero["realWeight"],  allDataPolyFeatZero["absError"],    label = "Poly Feat @Zero ")
+
 plt.legend()
 plt.show()
 
+
+# Normal distribution calculation & plot
+
+minAbsErrorPipe = allDataPipe["absError"].min()
+maxAbsErrorPipe = allDataPipe["absError"].max()
+
+minAbsErrorLinReg = allData["absError"].min()
+maxAbsErrorLinReg = allData["absError"].max()
+
+meanPipe,   stdPipe =   norm.fit(allDataPipe["absError"]) 
+meanLinReg, stdLinReg = norm.fit(allData["absError"]) 
+meanPolyFeatZero, stdPolyFeatZero = norm.fit(allDataPolyFeatZero["absError"]) 
+
+"""
+kurtosis(allDataPipe["absError"])
+kurtosis(allData["absError"])
+
+skew(allDataPipe["absError"])
+skew(allData["absError"])
+"""
+
+Xlim = 5*max(stdPipe, stdLinReg)
+errorXaxis =  np.linspace(-Xlim, Xlim, 500)
+pdfPipe = norm.pdf(errorXaxis, meanPipe,   stdPipe )
+pdfLinReg = norm.pdf(errorXaxis,meanLinReg, stdLinReg)
+pdfPolyFeatZero = norm.pdf(errorXaxis,meanPolyFeatZero, stdPolyFeatZero)
+
+twoSigmaPipe =   norm.pdf(2*stdPipe,    meanPipe,   stdPipe )
+twoSigmaLinReg = norm.pdf(2*stdLinReg,  meanPipe,   stdLinReg )
+
+binSize = 2.5
+nBins = math.ceil(max([-minAbsErrorPipe, maxAbsErrorPipe, -minAbsErrorLinReg, maxAbsErrorLinReg])/binSize)
+bins = np.arange(-int(nBins/2)*binSize, (int(nBins/2)+1)*binSize, binSize) - 0.5*binSize
+
 plt.figure()
-plt.hist(allDataPipe["absError"], label = "Pipeline",       bins=np.arange(-30, 40, 5)-2.5, alpha=0.5)
-plt.hist(allData["absError"], label = "Linear Regression",  bins=np.arange(-30, 40, 5)-2.5, alpha=0.5)
+plt.hist(allDataPipe["absError"],  label = "Pipeline",          density=True, bins=bins, alpha=0.5)
+plt.hist(allData["absError"],      label = "Linear Regression", density=True, bins=bins, alpha=0.5)
+
+plt.hist(allDataPolyFeatZero["absError"],      label = "Poly Feat @Zero", density=True, bins=bins, alpha=0.5)
+
+
+plt.plot(errorXaxis, pdfPipe,  c='red',  label = "Pipeline Norm fit")
+plt.plot(errorXaxis, pdfLinReg,c='blue', label = "Linear Reg Norm fit")
+plt.plot(errorXaxis, pdfPolyFeatZero,c='green', label = "Poly Feat @Zero")
+
+
+plt.plot([2*stdPipe]*2,  [0, twoSigmaPipe], c='black', linestyle='--',)
+plt.plot([2*stdPipe],  [twoSigmaPipe],      c='red', marker = 'h', markersize=6)
+plt.plot([-2*stdPipe]*2,  [0,twoSigmaPipe], c='black', linestyle='--',)
+plt.plot([-2*stdPipe],  [twoSigmaPipe],      c='red', marker = 'h', markersize=6)
+
+plt.plot([2*stdLinReg]*2,  [0, twoSigmaLinReg], c='black', linestyle='--',)
+plt.plot([2*stdLinReg],  [twoSigmaLinReg],      c='blue', marker = 'h', markersize=6)
+plt.plot([-2*stdLinReg]*2,  [0,twoSigmaLinReg], c='black', linestyle='--',)
+plt.plot([-2*stdLinReg],  [twoSigmaLinReg],     c='blue', marker = 'h', markersize=6)
+
+
+plt.title("Absolute error distribution for different algoriths")
+plt.xlabel("Error in predicted weight (gr)")
 plt.legend()
+plt.grid(True)
+plt.show()
+
+
+#%%
+# True values vs estimated values
+
+plt.figure(figsize=(10,10))
+plt.scatter(yfinal, yfinalPred)
+plt.scatter(yfinal, yfinalPredPipe)
+plt.yscale('log')
+plt.xscale('log')
+
+p1 = min([min(yfinal), min(yfinalPred), min(yfinalPredPipe)])
+p2 = max([max(yfinal), max(yfinalPred), max(yfinalPredPipe)])
+plt.plot([p1, p2], [p1, p2], 'k--')
+plt.xlabel('True Values', fontsize=15)
+plt.ylabel('Predictions', fontsize=15)
+plt.axis('equal')
+plt.grid(True)
 plt.show()
 
 
