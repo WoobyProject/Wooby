@@ -19,11 +19,20 @@
 //************************//
 
   #define MODEL 1
-  // MODEL 1 : ESP32 - Wooby 1
-  // MODEL 2 : ESP32 - Wooby 2
-  // MODEL 3 : Arduino - Unknown
-  // MODEL 4 : Arduino - Unknown
-  // MODEL 5 : ESP32 - Wooby Xtrem
+  #if MODEL==1
+    const float Ka = 2.07447658e-2;
+    const float Kb = 2.07447658e-2;
+    const float Kab = 4.70525657e-9;
+    const float Ka2 = -1.95181432e-9;
+    const float Kb2 = -1.95181432e-9;
+  #endif
+  #if MODEL==2
+    const float Ka = 2.07292915e-2;
+    const float Kb = 2.07292915e-2;
+    const float Kab = 9.21623753e-10;
+    const float ka2 = 0.0;
+    const float Kb2 = 0.0;
+  #endif
 
   #define TYPE 1
 
@@ -105,39 +114,17 @@
 //************************//
 #define DOUT 19     // For Arduino 6
 #define CLK  18     // For Arduino 5
-#define DOUT2 27
-#define CLK2  14
+#define DOUT2 32 // Originally 27
+#define CLK2  33 // Originally 14
 
   HX711 scale[2];
-
-  // Model choice
-  #if MODEL == 1
-    float calibrationFactor = 42.0000;
-  #endif
-
-  #if MODEL == 2
-    float calibrationFactor = 42.7461;
-  #endif
-
-  #if MODEL == 3
-    // OLD BOOT LOADER
-    float calibrationFactor = 61.7977;
-  #endif
-
-  #if MODEL == 4
-    float calibrationFactor = 38.5299;
-  #endif
-
-  #if MODEL == 5
-    float calibrationFactor = 61.7977;
-  #endif
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
   float MAX_GR_VALUE = 11000; // in gr
   float MIN_GR_VALUE = 5;    // in gr
 
-  float correctedValueFiltered[2] = {0.0, 0.0};
+  float correctedValueFiltered = 0.0;
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
@@ -167,7 +154,7 @@
     const float FILTERING_THR = 20;  // in grams
 
     float realValue_WU[2] = {0.0, 0.0};
-    float realValue[2];
+    float realValue;
     float realValue_1;
     float realValueFiltered;
     float realValueFiltered_1;
@@ -838,16 +825,13 @@ bool buildGenericJSON()
 
   genericJSON["realValue_WU1"] = realValue_WU[0];
   genericJSON["offset1"] = offset[0];
-  genericJSON["calibrationFactor"] = calibrationFactor;
 
   genericJSON["relativeVal_WU1"] = relativeVal_WU[0];
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
   genericJSON["realValue_WU_MovAvg1"] = realValue_WU_MovAvg[0];
   genericJSON["realValue_WU_Filt1"] = realValue_WU_Filt[0];
 
-  genericJSON["realValue1"] = realValue[0];
   genericJSON["realValueFiltered"] = realValueFiltered;
-  genericJSON["correctedValueFiltered1"] = correctedValueFiltered[0];
 
   genericJSON["tBeforeMeasure2"] = tBeforeMeasure[1];
   genericJSON["tAfterMeasure2"] = tAfterMeasure[1];
@@ -855,16 +839,14 @@ bool buildGenericJSON()
 
   genericJSON["realValue_WU2"] = realValue_WU[1];
   genericJSON["offset2"] = offset[1];
-  // (PH) genericJSON["calibrationFactor"] = calibrationFactor;
 
   genericJSON["relativeVal_WU2"] = relativeVal_WU[1];
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
   genericJSON["realValue_WU_MovAvg2"] = realValue_WU_MovAvg[1];
   genericJSON["realValue_WU_Filt2"] = realValue_WU_Filt[1];
 
-  genericJSON["realValue2"] = realValue[1];
-  // (PH) genericJSON["realValueFiltered"] = realValueFiltered;
-  genericJSON["correctedValueFiltered2"] = correctedValueFiltered[1];
+  genericJSON["realValue"] = realValue;
+  genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
   genericJSON["myAx"] = myAx;
   genericJSON["myAy"] = myAy;
@@ -970,7 +952,6 @@ String json2String(DynamicJsonDocument theJSON) {
     dataItem["realValueFiltered"     ]  = realValueFiltered;
     dataItem["correctedValueFiltered"]  = correctedValueFiltered;
     dataItem["bSync"     ]              = bSync;
-    dataItem["calibrationFactor"     ] = calibrationFactor;
     dataItem["offset"]                  = offset;
     dataItem["realValue_WU"     ]       = realValue_WU;
     dataItem["bInactive"]               = bInactive;
@@ -1278,9 +1259,9 @@ void getWoobyWeight(){
       offset[i] = (float)scale[i].get_offset();
       relativeVal_WU[i] = realValue_WU[i] - offset[i];
 
-      // Synchronization calcualtion
+      // Synchronization calculation
 
-      if (abs(relativeVal_WU[i] - relativeVal_WU_1[i]) > (FILTERING_THR * scale[i].get_scale()))
+      if (abs(relativeVal_WU[i] - relativeVal_WU_1[i]) > (FILTERING_THR / (Ka + Kb)))
       {
         bSyncTimer[i] = millis();
         bSync = true;
@@ -1324,37 +1305,24 @@ void getWoobyWeight(){
         realValue_WU_Filt[i] = filterWeight[i](realValue_WU_MovAvg[i]);
       }
 
-
-      // Conversion to grams //
-      realValue[i] = realValue_WU_Filt[i]/scale[i].get_scale(); // (realValue_WU_AngleAdj)/scale1.get_scale();
-      /*
-      correctedValue = correctionAlgo(realValue); // NOT USED!!!!!
-
-      // Filtering  //
-
-        // Filtering for the real value //
-        realValueFilterResult = filtering(realValue, realValue_1, realValueFiltered_1);
-        bSync = realValueFilterResult.bSync;
-        realValueFiltered = realValueFilterResult.yk;
-
-        // Updating for filtering
-        realValueFiltered_1 = realValueFiltered;
-        realValue_1 = realValue;
-      */
-
-      // Final correction  //
-      correctedValueFiltered[i] = correctionAlgo(realValue[i]);
-
       tAfterAlgo[i] = millis();
     }
+
+    // Conversion to grams
+    realValue = Ka * realValue_WU_Filt[0] + Kb * realValue_WU_Filt[1] +
+                Kab * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
+                Ka2 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
+                Kb2 * realValue_WU_Filt[1] * realValue_WU_Filt[1];
+
+    // Final correction
+    correctedValueFiltered = correctionAlgo(realValue);
 }
 
 void mainDisplayWooby(){
   // Set up the display
   u8g.firstPage();
 
-  // (PH) Next line : to modify correctedValueFiltered[0]
-  if (correctedValueFiltered[0] > MAX_GR_VALUE) { // Verification of the max value in grams
+  if (correctedValueFiltered > MAX_GR_VALUE) { // Verification of the max value in grams
       do {
             u8g.setCursor(15, 15) ;
             u8g.print(" OVER");
@@ -1363,8 +1331,7 @@ void mainDisplayWooby(){
         } while(u8g.nextPage());
 
   }
-  // (PH) Next line : to modify correctedValueFiltered[0]
-  else if ((correctedValueFiltered[0] < -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
+  else if ((correctedValueFiltered < -1*MIN_GR_VALUE)  && (B_INHIB_NEG_VALS)){ // Verification of the negative values (with threshold)
        do {
             u8g.setFont(u8g2_font_osb18_tf);
             u8g.setCursor(17, 25) ; // (Horiz, Vert)
@@ -1593,11 +1560,9 @@ void setup(void) {
   Serial.println("Setting up weight sensor...");
   scale[0].begin(DOUT, CLK);
   scale[0].set_gain(gain);
-  scale[0].set_scale(calibrationFactor);
   scale[0].set_offset(offset[0]);
   scale[1].begin(DOUT2, CLK2);
   scale[1].set_gain(gain);
-  scale[1].set_scale(calibrationFactor);
   scale[1].set_offset(offset[1]);
   nextStepSetup();
 
@@ -1688,14 +1653,6 @@ void loop(void) {
     {
       char temp = Serial.read();
       switch(temp){
-      case '+': calibrationFactor += 0.01;
-                scale[0].set_scale(calibrationFactor);
-                scale[1].set_scale(calibrationFactor);
-                break;
-      case '-': calibrationFactor -= 0.01;
-                scale[0].set_scale(calibrationFactor);
-                scale[1].set_scale(calibrationFactor);
-                break;
       case 't': myTare();
                 break;
       case 'r': ESP.restart();
@@ -1796,8 +1753,7 @@ void loop(void) {
 
         // Updating for inactivity check
         displayFinalValue_1 = displayFinalValue;
-        // (PH) Next line : to modify correctedValueFiltered[0]
-        displayFinalValue   = correctedValueFiltered[0];
+        displayFinalValue   = correctedValueFiltered;
 
         //     Displaying     //
         mainDisplayWooby();
