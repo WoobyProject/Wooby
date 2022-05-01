@@ -20,11 +20,11 @@
 
   #define MODEL 1
   #if MODEL==1
-    const float Ka = 2.07447658e-2;
-    const float Kb = 2.07447658e-2;
-    const float Kab = 4.70525657e-9;
-    const float Ka2 = -1.95181432e-9;
-    const float Kb2 = -1.95181432e-9;
+    const float Ka = 2.09603944e-02; // 2.07447658e-2
+    const float Kb = 2.07100960e-02; // 2.07447658e-2
+    const float Kab = 5.86607606e-09; // 4.70525657e-9
+    const float Ka2 = 0.0; // -1.95181432e-9
+    const float Kb2 = 0.0; // -1.95181432e-9
   #endif
   #if MODEL==2
     const float Ka = 2.07292915e-2;
@@ -112,12 +112,14 @@
 //************************//
 //*      SENSOR CONF     *//
 //************************//
-#define DOUT 19     // For Arduino 6
-#define CLK  18     // For Arduino 5
-#define DOUT2 32 // Originally 27
-#define CLK2  33 // Originally 14
+#define NB_HX711 4
+//                                               CLK DOUT
+ const unsigned int HX711_pins[NB_HX711][2] = { { 18, 19 },
+                                                { 18, 33 },
+                                                { 17, 33 },
+                                                { 17, 5  } };
 
-  HX711 scale[2];
+  HX711 scale[NB_HX711];
 
   int gain = 64;  // Reading values with 64 bits (could be 128 too)
 
@@ -128,52 +130,55 @@
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
-  unsigned long tBeforeMeasure[2] = {0, 0};
-  unsigned long tAfterMeasure[2] = {0, 0};
-  unsigned long tAfterAlgo[2] = {0, 0};
+  unsigned long tBeforeMeasure[NB_HX711] = {0, 0, 0, 0};
+  unsigned long tAfterMeasure[NB_HX711] = {0, 0, 0, 0};
+  unsigned long tAfterAlgo[NB_HX711] = {0, 0, 0, 0};
   char arrayMeasure[8];
 
   //************************//
   //*  WEIGHTING ALGO CONF *//
   //************************//
 
-    const int nMeasures = 7;
-    const int nMeasuresTare = 7;
+    const int nMeasures = 4;
+    const int nMeasuresTare = 4;
 
     // Definition of the coeffs for the filter
     // Remember : Te = nMeasures*100 ms
     //            b = 1 - math.exp(-Te/tau)
     //            a = math.exp(-Te/tau)
     //            tau = 1.4
-    const float b =  0.3915; // Te = nMeasures*100 ms
-    const float a =  0.6085; //
+    const float b =  0.24852270692472; // Te = nMeasures*100 ms
+    const float a =  0.75147729307528; //
 
     // Filter = y/u = b*z-1(1-a)
-    NormalizingIIRFilter<2, 2, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
+    NormalizingIIRFilter<4, 4, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
     const float FILTERING_THR = 20;  // in grams
 
-    float realValue_WU[2] = {0.0, 0.0};
+    float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
     float realValue;
     float realValue_1;
     float realValueFiltered;
     float realValueFiltered_1;
-    float relativeVal_WU_1[2];
+    float relativeVal_WU_1[NB_HX711];
 
-    float relativeVal_WU[2] = {0.0, 0.0};
+    float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
     float realValue_WU_AngleAdj = 0;
-    float realValue_WU_MovAvg[2] = {0.0, 0.0};
-    float realValue_WU_Filt[2] = {0.0, 0.0};
+    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     float correctedValue = 0;
-    RTC_DATA_ATTR float offset[2] = {0.0, 0.0};
+    RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     bool bSync;
-    unsigned long bSyncTimer[2] = {0, 0};
+    unsigned long bSyncTimer[NB_HX711] = {0, 0, 0, 0};
     const unsigned long BSYNC_TIME = 2000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
-    RunningAverage weightMovAvg[] = { RunningAverage(N_WINDOW_MOV_AVG), RunningAverage(N_WINDOW_MOV_AVG) };
+    RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
+                                              RunningAverage(N_WINDOW_MOV_AVG),
+                                              RunningAverage(N_WINDOW_MOV_AVG),
+                                              RunningAverage(N_WINDOW_MOV_AVG) };
 
 //************************//
 //*   LOAD SENSOR ADJ    *//
@@ -314,7 +319,7 @@
 //************************//
 
   // See https://arduinojson.org/v6/assistant/
-  const int N_FIELDS_JSON = 36;
+  const int N_FIELDS_JSON = 60;
   const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 0; //1620
   DynamicJsonDocument genericJSON(CAPACITY_JSON);
   String genericJSONString; // TODO  create a String with the right MAX length
@@ -429,12 +434,14 @@ void myTare()
 
   DPRINTLN("TARE starting... ");
   unsigned long bTare = millis();
-  scale[0].tare(nMeasuresTare);
-  scale[1].tare(nMeasuresTare);
+  for(i=0;i < NB_HX711;i++)
+  {
+    scale[i].tare(nMeasuresTare);
+  }
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
   // Reinitializing the filters
-  for(i=0;i < 2;i++)
+  for(i=0;i < NB_HX711;i++)
   {
     weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
     filterWeight[i].reset(0);
@@ -819,32 +826,31 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
 
 bool buildGenericJSON()
 {
-  genericJSON["tBeforeMeasure1"] = tBeforeMeasure[0];
-  genericJSON["tAfterMeasure1"] = tAfterMeasure[0];
-  genericJSON["tAfterAlgo1"] = tAfterAlgo[0];
+  int i;
+  char s[21];
 
-  genericJSON["realValue_WU1"] = realValue_WU[0];
-  genericJSON["offset1"] = offset[0];
-
-  genericJSON["relativeVal_WU1"] = relativeVal_WU[0];
+  for(i=0;i < NB_HX711;i++)
+  {
+    sprintf(s, "tBeforeMeasure%d", i+1);
+    genericJSON[s] = tBeforeMeasure[i];
+    sprintf(s, "tAfterMeasure%d", i+1);
+    genericJSON[s] = tAfterMeasure[i];
+    sprintf(s, "tAfterAlgo%d", i+1);
+    genericJSON[s] = tAfterAlgo[i];
+    sprintf(s, "realValue_WU%d", i+1);
+    genericJSON[s] = realValue_WU[i];
+    sprintf(s, "offset%d", i+1);
+    genericJSON[s] = offset[i];
+    sprintf(s, "relativeVal_WU%d", i+1);
+    genericJSON[s] = relativeVal_WU[i];
+    sprintf(s, "realValue_WU_MovAvg%d", i+1);
+    genericJSON[s] = realValue_WU_MovAvg[i];
+    sprintf(s, "realValue_WU_Filt%d", i+1);
+    genericJSON[s] = realValue_WU_Filt[i];
+  }
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
-  genericJSON["realValue_WU_MovAvg1"] = realValue_WU_MovAvg[0];
-  genericJSON["realValue_WU_Filt1"] = realValue_WU_Filt[0];
-
   genericJSON["realValueFiltered"] = realValueFiltered;
-
-  genericJSON["tBeforeMeasure2"] = tBeforeMeasure[1];
-  genericJSON["tAfterMeasure2"] = tAfterMeasure[1];
-  genericJSON["tAfterAlgo2"] = tAfterAlgo[1];
-
-  genericJSON["realValue_WU2"] = realValue_WU[1];
-  genericJSON["offset2"] = offset[1];
-
-  genericJSON["relativeVal_WU2"] = relativeVal_WU[1];
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
-  genericJSON["realValue_WU_MovAvg2"] = realValue_WU_MovAvg[1];
-  genericJSON["realValue_WU_Filt2"] = realValue_WU_Filt[1];
-
   genericJSON["realValue"] = realValue;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
@@ -1236,7 +1242,7 @@ void setUpWeightAlgorithm()
     realValueFiltered = 0;
     realValueFiltered_1 = 0;
     bSync = false;
-    for(i=0;i < 2;i++)
+    for(i=0;i < NB_HX711;i++)
     {
       weightMovAvg[i].clear();
       weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG); // (float)scale1.get_offset()
@@ -1246,7 +1252,7 @@ void setUpWeightAlgorithm()
 void getWoobyWeight(){
     int i;
 
-    for(i=0;i < 2;i++)
+    for(i=0;i < NB_HX711;i++)
     {
       // Updating for synchro
       relativeVal_WU_1[i] = relativeVal_WU[i];
@@ -1309,10 +1315,13 @@ void getWoobyWeight(){
     }
 
     // Conversion to grams
-    realValue = Ka * realValue_WU_Filt[0] + Kb * realValue_WU_Filt[1] +
-                Kab * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
-                Ka2 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
-                Kb2 * realValue_WU_Filt[1] * realValue_WU_Filt[1];
+    // To be updated
+    realValue = 0.0;
+    for(i=0;i < NB_HX711;i++)
+    {
+      realValue += realValue_WU_Filt[i];
+    }
+    realValue /= 50 * NB_HX711;
 
     // Final correction
     correctedValueFiltered = correctionAlgo(realValue);
@@ -1521,6 +1530,7 @@ void partitionTable(){
 */
 
 void setup(void) {
+  int i;
 
   Serial.begin(115200);
   unsigned long setUpTime =  millis();
@@ -1558,12 +1568,12 @@ void setup(void) {
 
   //*       SET UP  WEIGHT SENSOR       *//
   Serial.println("Setting up weight sensor...");
-  scale[0].begin(DOUT, CLK);
-  scale[0].set_gain(gain);
-  scale[0].set_offset(offset[0]);
-  scale[1].begin(DOUT2, CLK2);
-  scale[1].set_gain(gain);
-  scale[1].set_offset(offset[1]);
+  for(i=0;i < NB_HX711;i++)
+  {
+     scale[i].begin(HX711_pins[i][1], HX711_pins[i][0]);
+     scale[i].set_gain(gain);
+     scale[i].set_offset(offset[i]);
+  }
   nextStepSetup();
 
 
