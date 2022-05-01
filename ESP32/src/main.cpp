@@ -115,7 +115,7 @@
 #define NB_HX711 4
 //                                               CLK DOUT
  const unsigned int HX711_pins[NB_HX711][2] = { { 18, 19 },
-                                                { 18, 33 },
+                                                { 18, 32 },
                                                 { 17, 33 },
                                                 { 17, 5  } };
 
