@@ -320,7 +320,8 @@
 
   // See https://arduinojson.org/v6/assistant/
   const int N_FIELDS_JSON = 60;
-  const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 0; //1620
+  //const size_t CAPACITY_JSON = JSON_OBJECT_SIZE(N_FIELDS_JSON) + 0; //1620
+  const size_t CAPACITY_JSON = 2000; //1620
   DynamicJsonDocument genericJSON(CAPACITY_JSON);
   String genericJSONString; // TODO  create a String with the right MAX length
 
@@ -1251,6 +1252,8 @@ void setUpWeightAlgorithm()
 
 void getWoobyWeight(){
     int i;
+    int j;
+    unsigned long time;
 
     for(i=0;i < NB_HX711;i++)
     {
@@ -1259,7 +1262,18 @@ void getWoobyWeight(){
 
       // Raw weighting //
       tBeforeMeasure[i] = millis();
-      realValue_WU[i] = scale[i].read_average(nMeasures);
+      for(j=0;j < nMeasures;j++)
+      {
+        time = millis();
+        realValue_WU[i] = scale[i].read();
+        if (j < (nMeasures - 1))
+        {
+          while((millis() - time) < 100);
+        }
+        else
+        {
+        }
+      }
       tAfterMeasure[i] = millis();
 
       offset[i] = (float)scale[i].get_offset();
@@ -1321,7 +1335,7 @@ void getWoobyWeight(){
     {
       realValue += realValue_WU_Filt[i];
     }
-    realValue /= 50 * NB_HX711;
+    realValue /= 50 * 2;
 
     // Final correction
     correctedValueFiltered = correctionAlgo(realValue);
@@ -1568,6 +1582,7 @@ void setup(void) {
 
   //*       SET UP  WEIGHT SENSOR       *//
   Serial.println("Setting up weight sensor...");
+  Serial.printf("Size of JSON : %d\n", CAPACITY_JSON);
   for(i=0;i < NB_HX711;i++)
   {
      scale[i].begin(HX711_pins[i][1], HX711_pins[i][0]);
