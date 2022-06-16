@@ -112,11 +112,11 @@
 //************************//
 //*      SENSOR CONF     *//
 //************************//
-#define NB_HX711 4
+#define NB_HX711 3
 //                                               CLK DOUT
  const unsigned int HX711_pins[NB_HX711][2] = { { 18, 19 },
                                                 { 18, 32 },
-                                                { 17, 33 },
+//                                                { 17, 33 },
                                                 { 17, 5  } };
 
   HX711 scale[NB_HX711];
@@ -130,9 +130,9 @@
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
-  unsigned long tBeforeMeasure[NB_HX711] = {0, 0, 0, 0};
-  unsigned long tAfterMeasure[NB_HX711] = {0, 0, 0, 0};
-  unsigned long tAfterAlgo[NB_HX711] = {0, 0, 0, 0};
+  unsigned long tBeforeMeasure[NB_HX711] = {0, 0, 0};
+  unsigned long tAfterMeasure[NB_HX711] = {0, 0, 0};
+  unsigned long tAfterAlgo[NB_HX711] = {0, 0, 0};
   char arrayMeasure[8];
 
   //************************//
@@ -155,28 +155,27 @@
 
     const float FILTERING_THR = 20;  // in grams
 
-    float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0};
     float realValue;
     float realValue_1;
     float realValueFiltered;
     float realValueFiltered_1;
     float relativeVal_WU_1[NB_HX711];
 
-    float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0};
     float realValue_WU_AngleAdj = 0;
-    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
-    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0};
+    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0};
 
     float correctedValue = 0;
-    RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0};
 
     bool bSync;
-    unsigned long bSyncTimer[NB_HX711] = {0, 0, 0, 0};
+    unsigned long bSyncTimer[NB_HX711] = {0, 0, 0};
     const unsigned long BSYNC_TIME = 2000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
-                                              RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG) };
 
@@ -1335,7 +1334,7 @@ void getWoobyWeight(){
     {
       realValue += realValue_WU_Filt[i];
     }
-    realValue /= 50 * 2;
+    realValue /= 50;
 
     // Final correction
     correctedValueFiltered = correctionAlgo(realValue);
