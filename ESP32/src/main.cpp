@@ -151,7 +151,7 @@
     const float a =  0.75147729307528; //
 
     // Filter = y/u = b*z-1(1-a)
-    NormalizingIIRFilter<4, 4, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
+    NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
     const float FILTERING_THR = 20;  // in grams
 
