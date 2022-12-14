@@ -115,13 +115,13 @@
 #define NB_HX711 3
 //                                               CLK DOUT
  const unsigned int HX711_pins[NB_HX711][2] = { { 18, 19 },
-                                                { 18, 32 },
-//                                                { 17, 33 },
-                                                { 17, 5  } };
+                                                { 17,  5 },
+                                                { 18, 32 } };
+//                                                { 17, 33 } };
 
   HX711 scale[NB_HX711];
 
-  int gain = 64;  // Reading values with 64 bits (could be 128 too)
+  // TBR int gain = 64;  // Reading values with 64 bits (could be 128 too) useless because gain is set in the begin call
 
   float MAX_GR_VALUE = 11000; // in gr
   float MIN_GR_VALUE = 5;    // in gr
@@ -436,7 +436,9 @@ void myTare()
   unsigned long bTare = millis();
   for(i=0;i < NB_HX711;i++)
   {
-    scale[i].tare(nMeasuresTare);
+  // TBR  scale[i].tare(nMeasuresTare);
+    offset[i] = scale[i].tare(nMeasuresTare);
+    DPRINT("Offset");DPRINT(i+1);DPRINT("=");DPRINTLN(offset[i]);
   }
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
@@ -1260,11 +1262,12 @@ void getWoobyWeight(){
       relativeVal_WU_1[i] = relativeVal_WU[i];
 
       // Raw weighting //
+      realValue_WU[i] = (float)0.0;
       tBeforeMeasure[i] = millis();
       for(j=0;j < nMeasures;j++)
       {
         time = millis();
-        realValue_WU[i] = scale[i].read();
+        realValue_WU[i] += scale[i].read();
         if (j < (nMeasures - 1))
         {
           while((millis() - time) < 100);
@@ -1274,8 +1277,9 @@ void getWoobyWeight(){
         }
       }
       tAfterMeasure[i] = millis();
+      realValue_WU[i] /= nMeasures;
 
-      offset[i] = (float)scale[i].get_offset();
+      // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
       relativeVal_WU[i] = realValue_WU[i] - offset[i];
 
       // Synchronization calculation
@@ -1332,7 +1336,7 @@ void getWoobyWeight(){
     realValue = 0.0;
     for(i=0;i < NB_HX711;i++)
     {
-      realValue += realValue_WU_Filt[i];
+      realValue += abs(realValue_WU_Filt[i]);
     }
     realValue /= 50;
 
@@ -1584,9 +1588,9 @@ void setup(void) {
   Serial.printf("Size of JSON : %d\n", CAPACITY_JSON);
   for(i=0;i < NB_HX711;i++)
   {
-     scale[i].begin(HX711_pins[i][1], HX711_pins[i][0]);
-     scale[i].set_gain(gain);
-     scale[i].set_offset(offset[i]);
+     scale[i].begin(HX711_pins[i][1], HX711_pins[i][0], 64);
+     // TBR scale[i].set_gain(gain); gain is set in the call above "begin"
+     // TBR scale[i].set_offset(offset[i]); useless to set offset to 0
   }
   nextStepSetup();
 
