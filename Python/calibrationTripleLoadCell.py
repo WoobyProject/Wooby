@@ -6,8 +6,24 @@ Created on Wed Sep 23 00:41:26 2020
 @author: enriquem
 """
 
-import re
+import sys
 import os
+
+"""
+    For pyWoobypackage use
+"""
+maindir = "C:/Users/pasca/Wooby/devs/Python/"
+maindir = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/"
+
+pckgdir = os.path.realpath(os.path.join(maindir, "pyWooby"))
+sys.path.append(maindir)
+sys.path.append(pckgdir)
+print(maindir)
+print(pckgdir)
+
+from pyWooby import Wooby
+
+import re
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -22,21 +38,17 @@ from sklearn.linear_model import LinearRegression
 plt.close('all')
 
 
-import sys
-sys.path.append('../pyWooby')
-import pyWooby
-
-
+#%%
 ##################################        
 #       Reading of each file     #
 ##################################
 
 # Configuration
-filterStr_Basic = 'FLAT'
+filterStr_Basic = ''
 filterStr_Adv = '' #'FLAT'
 filterStr_OutOfDom = "FRONT|BACK"
 
-fileFolder = os.path.join(os.getcwd(), "datasets", "WOOBY2_CALIB_BOTTOM")
+# fileFolder = os.path.join(os.getcwd(), "datasets", "WOOBY2_CALIB_BOTTOM")
 fileFolder = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets/WoobyTripleHX711"
 allFiles = os.listdir(fileFolder)
 
@@ -56,50 +68,51 @@ for file in allFiles:
     actualWeightStr = re.search('[\d]*gr', file)
     if (actualWeightStr!=None):
         ACTUAL_WEIGHT = float(actualWeightStr.group()[:-2])
+       
         print("File found: {}\t Weight: {}".format(file, ACTUAL_WEIGHT))
         
         # Reading
         fileDf = pd.read_csv(os.path.join(fileFolder, file))
+        
         # Extra calcuations
-        fileDf["relativeValue_WU"] = fileDf["realValue_WU"]- fileDf["OFFSET"]
-        fileDf["relativeValue_WU_0"] = max(fileDf["relativeValue_WU"])
+        #fileDf["relativeValue_WU"] = fileDf["realValue_WU"]- fileDf["OFFSET"]
+        #fileDf["relativeValue_WU_0"] = max(fileDf["relativeValue_WU"])
+        fileDf["realWeight"] = ACTUAL_WEIGHT
         
         # Filtering
         answerStr_Basic = re.search(filterStr_Basic, file)
         if (answerStr_Basic!=None):
-            mainWoobyDF_Basic = mainWoobyDF_Basic.append(fileDf)
+            mainWoobyDF_Basic = mainWoobyDF_Basic.append(fileDf, ignore_index=True)
             listFiles_Basic.append({"name":file, 
                                     "data":fileDf})
             
         answerStr_Adv = re.search(filterStr_Adv, file)
         if (answerStr_Adv!=None):
-            mainWoobyDF_Adv = mainWoobyDF_Adv.append(fileDf)
+            mainWoobyDF_Adv = mainWoobyDF_Adv.append(fileDf, ignore_index=True)
             listFiles_Adv.append({"name":file, 
                                   "data":fileDf})
         
         answerStr_OutOfDom = re.search(filterStr_OutOfDom, file)
         if (answerStr_OutOfDom!=None):
-            mainWoobyDF_OutOfDom = mainWoobyDF_OutOfDom.append(fileDf)
+            mainWoobyDF_OutOfDom = mainWoobyDF_OutOfDom.append(fileDf, ignore_index=True)
             listFiles_OutOfDom.append({"name":file, 
                                        "data":fileDf})
         
-
+#%%
 ##################################     
 #          Calculations          #
 ################################## 
 
-mainWoobyDF_Adv["absThetadeg"] = abs(mainWoobyDF_Adv["thetadeg"])
-mainWoobyDF_Adv["absPhideg"] = abs(mainWoobyDF_Adv["phideg"])
 
 ##################################     
 #    Linear regression (basic)   #
 ################################## 
 
-X = np.array(mainWoobyDF_Basic["relativeValue_WU"])
+X = np.array(mainWoobyDF_Basic[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]])
 y = np.array(mainWoobyDF_Basic["realWeight"])
 
-X = X.reshape((-1, 1))
-y = y.reshape((-1, 1))
+#X = X.reshape((-1, 1))
+#y = y.reshape((-1, 1))
 
 reg = LinearRegression().fit(X, y)
 
@@ -122,6 +135,8 @@ print("\n\nVariable to code as 'calibration_factor': {}\n\n".format(SLOPE_basic)
 
 X_tend_line = np.array([ min(X)[0], max(X)[0]]).reshape((-1, 1))
 y_tend_line = reg.predict(X_tend_line)
+
+y_pred = reg.predict(X)
 
 ##################################     
 #        Plotting of data        #
