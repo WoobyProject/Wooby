@@ -44,7 +44,7 @@ myWooby.tare()
 #%% Reading of a calibration point
 
 N_MAX_MEASURES = 15
-SUBSET = "WoobyTripleHX711" 
+SUBSET = "WoobyTripleHX711ForTest" 
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
 REAL_WEIGHT = 500
@@ -67,7 +67,7 @@ OVERWRITE = True
 #%% Reading of a calibration point - Loop
 
 REAL_WEIGHT = 200  # in gr
-N_TEST = 5
+N_TEST = 1
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
@@ -150,6 +150,7 @@ plt.show()
 
 #%% Reading of the batch
 
+"""
 fileNameList = ["WoobyDualHX711_1000gr_CENTER.csv",
                 "WoobyDualHX711_1000gr_LEFT.csv",
                 "WoobyDualHX711_1000gr_RIGHT.csv",
@@ -164,10 +165,6 @@ fileNameList = ["WoobyDualHX711_2050gr_{}.csv".format(ii) for ii in range(1,6) ]
 fileNameList = ["WoobyDualHX711_501gr_{}.csv".format(ii) for ii in range(1,6) ]
 
 
-fileNameList = ["WoobyTripleHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]
-
-
-"""
 # For different configurations study 
 
 FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub2Test/Wooby/Python/datasets/", "WoobyDualHX711_Study_Configurations")
@@ -185,7 +182,11 @@ fileNameList6 = ["WoobyDualHX711_OuterPos_SamePlace_550gr_{}.csv".format(ii) for
 
 
 fileNameList =  fileNameList1 + fileNameList2 + fileNameList3 + fileNameList4 + fileNameList5 + fileNameList6
+
+
+fileNameList = ["WoobyTripleHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]
 """
+
 
 # For final configurations datasets 
 
@@ -196,6 +197,13 @@ fileNameList = ["WoobyTripleHX711_700gr_{}.csv".format(ii) for ii in range(1,6) 
 fileNameList = ([ "WoobyTripleHX711_700gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_500gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_200gr_{}.csv".format(ii) for ii in range(1,6) ]  )
+
+# For test with weights between 1 kg and 5 kg 
+
+fileNameList = ([ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  )
+
 
 
 """
@@ -224,7 +232,7 @@ fig, axs = plt.subplots(3,1)
 
 fig, axs2 = plt.subplots(2,2)
 
-fig, axs3 = plt.subplots(2,1)
+# fig, axs3 = plt.subplots(2,1)
 
 figHisto, axsHisto = plt.subplots(1,1)
 
@@ -246,15 +254,17 @@ for ii, df in enumerate(allDfDualSensor):
     plt.plot(df["tBeforeMeasure2"]-df["tBeforeMeasure2"][0] ,  df["relativeVal_WU2"] , label="Sensor 2", color = pltMain.get_color())
     plt.plot(df["tBeforeMeasure3"]-df["tBeforeMeasure3"][0] ,  df["relativeVal_WU3"] , label="Sensor 3", color = pltMain.get_color())
     plt.grid(True)
-    plt.legend()
+    plt.title("All relatives values")
+    #plt.legend()
     plt.show()
     
     
     plt.sca(axs[1])
     # Plot of the sum of the two sensors
-    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0],  df["relativeVal_WU1"] + df["relativeVal_WU2"] , label="Sum", color = pltMain.get_color())
+    plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0],  df["relativeVal_WU1"] + df["relativeVal_WU2"] + df["relativeVal_WU3"], label="Sum", color = pltMain.get_color())
     plt.grid(True)
-    plt.legend()
+    #plt.legend()
+    plt.title("Sum of all relatives values")
     plt.show()
     
     
@@ -263,7 +273,7 @@ for ii, df in enumerate(allDfDualSensor):
     #plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  (df["realValue_WU1"] * df["realValue_WU2"]) , label="Skewness", color = pltMain.get_color())
     plt.plot(df["tBeforeMeasure1"]-df["tBeforeMeasure1"][0] ,  1-0.5*abs(df["realValue_WU1"] - df["realValue_WU2"])/(df["realValue_WU1"] + df["realValue_WU2"]) , label="Skewness", color = pltMain.get_color())
     plt.grid(True)
-    plt.legend()
+    #plt.legend()
     plt.show()
 
     ######################
@@ -277,27 +287,31 @@ for ii, df in enumerate(allDfDualSensor):
     plt.grid(True)
     l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
     plt.subplots_adjust(right=0.8)
+    plt.title("Comparison all sensors relative values")
     plt.show()
     
     plt.sca(axs2[0,1])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU1"]) , label="Sensor1")
+    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU1"]) , marker='o', label="Sensor1")
     plt.grid(True)
     plt.ylabel("Sensor 1")
     plt.subplots_adjust(right=0.8)
+    plt.title("Sensor 1 relative value")
     plt.show()
     
     plt.sca(axs2[1,0])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU2"]) ,  label="Sensor2")
+    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU2"]) ,  marker='x', label="Sensor2")
     plt.grid(True)
     plt.ylabel("Sensor 2")
     plt.subplots_adjust(right=0.8)
+    plt.title("Sensor 2 relative value")
     plt.show()
     
     plt.sca(axs2[1,1])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU3"]) ,  label="Sensor3")
+    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU3"]) ,  marker='d', label="Sensor3")
     plt.grid(True)
     plt.ylabel("Sensor 3")
     plt.subplots_adjust(right=0.8)
+    plt.title("Sensor 3 relative value")
     plt.show()
     
     
@@ -330,10 +344,13 @@ for ii, df in enumerate(allDfDualSensor):
 print(KPIs)
 
 
+        
+
 
 #%% Training - Data preparation
 
 import re
+
 
 
 for ii, file in enumerate(fileNameList):
@@ -342,7 +359,26 @@ for ii, file in enumerate(fileNameList):
     print(mtch.group(1))
     allDfDualSensor[ii]["realWeight"] = float(mtch.group(1))
     
+
+# Remove outlayers
+"""
+for ii, file in enumerate(fileNameList):
+    testB1 = ( (allDfDualSensor[ii]["relativeVal_WU1"] > (KPIs["mean1"].iloc[ii] + 5*KPIs["std1"].iloc[ii]) ).any() or
+               (allDfDualSensor[ii]["relativeVal_WU1"] < (KPIs["mean1"].iloc[ii] - 5*KPIs["std1"].iloc[ii]) ).any() )
     
+    testB2 = ( (allDfDualSensor[ii]["relativeVal_WU2"] > (KPIs["mean2"].iloc[ii] + 5*KPIs["std2"].iloc[ii]) ).any() or
+               (allDfDualSensor[ii]["relativeVal_WU2"] < (KPIs["mean2"].iloc[ii] - 5*KPIs["std2"].iloc[ii]) ).any() )
+    
+    testB3 = ( (allDfDualSensor[ii]["relativeVal_WU3"] > ((allDfDualSensor[ii]["relativeVal_WU3"]).median() + 5*KPIs["std3"].iloc[ii]) ).any() or
+               (allDfDualSensor[ii]["relativeVal_WU3"] < ((allDfDualSensor[ii]["relativeVal_WU3"]).median() - 5*KPIs["std3"].iloc[ii]) ).any() )
+    print(testB1 or testB2 or testB3)
+    
+    if testB1:
+        print(ii)
+        print(allDfDualSensor[ii]["relativeVal_WU1"] )
+        break;
+"""
+
 dfTraining = pd.concat(allDfDualSensor, ignore_index=True) 
 
 
@@ -463,7 +499,7 @@ plt.show()
 #%% Export model
 
 import pickle
-EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree.plk")
+EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_1to5kg.plk")
 pickle.dump(pipe, open(EXPORT_NAME, 'wb'))
 
 

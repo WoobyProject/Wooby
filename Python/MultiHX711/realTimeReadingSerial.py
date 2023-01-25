@@ -92,8 +92,8 @@ def animate(i, xs, ys1, ys2, ys3, cvF, myWooby):
     
     calc =  ( 20.524596747258954 + 
             0.01906163*dfLiveRead['relativeVal_WU1'] 
-            -0.02171782*dfLiveRead['relativeVal_WU2']  
-            -0.02045766*dfLiveRead['relativeVal_WU3'])
+            + 0.02171782*dfLiveRead['relativeVal_WU2']  
+            + 0.02045766*dfLiveRead['relativeVal_WU3'])
     
     
     Xpredict[0][0]=dfLiveRead['relativeVal_WU1'][0]
@@ -142,7 +142,7 @@ def animate(i, xs, ys1, ys2, ys3, cvF, myWooby):
     # Format plot
     plt.xticks(rotation=45, ha='right')
     plt.subplots_adjust(bottom=0.30)
-    plt.title("Current weight: {:.3f}".format(calc))
+    plt.title("Current weight: {}".format(calc))
     plt.ylabel('Sensor WU')
     ax.set_ylabel("Final weight")
     plt.legend()
