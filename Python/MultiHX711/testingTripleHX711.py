@@ -428,6 +428,17 @@ allData  = pd.concat([Xfinal, yfinal], axis=1)
 Xarray = Xfinal.to_numpy()
 yarray = yfinal.to_numpy()
 
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+dt = DecisionTreeRegressor()
+dt.fit(Xfinal, yfinal)
+yhat = dt.predict(Xfinal)
+
+r2_score(yfinal, yhat), mean_absolute_error(yfinal, yhat), np.sqrt(mean_squared_error(yfinal, yhat))
+#r2_score(yfinal, yfinalPredPipe), mean_absolute_error(yfinal, yfinalPredPipe), np.sqrt(mean_squared_error(yfinal, yfinalPredPipe))
+
 
 #%% Supplement plots
 
@@ -454,7 +465,7 @@ plt.show()
 
 
 import seaborn as sns
-sns.pairplot(data=dfTraining[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]], hue="realWeight")
+sns.pairplot(data=dfTraining[["realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]], hue="realWeight")
 
 
 #%% Training - Pipeline with Poly Feat
@@ -508,8 +519,9 @@ print(coefsPipe)
 print(interceptPipe)
 
 
-"""
 origin = pd.DataFrame({'relativeVal_WU1': [0], 'relativeVal_WU2': [0], 'relativeVal_WU3': [0]})
+
+"""
 xLineSensor1 = pd.DataFrame({'relativeVal_WU1': np.linspace(0, 10000/3, 100), 
                             'relativeVal_WU2':  np.zeros(100),
                             'relativeVal_WU3':  np.zeros(100)})
