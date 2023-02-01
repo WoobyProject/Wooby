@@ -206,12 +206,14 @@ fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) 
                 [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  )
 
+"""
 fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_9912gr_{}.csv".format(ii) for ii in range(1,2) ] )
 
+"""
 
 
 """
@@ -442,6 +444,7 @@ r2_score(yfinal, yhat), mean_absolute_error(yfinal, yhat), np.sqrt(mean_squared_
 
 #%% Supplement plots
 
+"""
 plt.figure()
 plt.scatter(dfTraining["realWeight"], dfTraining["relativeVal_WU1"])
 plt.scatter(dfTraining["realWeight"], dfTraining["relativeVal_WU2"])
@@ -462,7 +465,7 @@ plt.xlabel('relativeVal_WU1')
 plt.ylabel('relativeVal_WU2')
 plt.grid(True)
 plt.show()
-
+"""
 
 import seaborn as sns
 sns.pairplot(data=dfTraining[["realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]], hue="realWeight")
@@ -475,7 +478,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
-
 from scipy.linalg import lstsq
 
 from scipy.stats import norm
@@ -589,7 +591,7 @@ plt.show()
 #%% Export model
 
 import pickle
-EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_1to5kg.plk")
+EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_0to5kg.plk")
 pickle.dump(pipe, open(EXPORT_NAME, 'wb'))
 
 
