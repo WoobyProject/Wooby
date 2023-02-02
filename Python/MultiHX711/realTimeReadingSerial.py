@@ -64,7 +64,10 @@ Xpredict =  np.array([[0, 0, 0]])
 dfLiveRead = pd.DataFrame()
 
 # Possibility to load an existing ML model
-IMPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree.plk")
+#IMPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree.plk")
+IMPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_1to5kg.plk")
+
+
 loaded_model = pickle.load(open(IMPORT_NAME, 'rb'))
 
 
@@ -90,11 +93,12 @@ def animate(i, xs, ys1, ys2, ys3, cvF, myWooby):
     ys2.append(dfLiveRead['relativeVal_WU2'])
     ys3.append(dfLiveRead['relativeVal_WU3'])
     
+    """
     calc =  ( 20.524596747258954 + 
             0.01906163*dfLiveRead['relativeVal_WU1'] 
             + 0.02171782*dfLiveRead['relativeVal_WU2']  
             + 0.02045766*dfLiveRead['relativeVal_WU3'])
-    
+    """
     
     Xpredict[0][0]=dfLiveRead['relativeVal_WU1'][0]
     Xpredict[0][1]=dfLiveRead['relativeVal_WU2'][0]

@@ -26,6 +26,7 @@ from pyWooby import Wooby
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import re
 
 #%% Creation of the Serial communication
 
@@ -44,7 +45,7 @@ myWooby.tare()
 #%% Reading of a calibration point
 
 N_MAX_MEASURES = 15
-SUBSET = "WoobyTripleHX711ForTest" 
+SUBSET = "WoobyTripleHX711" 
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
 REAL_WEIGHT = 500
@@ -66,8 +67,8 @@ OVERWRITE = True
 
 #%% Reading of a calibration point - Loop
 
-REAL_WEIGHT = 200  # in gr
-N_TEST = 1
+REAL_WEIGHT = 0  # in gr
+N_TEST = 5
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
@@ -200,10 +201,19 @@ fileNameList = ([ "WoobyTripleHX711_700gr_{}.csv".format(ii) for ii in range(1,6
 
 # For test with weights between 1 kg and 5 kg 
 
-fileNameList = ([ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  )
 
+"""
+fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711_9912gr_{}.csv".format(ii) for ii in range(1,2) ] )
+
+"""
 
 
 """
@@ -280,36 +290,45 @@ for ii, df in enumerate(allDfDualSensor):
     # Comparison sensors #
     ######################
     
+   
+    mtch = re.search(r"(\d*)gr_(\d)", fileNameList[ii])
+    tag = "{:.0f} #{:d}".format(float(mtch.group(1)), int(mtch.group(2)))
+    
+
     plt.sca(axs2[0,0])
-    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU1"]) , label="Sensor1", marker='o', s=60, color = pltMain.get_color())
-    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU2"]) , label="Sensor2", marker='x', s=40, color = pltMain.get_color())
-    plt.scatter([fileNameList[ii]]*len(df),  (df["relativeVal_WU3"]) , label="Sensor2", marker='d', s=40, color = pltMain.get_color())
+    plt.scatter([tag]*len(df),  (df["relativeVal_WU1"]) , label="Sensor1", marker='o', s=60, color = pltMain.get_color())
+    plt.scatter([tag]*len(df),  (df["relativeVal_WU2"]) , label="Sensor2", marker='x', s=40, color = pltMain.get_color())
+    plt.scatter([tag]*len(df),  (df["relativeVal_WU3"]) , label="Sensor2", marker='d', s=40, color = pltMain.get_color())
     plt.grid(True)
-    l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
+    plt.xticks(rotation=45)
+    #l1 = plt.legend(bbox_to_anchor=(1.04,1), borderaxespad=0)
     plt.subplots_adjust(right=0.8)
     plt.title("Comparison all sensors relative values")
     plt.show()
     
     plt.sca(axs2[0,1])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU1"]) , marker='o', label="Sensor1")
+    plt.scatter([tag]*len(df), (df["relativeVal_WU1"]) , marker='o', label="Sensor1")
     plt.grid(True)
     plt.ylabel("Sensor 1")
+    plt.xticks(rotation=45)
     plt.subplots_adjust(right=0.8)
     plt.title("Sensor 1 relative value")
     plt.show()
     
     plt.sca(axs2[1,0])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU2"]) ,  marker='x', label="Sensor2")
+    plt.scatter([tag]*len(df), (df["relativeVal_WU2"]) ,  marker='x', label="Sensor2")
     plt.grid(True)
     plt.ylabel("Sensor 2")
+    plt.xticks(rotation=45)
     plt.subplots_adjust(right=0.8)
     plt.title("Sensor 2 relative value")
     plt.show()
     
     plt.sca(axs2[1,1])
-    plt.scatter([fileNameList[ii]]*len(df), (df["relativeVal_WU3"]) ,  marker='d', label="Sensor3")
+    plt.scatter([tag]*len(df), (df["relativeVal_WU3"]) ,  marker='d', label="Sensor3")
     plt.grid(True)
     plt.ylabel("Sensor 3")
+    plt.xticks(rotation=45)
     plt.subplots_adjust(right=0.8)
     plt.title("Sensor 3 relative value")
     plt.show()
@@ -411,6 +430,45 @@ allData  = pd.concat([Xfinal, yfinal], axis=1)
 Xarray = Xfinal.to_numpy()
 yarray = yfinal.to_numpy()
 
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+dt = DecisionTreeRegressor()
+dt.fit(Xfinal, yfinal)
+yhat = dt.predict(Xfinal)
+
+r2_score(yfinal, yhat), mean_absolute_error(yfinal, yhat), np.sqrt(mean_squared_error(yfinal, yhat))
+#r2_score(yfinal, yfinalPredPipe), mean_absolute_error(yfinal, yfinalPredPipe), np.sqrt(mean_squared_error(yfinal, yfinalPredPipe))
+
+
+#%% Supplement plots
+
+"""
+plt.figure()
+plt.scatter(dfTraining["realWeight"], dfTraining["relativeVal_WU1"])
+plt.scatter(dfTraining["realWeight"], dfTraining["relativeVal_WU2"])
+plt.scatter(dfTraining["realWeight"], dfTraining["relativeVal_WU3"])
+plt.grid(True)
+plt.show()
+
+plt.figure()
+plt.scatter(dfTraining["relativeVal_WU1"], dfTraining["relativeVal_WU2"])
+plt.xlabel('relativeVal_WU1')
+plt.ylabel('relativeVal_WU2')
+plt.grid(True)
+plt.show()
+
+plt.figure()
+plt.scatter(dfTraining["relativeVal_WU1"], dfTraining["relativeVal_WU3"])
+plt.xlabel('relativeVal_WU1')
+plt.ylabel('relativeVal_WU2')
+plt.grid(True)
+plt.show()
+"""
+
+import seaborn as sns
+sns.pairplot(data=dfTraining[["realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]], hue="realWeight")
 
 
 #%% Training - Pipeline with Poly Feat
@@ -420,7 +478,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
-
 from scipy.linalg import lstsq
 
 from scipy.stats import norm
@@ -464,7 +521,27 @@ print(coefsPipe)
 print(interceptPipe)
 
 
-yfinalPredPipe =  pipe.predict(XfinalPipe)
+origin = pd.DataFrame({'relativeVal_WU1': [0], 'relativeVal_WU2': [0], 'relativeVal_WU3': [0]})
+
+"""
+xLineSensor1 = pd.DataFrame({'relativeVal_WU1': np.linspace(0, 10000/3, 100), 
+                            'relativeVal_WU2':  np.zeros(100),
+                            'relativeVal_WU3':  np.zeros(100)})
+xLineSensor2 = pd.DataFrame({'relativeVal_WU1': np.zeros(100), 
+                            'relativeVal_WU2':  np.linspace(0, 10000/3, 100),
+                            'relativeVal_WU3':  np.zeros(100)})
+xLineSensor3 = pd.DataFrame({'relativeVal_WU1': np.zeros(100), 
+                            'relativeVal_WU2':  np.zeros(100),
+                            'relativeVal_WU3':  np.linspace(0, 10000/3, 100)})
+xLineSensorAll = pd.DataFrame({'relativeVal_WU1': np.linspace(0, 10000/3, 100), 
+                            'relativeVal_WU2':  np.linspace(0, 10000/3, 100),
+                            'relativeVal_WU3':  np.linspace(0, 10000/3, 100)})
+"""
+
+
+XfinalPredPipe = XfinalPipe
+
+yfinalPredPipe =  pipe.predict(XfinalPredPipe)
 
 allDataPipe = allData.copy()
 allDataPipe["predictWeight"] = yfinalPredPipe
@@ -476,6 +553,7 @@ print("MAE:  {:.2f} gr".format(np.abs(allDataPipe["absError"]).mean()))
 print("RMSE: {:.2f} gr".format(np.sqrt(((allDataPipe["absError"])**2).mean()  )) )
 print("R:    {:.5f}".format(pipe.score(XfinalPipe, yfinal)))
 
+print("MaxAE:  {:.2f} gr".format(np.abs(allDataPipe["absError"]).max()))
 
 #  Plots
 true_value = yfinal
@@ -483,8 +561,10 @@ predicted_value = yfinalPredPipe
 
 plt.figure(figsize=(10,10))
 plt.scatter(true_value, predicted_value, c='red')
-plt.yscale('log')
-plt.xscale('log')
+plt.scatter(0, pipe.predict(origin), c='orange')
+
+#plt.yscale('log')
+#plt.xscale('log')
 
 p1 = max(max(predicted_value), max(true_value))
 p2 = min(min(predicted_value), min(true_value))
@@ -495,11 +575,23 @@ plt.axis('equal')
 plt.grid(True)
 plt.show()
 
+######################
+##### Error plot #####
+######################
+
+plt.figure(figsize=(10,10))
+plt.scatter(true_value, allDataPipe["absError"], c='red')
+plt.xlabel('True Values [gr]', fontsize=15)
+plt.ylabel('Absolute error [gr]', fontsize=15)
+plt.grid(True)
+plt.show()
+
+
 
 #%% Export model
 
 import pickle
-EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_1to5kg.plk")
+EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_0to5kg.plk")
 pickle.dump(pipe, open(EXPORT_NAME, 'wb'))
 
 
