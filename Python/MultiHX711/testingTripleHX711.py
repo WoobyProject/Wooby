@@ -204,7 +204,42 @@ fileNameList = ([ "WoobyTripleHX711_700gr_{}.csv".format(ii) for ii in range(1,6
 fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_993gr_{}.csv".format(ii) for ii in range(1,6) ]  +
                 [ "WoobyTripleHX711_2966gr_{}.csv".format(ii) for ii in range(1,6) ]  +
-                [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ]  )
+                [ "WoobyTripleHX711_4946gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                [ "WoobyTripleHX711ForTest_200gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_500gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_993gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_1981gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_2966gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_3956gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_4946gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_5941gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_6934gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_7925gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_8916gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                [ "WoobyTripleHX711ForTest_9912gr_{}.csv".format(ii) for ii in range(1,2) ] 
+                )
+
+fileNameListTest = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                    [ "WoobyTripleHX711ForTest_200gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_500gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_993gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_1981gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_2966gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_3956gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_4946gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_5941gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_6934gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_7925gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_8916gr_{}.csv".format(ii) for ii in range(1,2) ] +
+                    [ "WoobyTripleHX711ForTest_9912gr_{}.csv".format(ii) for ii in range(1,2) ] 
+                    )
+
+
+"""
+fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                [ "WoobyTripleHX711ForTest_9912gr_{}.csv".format(ii) for ii in range(1,2) ] 
+                )
+"""
 
 """
 fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
@@ -229,13 +264,19 @@ fileNameList = ([ "WoobyDualHX711_Final_70gr_{}.csv".format(ii) for ii in range(
 
 """
 allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
+allDfDualSensorTest = myWooby.importCSVbatch(fileNameListTest, FILE_FOLDER)
+
 
 dfTotal = pd.DataFrame()
+dfTest =  pd.DataFrame()
  
 for ii, df in enumerate(allDfDualSensor):
     dfTotal= dfTotal.append(df, ignore_index=True)
     
+for ii, df in enumerate(allDfDualSensorTest):
+    dfTest= dfTest.append(df, ignore_index=True)
     
+
 #%% Plotting of the batch
 
 fig, axs = plt.subplots(3,1)
@@ -371,7 +412,6 @@ print(KPIs)
 import re
 
 
-
 for ii, file in enumerate(fileNameList):
     print(file)
     mtch = re.search(r"(\d*)gr", file)
@@ -486,7 +526,7 @@ import math
 
 # Different options:
     
-pipe = Pipeline([('PolyFeat',   PolynomialFeatures(degree=3, include_bias=True, interaction_only=True)), 
+pipe = Pipeline([('PolyFeat',   PolynomialFeatures(degree=3, include_bias=True, interaction_only=False)), 
                  ('LinearReg',  LinearRegression())  ] )
 
 """
@@ -510,6 +550,9 @@ Remember for coeff interpretation that:
      - PolyFeat generates polynomial and interaction features such as this example:
       For [X1, X2, X3], you'll get [1 X1, X2, X3, X1*X2, X1*X3, X2*X3, X1*X2*X3 ]
       (this example only have the interactions !)
+     
+Also you could run:
+     pipe.steps[0][1].get_feature_names_out()
       
 More info here: https://scikit-learn.org/stable/modules/preprocessing.html#polynomial-features
 
