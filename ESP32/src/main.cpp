@@ -18,22 +18,6 @@
 //*      VERSION SEL     *//
 //************************//
 
-  #define MODEL 1
-  #if MODEL==1
-    const float Ka = 2.09603944e-02; // 2.07447658e-2
-    const float Kb = 2.07100960e-02; // 2.07447658e-2
-    const float Kab = 5.86607606e-09; // 4.70525657e-9
-    const float Ka2 = 0.0; // -1.95181432e-9
-    const float Kb2 = 0.0; // -1.95181432e-9
-  #endif
-  #if MODEL==2
-    const float Ka = 2.07292915e-2;
-    const float Kb = 2.07292915e-2;
-    const float Kab = 9.21623753e-10;
-    const float ka2 = 0.0;
-    const float Kb2 = 0.0;
-  #endif
-
   #define TYPE 1
 
   // TYPE = 0 (PROTOTYPE)
@@ -154,6 +138,7 @@
     NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
     const float FILTERING_THR = 20;  // in grams
+    const float K_WU_to_grams = 2.07447658e-2;
 
     float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0};
     float realValue;
@@ -171,7 +156,7 @@
     RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0};
 
     bool bSync;
-    unsigned long bSyncTimer[NB_HX711] = {0, 0, 0};
+    unsigned long bSyncTimer = 0;
     const unsigned long BSYNC_TIME = 2000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
@@ -1255,7 +1240,9 @@ void getWoobyWeight(){
     int i;
     int j;
     unsigned long time;
+    float relativeValue;
 
+    relativeValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
     {
       // Updating for synchro
@@ -1282,29 +1269,33 @@ void getWoobyWeight(){
       // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
       relativeVal_WU[i] = realValue_WU[i] - offset[i];
 
-      // Synchronization calculation
+      relativeValue += abs(relativeVal_WU[i] - relativeVal_WU_1[i]);
+    }
 
-      if (abs(relativeVal_WU[i] - relativeVal_WU_1[i]) > (FILTERING_THR / (Ka + Kb)))
+    // Synchronization calculation
+    if (relativeValue > (FILTERING_THR / K_WU_to_grams))
+    {
+      bSyncTimer = millis();
+      bSync = true;
+    }
+    else
+    {
+      if ((millis() - bSyncTimer) > BSYNC_TIME)
       {
-        bSyncTimer[i] = millis();
-        bSync = true;
+        bSync = false;
       }
       else
       {
-        if ((millis() - bSyncTimer[i]) > BSYNC_TIME)
-        {
-          bSync = false;
-        }
-        else
-        {
-          bSync = true;
-        }
+        bSync = true;
       }
+    }
 
-      // Angles correction //
-      // angleAdjustment();
-      angleCalc();
+    // Angles correction //
+    // angleAdjustment();
+    angleCalc();
 
+    for(i=0;i < NB_HX711;i++)
+    {
       // Moving average //
       if (bSync)
       {
@@ -1332,13 +1323,26 @@ void getWoobyWeight(){
     }
 
     // Conversion to grams
-    // To be updated
-    realValue = 0.0;
-    for(i=0;i < NB_HX711;i++)
-    {
-      realValue += abs(realValue_WU_Filt[i]);
-    }
-    realValue /= 50;
+    realValue = //0.00000000e+00 +
+                1.91924361e-02 * realValue_WU_Filt[0] +                                                 // X1
+                2.23621234e-02 * realValue_WU_Filt[1] +                                                 // X2
+                2.13597024e-02 * realValue_WU_Filt[2] +                                                 // X3
+                -8.07681092e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                         // X1*X1
+                -5.44682745e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                         // X1*X2
+                1.86748266e-07 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +                          // X1*X3
+                1.08531066e-07 * realValue_WU_Filt[1] * realValue_WU_Filt[1] +                          // X2*X2
+                -1.77812427e-07 * realValue_WU_Filt[1] * realValue_WU_Filt[2] +                         // X2*X3
+                1.17024501e-07 * realValue_WU_Filt[2] * realValue_WU_Filt[2] +                          // X3*X3
+                3.77797967e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] +   // X1*X1*X1
+                -4.35993849e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] +  // X1*X1*X2
+                -9.17869219e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] +  // X1*X1*X3
+                1.35614557e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +   // X1*X2*X2
+                -2.91880682e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +  // X1*X2*X3
+                3.62854531e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +   // X1*X3*X3
+                -8.79569233e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +  // X2*X2*X2
+                2.05428218e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +   // X2*X2*X3
+                -1.03953617e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X2*X3*X3
+                -1.32195643e-11 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];   // X3*X3*X3
 
     // Final correction
     correctedValueFiltered = correctionAlgo(realValue);
@@ -1376,7 +1380,7 @@ void mainDisplayWooby(){
             u8g.print(" OUPS !");
 
             u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setCursor(23, 45) ; // (Horiz, Vert)
+            u8g.setCursor(23, 44) ; // (Horiz, Vert)
             u8g.print("Wooby NOT flat");
 
         } while(u8g.nextPage());
@@ -1385,16 +1389,16 @@ void mainDisplayWooby(){
     // Everything is ok!!  So let's show the measurement
     do {
         // Display weight //
-        u8g.setFont(u8g2_font_osb18_tf);
+        u8g.setFont(u8g2_font_profont29_tr);
         u8g.setFontPosTop();
         itoa(displayFinalValue, arrayMeasure, 10);
         u8g.setCursor(DISPLAY_WIDTH/2-u8g.getStrWidth(arrayMeasure)/2, 15) ;
         u8g.print((displayFinalValue), 0);
 
 
-        u8g.setFont(u8g2_font_osb18_tf);
+        u8g.setFont(u8g2_font_profont15_tr);
         u8g.setFontPosTop();
-        u8g.setCursor(30, 30);
+        u8g.setCursor(50, 36);
         u8g.print("grams");
 
         if (B_DEBUG_MODE){
