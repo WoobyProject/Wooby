@@ -7583,28 +7583,6 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <wire x1="-15.24" y1="114.3" x2="-10.16" y2="114.3" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="N$25" class="0">
-<segment>
-<wire x1="160.02" y1="119.38" x2="165.1" y2="119.38" width="0.1524" layer="91"/>
-<wire x1="165.1" y1="119.38" x2="165.1" y2="116.84" width="0.1524" layer="91"/>
-<wire x1="165.1" y1="116.84" x2="177.8" y2="116.84" width="0.1524" layer="91"/>
-<pinref part="U$1" gate="G$1" pin="OUT-"/>
-<wire x1="147.32" y1="111.76" x2="160.02" y2="111.76" width="0.1524" layer="91"/>
-<wire x1="160.02" y1="111.76" x2="160.02" y2="119.38" width="0.1524" layer="91"/>
-<pinref part="SUC5V8V" gate="G$1" pin="IN+"/>
-</segment>
-</net>
-<net name="N$26" class="0">
-<segment>
-<wire x1="160.02" y1="121.92" x2="165.1" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="165.1" y1="121.92" x2="165.1" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="165.1" y1="124.46" x2="177.8" y2="124.46" width="0.1524" layer="91"/>
-<pinref part="U$1" gate="G$1" pin="OUT+"/>
-<wire x1="147.32" y1="127" x2="160.02" y2="127" width="0.1524" layer="91"/>
-<wire x1="160.02" y1="127" x2="160.02" y2="121.92" width="0.1524" layer="91"/>
-<pinref part="SUC5V8V" gate="G$1" pin="IN-"/>
-</segment>
-</net>
 <net name="N$27" class="0">
 <segment>
 <pinref part="BMSIN" gate="G$1" pin="1"/>
@@ -7834,6 +7812,24 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <wire x1="30.48" y1="12.7" x2="30.48" y2="17.78" width="0.1524" layer="91"/>
 <pinref part="ESP32-DEVKITC" gate="G$1" pin="IO23"/>
 <wire x1="30.48" y1="17.78" x2="55.88" y2="17.78" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$25" class="0">
+<segment>
+<pinref part="U$1" gate="G$1" pin="OUT-"/>
+<wire x1="147.32" y1="111.76" x2="170.18" y2="111.76" width="0.1524" layer="91"/>
+<wire x1="170.18" y1="111.76" x2="170.18" y2="124.46" width="0.1524" layer="91"/>
+<pinref part="SUC5V8V" gate="G$1" pin="IN-"/>
+<wire x1="170.18" y1="124.46" x2="177.8" y2="124.46" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$26" class="0">
+<segment>
+<pinref part="U$1" gate="G$1" pin="OUT+"/>
+<wire x1="147.32" y1="127" x2="162.56" y2="127" width="0.1524" layer="91"/>
+<wire x1="162.56" y1="127" x2="162.56" y2="116.84" width="0.1524" layer="91"/>
+<pinref part="SUC5V8V" gate="G$1" pin="IN+"/>
+<wire x1="162.56" y1="116.84" x2="177.8" y2="116.84" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>

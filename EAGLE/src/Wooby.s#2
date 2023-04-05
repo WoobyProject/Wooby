@@ -6950,6 +6950,7 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <part name="BAT2" library="691210910002" deviceset="691210910002" device=""/>
 <part name="GND15" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 <part name="GND16" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
+<part name="ON_BTN" library="691210910002" deviceset="691210910002" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -7124,6 +7125,9 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 </instance>
 <instance part="GND16" gate="1" x="190.5" y="0" smashed="yes" rot="R180">
 <attribute name="VALUE" x="193.04" y="2.54" size="1.778" layer="96" rot="R180"/>
+</instance>
+<instance part="ON_BTN" gate="G$1" x="162.56" y="137.16" smashed="yes">
+<attribute name="NAME" x="152.4" y="137.922" size="1.778" layer="95"/>
 </instance>
 </instances>
 <busses>
@@ -7864,8 +7868,15 @@ Details see: &lt;a href="https://katalog.we-online.com/en/em/TBL_2_54_2109_HORIZ
 <net name="N$26" class="0">
 <segment>
 <pinref part="U$1" gate="G$1" pin="OUT+"/>
-<wire x1="147.32" y1="127" x2="162.56" y2="127" width="0.1524" layer="91"/>
-<wire x1="162.56" y1="127" x2="162.56" y2="116.84" width="0.1524" layer="91"/>
+<pinref part="ON_BTN" gate="G$1" pin="1"/>
+<wire x1="147.32" y1="127" x2="160.02" y2="127" width="0.1524" layer="91"/>
+<wire x1="160.02" y1="127" x2="160.02" y2="132.08" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$52" class="0">
+<segment>
+<pinref part="ON_BTN" gate="G$1" pin="2"/>
+<wire x1="162.56" y1="132.08" x2="162.56" y2="116.84" width="0.1524" layer="91"/>
 <pinref part="SUC5V8V" gate="G$1" pin="IN+"/>
 <wire x1="162.56" y1="116.84" x2="177.8" y2="116.84" width="0.1524" layer="91"/>
 </segment>

@@ -590,7 +590,7 @@
 <text x="69" y="36.5" size="1.778" layer="25">GND</text>
 <text x="70.5" y="52" size="1.778" layer="25" rot="R90">GND</text>
 <text x="75.5" y="52" size="1.778" layer="25" rot="R90">TARE</text>
-<text x="80.25" y="53" size="1.778" layer="25" rot="R90">10 k</text>
+<text x="80.25" y="53" size="1.778" layer="25" rot="R90">10k</text>
 <text x="3" y="48.5" size="1.778" layer="25">GND</text>
 <text x="5" y="46" size="1.778" layer="25">V1</text>
 <text x="3" y="30" size="1.778" layer="25">GND</text>
@@ -602,6 +602,8 @@
 <text x="92.5" y="73.5" size="1.778" layer="25" rot="R90">GND</text>
 <text x="95" y="73.5" size="1.778" layer="25" rot="R90">3V3</text>
 <text x="43" y="54.5" size="1.778" layer="25">ON_BTN</text>
+<text x="80.5" y="38" size="1.778" layer="25" rot="R90">100k</text>
+<text x="73.5" y="46.8" size="1.778" layer="25" rot="R180">47k</text>
 </plain>
 <libraries>
 <library name="capacitor-wima" urn="urn:adsk.eagle:library:116">

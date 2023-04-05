@@ -568,22 +568,22 @@
 <text x="134.5" y="14" size="1.778" layer="25">2</text>
 <text x="134.5" y="70" size="1.778" layer="25">3</text>
 <text x="34.5" y="63" size="1.778" layer="25">4</text>
-<text x="25" y="17" size="1.778" layer="25">Red</text>
-<text x="25" y="14.5" size="1.778" layer="25">Black</text>
-<text x="25" y="12" size="1.778" layer="25">White</text>
-<text x="25" y="9.5" size="1.778" layer="25">Green</text>
-<text x="25" y="74" size="1.778" layer="25">Red</text>
-<text x="25" y="71.5" size="1.778" layer="25">Black</text>
-<text x="25" y="69" size="1.778" layer="25">White</text>
-<text x="25" y="66.5" size="1.778" layer="25">Green</text>
-<text x="139" y="60.5" size="1.778" layer="25">Red</text>
-<text x="139" y="63" size="1.778" layer="25">Black</text>
-<text x="139" y="65.5" size="1.778" layer="25">White</text>
-<text x="139" y="68" size="1.778" layer="25">Green</text>
-<text x="139" y="4" size="1.778" layer="25">Red</text>
-<text x="139" y="6.5" size="1.778" layer="25">Black</text>
-<text x="139" y="9" size="1.778" layer="25">White</text>
-<text x="139" y="11.5" size="1.778" layer="25">Green</text>
+<text x="6" y="17" size="1.778" layer="25">R</text>
+<text x="6" y="14.5" size="1.778" layer="25">B</text>
+<text x="6" y="10" size="1.778" layer="25">W</text>
+<text x="6" y="7.5" size="1.778" layer="25">G</text>
+<text x="6" y="73" size="1.778" layer="25">R</text>
+<text x="6" y="70.5" size="1.778" layer="25">B</text>
+<text x="6" y="67" size="1.778" layer="25">W</text>
+<text x="6" y="64.5" size="1.778" layer="25">G</text>
+<text x="162" y="59.5" size="1.778" layer="25">R</text>
+<text x="162" y="62" size="1.778" layer="25">B</text>
+<text x="162" y="65.5" size="1.778" layer="25">W</text>
+<text x="162" y="68" size="1.778" layer="25">G</text>
+<text x="162" y="4" size="1.778" layer="25">R</text>
+<text x="162" y="6.5" size="1.778" layer="25">B</text>
+<text x="162" y="10" size="1.778" layer="25">W</text>
+<text x="162" y="12.5" size="1.778" layer="25">G</text>
 <text x="71" y="28.5" size="1.778" layer="25">GND</text>
 <text x="71" y="23.5" size="1.778" layer="25">V+</text>
 <text x="69" y="41.5" size="1.778" layer="25">V1</text>
@@ -601,6 +601,7 @@
 <text x="102.5" y="73.5" size="1.778" layer="25" rot="R90">TARE</text>
 <text x="92.5" y="73.5" size="1.778" layer="25" rot="R90">GND</text>
 <text x="95" y="73.5" size="1.778" layer="25" rot="R90">3V3</text>
+<text x="43" y="54.5" size="1.778" layer="25">ON_BTN</text>
 </plain>
 <libraries>
 <library name="capacitor-wima" urn="urn:adsk.eagle:library:116">
@@ -2160,7 +2161,6 @@ design rules under a new name.</description>
 <attribute name="DESCRIPTION" value=" 2 Position Wire to Board Terminal Block Horizontal with Board 0.100 (2.54mm) Through Hole " x="78.04" y="35.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="Würth Elektronik" x="78.04" y="35.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MP" value="691210910002" x="78.04" y="35.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="12.3645" y="21.1185" size="1.27" layer="25" rot="R180"/>
 <attribute name="PACKAGE" value="None" x="78.04" y="35.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="PRICE" value="None" x="78.04" y="35.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="PURCHASE-URL" value="https://pricing.snapeda.com/search/part/691210910002/?ref=eda" x="12" y="16.5" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2235,7 +2235,6 @@ design rules under a new name.</description>
 <attribute name="DESCRIPTION" value=" 2 Position Wire to Board Terminal Block Horizontal with Board 0.100 (2.54mm) Through Hole " x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Würth Elektronik" x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MP" value="691210910002" x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="162" y="61.7505" size="1.27" layer="25" rot="R270" align="bottom-center"/>
 <attribute name="PACKAGE" value="None" x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="PRICE" value="None" x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="PURCHASE-URL" value="https://pricing.snapeda.com/search/part/691210910002/?ref=eda" x="169.8745" y="69.688" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2254,7 +2253,6 @@ design rules under a new name.</description>
 <attribute name="DESCRIPTION" value=" 2 Position Wire to Board Terminal Block Horizontal with Board 0.100 (2.54mm) Through Hole " x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="Würth Elektronik" x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MP" value="691210910002" x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="8" y="73.0015" size="1.27" layer="25" rot="R90" align="bottom-center"/>
 <attribute name="PACKAGE" value="None" x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="PRICE" value="None" x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="PURCHASE-URL" value="https://pricing.snapeda.com/search/part/691210910002/?ref=eda" x="0.1255" y="65.064" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2273,7 +2271,6 @@ design rules under a new name.</description>
 <attribute name="DESCRIPTION" value=" 2 Position Wire to Board Terminal Block Horizontal with Board 0.100 (2.54mm) Through Hole " x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Würth Elektronik" x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MP" value="691210910002" x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="162" y="6.2525" size="1.27" layer="25" rot="R270" align="bottom-center"/>
 <attribute name="PACKAGE" value="None" x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="PRICE" value="None" x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="PURCHASE-URL" value="https://pricing.snapeda.com/search/part/691210910002/?ref=eda" x="169.8745" y="14.19" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2334,7 +2331,6 @@ design rules under a new name.</description>
 <attribute name="DESCRIPTION" value=" 2 Position Wire to Board Terminal Block Horizontal with Board 0.100 (2.54mm) Through Hole " x="39" y="63" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Würth Elektronik" x="39" y="63" size="1.778" layer="27" display="off"/>
 <attribute name="MP" value="691210910002" x="39" y="63" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="48" y="54" size="1.27" layer="25" align="bottom-center"/>
 <attribute name="PACKAGE" value="None" x="39" y="63" size="1.778" layer="27" display="off"/>
 <attribute name="PRICE" value="None" x="39" y="63" size="1.778" layer="27" display="off"/>
 <attribute name="PURCHASE-URL" value="https://pricing.snapeda.com/search/part/691210910002/?ref=eda" x="39" y="63" size="1.778" layer="27" display="off"/>
