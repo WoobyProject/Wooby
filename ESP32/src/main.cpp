@@ -39,7 +39,6 @@
     bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = false;
     bool B_VCC_MNG = true;
-    bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
     bool B_SERIALPORT = false;
@@ -58,7 +57,6 @@
     bool B_DEBUG_MODE = false;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
-    bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
     bool B_INACTIVITY_ENABLE = true;
     #define BDEF_SERIALPORT true
@@ -142,7 +140,6 @@
     float relativeVal_WU_1[NB_HX711];
 
     float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0};
-    float realValue_WU_AngleAdj = 0;
     float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0};
     float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0};
 
@@ -157,28 +154,6 @@
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG) };
-
-//************************//
-//*   LOAD SENSOR ADJ    *//
-//************************//
-
-  float TEMPREF = 26.0;
-
-  float const calib_theta_2 = -0.00014;
-
-  // Model choice
-  #if MODEL <= 4
-    float K_MYAX_X = -1; float K_MYAX_Y = 0; float K_MYAX_Z = 0;
-    float K_MYAY_X =  0; float K_MYAY_Y = 1; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 0; float K_MYAZ_Z = 1;
-  #endif
-
-  #if MODEL == 5
-    float K_MYAX_X =  0; float K_MYAX_Y = 0; float K_MYAX_Z = 1;
-    float K_MYAY_X = -1; float K_MYAY_Y = 0; float K_MYAY_Z = 0;
-    float K_MYAZ_X =  0; float K_MYAZ_Y = 1; float K_MYAZ_Z = 0;
-  #endif
-
 
 //************************//
 //*  VCC MANAGEMENT CONF *//
@@ -364,7 +339,6 @@ void setDebugMode(){
       Serial.printf("\n\nOut of debug! \n\n");
       B_DEBUG_MODE = false;
 
-      B_DISPLAY_ACCEL = false;
       B_INHIB_NEG_VALS = true;
       B_SERIALTELNET = false;
       B_WIFI = false;
@@ -376,7 +350,6 @@ void setDebugMode(){
       Serial.printf("\n\nDebug time! \n\n");
       B_DEBUG_MODE = true;
 
-      B_DISPLAY_ACCEL = true;
       B_INHIB_NEG_VALS = false;
       B_SERIALTELNET = true;
       B_WIFI = true;
@@ -719,9 +692,7 @@ bool buildGenericJSON()
     sprintf(s, "realValue_WU_Filt%d", i+1);
     genericJSON[s] = realValue_WU_Filt[i];
   }
-  genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
   genericJSON["realValueFiltered"] = realValueFiltered;
-  genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
   genericJSON["realValue"] = realValue;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
@@ -822,14 +793,6 @@ String json2String(DynamicJsonDocument theJSON) {
     dataItem["realValue_WU"     ]       = realValue_WU;
     dataItem["bInactive"]               = bInactive;
     dataItem["lastTimeActivity"     ]   = lastTimeActivity;
-    dataItem["myAx"]                    = myAx;
-    dataItem["myAy"]                    = myAy;
-    dataItem["myAz"]                    = myAz;
-    dataItem["thetadeg"]                = thetadeg;
-    dataItem["phideg"]                  = phideg;
-    dataItem["myTmp"]                   = myTmp;
-    dataItem["TEMPREF"]                 = TEMPREF;
-    dataItem["MODEL"]                   = MODEL;
 
     char name[] = "Wooby";
     // strcat(ARDUINO_BOARD,name);
