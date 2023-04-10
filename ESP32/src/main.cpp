@@ -26,8 +26,6 @@
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
-    bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
     bool B_GOOGLE_HTTPREQ = true;
@@ -41,8 +39,6 @@
     bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = false;
     bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = false;
-    bool B_DISPLAY_ANGLES = true;
     bool B_DISPLAY_ACCEL = true;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
@@ -62,8 +58,6 @@
     bool B_DEBUG_MODE = false;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
-    bool B_LIMITED_ANGLES = true;
-    bool B_DISPLAY_ANGLES = false;
     bool B_DISPLAY_ACCEL = false;
     bool B_INHIB_NEG_VALS = true;
     bool B_INACTIVITY_ENABLE = true;
@@ -251,7 +245,7 @@
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
   #define FLIP_MODE 0
-  #define NSTATES_SETUP 12
+  #define NSTATES_SETUP 11
 
   bool BF_DISPLAY = false;
 
@@ -267,24 +261,6 @@
   const gpio_num_t PIN_WAKEUP = GPIO_NUM_35;
   const int WAKEUP_LEVEL = 0;
   esp_sleep_wakeup_cause_t wakeupReason;
-
-//************************//
-//*    GYROSCOPE CONF    *//
-//************************//
-
-  const int MPU_ADDR=0x68;
-  const float pi = 3.1416;
-  int16_t Ax,Ay,Az,Tmp,Gx,Gy,Gz;
-  float myAx, myAy, myAz, myTmp, myGx, myGy, myGz;
-  float thetadeg, phideg ;
-
-  const float MAX_THETA_VALUE = 10;
-  const float MAX_PHI_VALUE = 10;
-
-  const float OFFSET_THETA = 10;
-  const float OFFSET_PHI = 10;
-
-  bool BF_MPU=false;
 
 //************************//
 //*   TELNET COMMS CONF  *//
@@ -326,89 +302,6 @@
     bool BT_CLIENT_CONNECT = false;
   #endif
 
-  //************************//
-  //* GYRO/ACCEL FUNCTIONS *//
-  //************************//
-
-  void setupMPU(){
-
-      Wire.begin();
-
-   // Waking up the chip
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x6B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the gyroscope (+-200 deg/s)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-
-    // Setting up the FS of the accelerometer (+-2 g)
-      Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
-      Wire.write(0x1B); // PWR_MGMT_1 register (Power management)
-      Wire.write(0b00000000); // set to zero (wakes up the MPU-6050)
-      Wire.endTransmission(true);
-  }
-
-  void readMPU(){
-
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-
-    uint8_t errorRF = Wire.requestFrom(MPU_ADDR,14,true);
-
-    if(errorRF){
-      BF_MPU = false;
-
-      Ax =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3B and 0x3C
-      Ay =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3D and 0x3E
-      Az =  Wire.read()<<8 | Wire.read(); // reading registers: 0x3F and 0x40
-      Tmp = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 and 0x42
-      Gx =  Wire.read()<<8 | Wire.read(); // reading registers: 0x43 and 0x44
-      Gy =  Wire.read()<<8 | Wire.read(); // reading registers: 0x45 and 0x46
-      Gz =  Wire.read()<<8 | Wire.read(); // reading registers: 0x47 and 0x48
-
-      myAx = (K_MYAX_X*float(Ax)+K_MYAX_Y*float(Ay)+K_MYAX_Z*float(Az))/16384;
-      myAy = (K_MYAY_X*float(Ax)+K_MYAY_Y*float(Ay)+K_MYAY_Z*float(Az))/16384;
-      myAz = (K_MYAZ_X*float(Ax)+K_MYAZ_Y*float(Ay)+K_MYAZ_Z*float(Az))/16384;
-
-      myGx =    float(Gx)/131;
-      myGy =    float(Gy)/131;
-      myGz =    float(Gz)/131;
-
-      myTmp = Tmp/340.00+36.53;
-    }
-    else{
-      // Serial.println("ERROR: Reading MPU");
-      BF_MPU = true;
-    }
-  }
-
-  void angleCalc(){
-
-      readMPU(); // This function also updates BF_MPU
-        // Keep in mind that atan2() handles the zero div
-      phideg = (180/pi)*atan2(myAy,myAz);
-      thetadeg =   (180/pi)*atan2(-1*myAx, sqrt(pow(myAz,2) + pow(myAy,2)));
-
-  }
-
-  void angleAdjustment(){
-
-    angleCalc(); // angleCalc() also updates BF_MPU
-    /* (PH) Comment TBR
-    if(!BF_MPU && B_ANGLE_ADJUSTMENT){
-        realValue_WU_AngleAdj = relativeVal_WU/(1+calib_theta_2*pow( min(abs(thetadeg), MAX_THETA_VALUE) , 2));
-    }
-    else{
-    realValue_WU_AngleAdj = relativeVal_WU;
-    } */
-  }
-
 //*******************************//
 //*      WEIGHTING ALGORITHM    *//
 //*******************************//
@@ -433,11 +326,6 @@ void myTare()
     weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
     filterWeight[i].reset(0);
   }
-
-  // Reading reference temperature
-  readMPU();
-  TEMPREF = myTmp;
-  DPRINT("Reference Temp: "); DPRINT(TEMPREF); DPRINTLN(" C");
 }
 
 
@@ -476,8 +364,6 @@ void setDebugMode(){
       Serial.printf("\n\nOut of debug! \n\n");
       B_DEBUG_MODE = false;
 
-      B_LIMITED_ANGLES = true;
-      B_DISPLAY_ANGLES = false;
       B_DISPLAY_ACCEL = false;
       B_INHIB_NEG_VALS = true;
       B_SERIALTELNET = false;
@@ -490,8 +376,6 @@ void setDebugMode(){
       Serial.printf("\n\nDebug time! \n\n");
       B_DEBUG_MODE = true;
 
-      B_LIMITED_ANGLES = false;
-      B_DISPLAY_ANGLES = true;
       B_DISPLAY_ACCEL = true;
       B_INHIB_NEG_VALS = false;
       B_SERIALTELNET = true;
@@ -840,17 +724,6 @@ bool buildGenericJSON()
   genericJSON["realValue_WU_AngleAdj"] = realValue_WU_AngleAdj;
   genericJSON["realValue"] = realValue;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
-
-  genericJSON["myAx"] = myAx;
-  genericJSON["myAy"] = myAy;
-  genericJSON["myAz"] = myAz;
-  genericJSON["myGx"] = myGx;
-  genericJSON["myGy"] = myGy;
-  genericJSON["myGz"] = myGz;
-
-  genericJSON["thetadeg"] = thetadeg;
-  genericJSON["phideg"] = phideg;
-  genericJSON["myTmp"] = myTmp;
 
   genericJSON["bSync"] = bSync;
   genericJSON["vccReadBits"] = vccReadBits;
@@ -1290,10 +1163,6 @@ void getWoobyWeight(){
       }
     }
 
-    // Angles correction //
-    // angleAdjustment();
-    angleCalc();
-
     for(i=0;i < NB_HX711;i++)
     {
       // Moving average //
@@ -1373,18 +1242,6 @@ void mainDisplayWooby(){
 
         } while(u8g.nextPage());
   }
-  else if ((abs(thetadeg) > MAX_THETA_VALUE || abs(phideg) > MAX_PHI_VALUE ) && (B_LIMITED_ANGLES)){ // Verification of the maximum allowed angles
-       do {
-            u8g.setFont(u8g2_font_osb18_tf);
-            u8g.setCursor(17, 20) ; // (Horiz, Vert)
-            u8g.print(" OUPS !");
-
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setCursor(23, 44) ; // (Horiz, Vert)
-            u8g.print("Wooby NOT flat");
-
-        } while(u8g.nextPage());
-  }
   else{
     // Everything is ok!!  So let's show the measurement
     do {
@@ -1402,38 +1259,6 @@ void mainDisplayWooby(){
         u8g.print("grams");
 
         if (B_DEBUG_MODE){
-          // Display MPU values //
-          if (B_DISPLAY_ANGLES){
-            // Display trust region //
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosBottom();
-            u8g.setCursor(5, DISPLAY_HEIGHT-2);
-            BF_MPU? u8g.print("???"): u8g.print(int(thetadeg), 10);
-
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosBottom();
-            u8g.setCursor(55, DISPLAY_HEIGHT-2);
-            BF_MPU? u8g.print("???"): u8g.print(String(int(myTmp)) + "("+ String(int(TEMPREF)) + ")");
-
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosBottom();
-            u8g.setCursor(100, DISPLAY_HEIGHT-2);
-            BF_MPU? u8g.print("???"): u8g.print(int(phideg), 10);
-          }
-
-          if (B_DISPLAY_ACCEL){
-            u8g.setFont(u8g2_font_6x10_tf);
-
-            u8g.setCursor(4, 24);
-            BF_MPU? u8g.print("???"):u8g.print(roundf(myAx*100.0)/100.0);
-
-            u8g.setCursor(4, 31);
-            BF_MPU? u8g.print("???"):u8g.print(roundf(myAy*100.0)/100.0);
-
-            u8g.setCursor(4, 38);
-            BF_MPU? u8g.print("???"):u8g.print(roundf(myAz*100.0)/100.0);
-          }
-
           u8g.setFont(u8g2_font_micro_tr);
           if (B_DEBUG_MODE){
             char bufIp[] = "192.168.000.000";
@@ -1598,12 +1423,6 @@ void setup(void) {
   }
   nextStepSetup();
 
-
-  //*         ACCELEROMETER           *//
-  Serial.println("Setting up accelerometer sensor...");
-  setupMPU();
-  readMPU();  // Read the info for initializing vars and availability
-  nextStepSetup();
 
   //*          FILTERING           *//
   Serial.println("Setting up filtering ...");
