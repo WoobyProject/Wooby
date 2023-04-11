@@ -18,24 +18,31 @@
 //*      VERSION SEL     *//
 //************************//
 
-  #define TYPE 1
+  #define TYPE 0
 
   // TYPE = 0 (PROTOTYPE)
-  #if TYPE==0
+  #if TYPE == 0
     bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
     bool B_LIMITED_ANGLES = false;
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
+    #define BDEF_GOOGLE_HTTPREQ true
     bool B_GOOGLE_HTTPREQ = true;
-    bool B_SERIALPORT = true;
+    #define BDEF_SERIALPORT BDEF_GOOGLE_HTTPREQ
+    bool B_SERIALPORT = BDEF_SERIALPORT;
+    bool B_WIFI = true;
+    bool B_WIFI_SMART_CONFIG = false;
     bool B_SERIALTELNET = true;
-    bool B_OTA = true;
+    #define BDEF_OTA true
+    bool B_OTA = BDEF_OTA;
+    #define BDEF_BLE true
+    bool B_BLE = BDEF_BLE;
   #endif
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)
-  #if TYPE==3
+  #if TYPE == 3
     bool B_DEBUG_MODE = true;
     bool B_ANGLE_ADJUSTMENT = false;
     bool B_VCC_MNG = true;
@@ -53,7 +60,7 @@
     
 
   // TYPE = 1 (FINAL DELIVERY)
-  #if TYPE==1
+  #if TYPE == 1
     bool B_DEBUG_MODE = false;
     bool B_ANGLE_ADJUSTMENT = true;
     bool B_VCC_MNG = true;
@@ -339,6 +346,7 @@ void setDebugMode(){
       Serial.printf("\n\nOut of debug! \n\n");
       B_DEBUG_MODE = false;
 
+      B_INACTIVITY_ENABLE = true;
       B_INHIB_NEG_VALS = true;
       B_SERIALTELNET = false;
       B_WIFI = false;
@@ -350,6 +358,7 @@ void setDebugMode(){
       Serial.printf("\n\nDebug time! \n\n");
       B_DEBUG_MODE = true;
 
+      B_INACTIVITY_ENABLE = false;
       B_INHIB_NEG_VALS = false;
       B_SERIALTELNET = true;
       B_WIFI = true;
@@ -371,8 +380,10 @@ void initTareButton(){
   tareButton.begin();
   // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
   tareButton.onSequence(1,  2000,  newTare);            // For tare
+#if TYPE == 1
   tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
-  tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling
+  // tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling TBR
+#endif
 
 }
 
@@ -1156,9 +1167,10 @@ void getWoobyWeight(){
 
     // Conversion to grams
     realValue = //0.00000000e+00 +
-                1.91924361e-02 * realValue_WU_Filt[0] +                                                 // X1
-                2.23621234e-02 * realValue_WU_Filt[1] +                                                 // X2
-                2.13597024e-02 * realValue_WU_Filt[2] +                                                 // X3
+                0.02 * realValue_WU_Filt[0] +                                                 // X1
+                0.02 * realValue_WU_Filt[1] +                                                 // X2
+                0.02 * realValue_WU_Filt[2] ;                                                 // X3 
+/* Comments TBR after calibration
                 -8.07681092e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                         // X1*X1
                 -5.44682745e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                         // X1*X2
                 1.86748266e-07 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +                          // X1*X3
@@ -1175,6 +1187,7 @@ void getWoobyWeight(){
                 2.05428218e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +   // X2*X2*X3
                 -1.03953617e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X2*X3*X3
                 -1.32195643e-11 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];   // X3*X3*X3
+*/
 
     // Final correction
     correctedValueFiltered = correctionAlgo(realValue);
