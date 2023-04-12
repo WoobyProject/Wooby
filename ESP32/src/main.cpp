@@ -39,6 +39,8 @@
     bool B_OTA = BDEF_OTA;
     #define BDEF_BLE true
     bool B_BLE = BDEF_BLE;
+    #define BDEF_HOLD false
+    bool B_HOLD = BDEF_HOLD;
   #endif
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)
@@ -77,6 +79,8 @@
     bool B_OTA = BDEF_OTA;
     #define BDEF_BLE true
     bool B_BLE = BDEF_BLE;
+    #define BDEF_HOLD true
+    bool B_HOLD = BDEF_HOLD;
   #endif
 
 #include <ArduinoJson.h>            // by Benoit Blanchon
@@ -136,7 +140,7 @@
     // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
-    const float FILTERING_THR = 20;  // in grams
+    const float FILTERING_THR = 20.0;  // in grams
     const float K_WU_to_grams = 2.07447658e-2;
 
     float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0};
@@ -156,6 +160,10 @@
     bool bSync;
     unsigned long bSyncTimer = 0;
     const unsigned long BSYNC_TIME = 2000;
+
+    bool bHold;
+    unsigned long bHoldTimer = 0;
+    const unsigned long BHOLD_TIME = 10000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
@@ -708,6 +716,15 @@ bool buildGenericJSON()
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
   genericJSON["bSync"] = bSync;
+  #if BDEF_HOLD
+    if (B_HOLD)
+    {
+      genericJSON["bHold"] = bHold;
+    }
+    else
+    {
+    }
+  #endif
   genericJSON["vccReadBits"] = vccReadBits;
   genericJSON["vccReadVolts"] = vccReadVolts;
   genericJSON["vccGPIO"] = vccGPIO;
@@ -1076,6 +1093,7 @@ void setUpWeightAlgorithm()
     realValueFiltered = 0;
     realValueFiltered_1 = 0;
     bSync = false;
+    bHold = false;
     for(i=0;i < NB_HX711;i++)
     {
       weightMovAvg[i].clear();
@@ -1088,6 +1106,7 @@ void getWoobyWeight(){
     int j;
     unsigned long time;
     float relativeValue;
+    float realValueNew;
 
     relativeValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
@@ -1166,10 +1185,10 @@ void getWoobyWeight(){
     }
 
     // Conversion to grams
-    realValue = //0.00000000e+00 +
-                0.02 * realValue_WU_Filt[0] +                                                 // X1
-                0.02 * realValue_WU_Filt[1] +                                                 // X2
-                0.02 * realValue_WU_Filt[2] ;                                                 // X3 
+    realValueNew = //0.00000000e+00 +
+                K_WU_to_grams * realValue_WU_Filt[0] +                                                 // X1
+                K_WU_to_grams * realValue_WU_Filt[1] +                                                 // X2
+                K_WU_to_grams * realValue_WU_Filt[2] ;                                                 // X3 
 /* Comments TBR after calibration
                 -8.07681092e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                         // X1*X1
                 -5.44682745e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                         // X1*X2
@@ -1188,9 +1207,43 @@ void getWoobyWeight(){
                 -1.03953617e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X2*X3*X3
                 -1.32195643e-11 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];   // X3*X3*X3
 */
-
-    // Final correction
-    correctedValueFiltered = correctionAlgo(realValue);
+    #if BDEF_HOLD
+      if (B_HOLD)
+      {
+        if ((realValueNew < 50.0) ||
+            (abs(realValueNew - realValue) < FILTERING_THR))
+        {
+          bHoldTimer = millis();
+          bHold = false;
+        }
+        else
+        {
+          if ((millis() - bHoldTimer) > BHOLD_TIME)
+          {
+            bHold = true;
+          }
+          else
+          {
+          }
+        }
+        if (bHold == false)
+        {
+          realValue = realValueNew;
+          // Final correction
+          correctedValueFiltered = correctionAlgo(realValue);
+        }
+        else
+        {
+        }
+      }
+      else
+      {
+      }
+    #else
+      realValue = realValueNew;
+      // Final correction
+      correctedValueFiltered = correctionAlgo(realValue);
+    #endif
 }
 
 void mainDisplayWooby(){
@@ -1227,12 +1280,29 @@ void mainDisplayWooby(){
         itoa(displayFinalValue, arrayMeasure, 10);
         u8g.setCursor(DISPLAY_WIDTH/2-u8g.getStrWidth(arrayMeasure)/2, 15) ;
         u8g.print((displayFinalValue), 0);
-
-
         u8g.setFont(u8g2_font_profont15_tr);
         u8g.setFontPosTop();
         u8g.setCursor(50, 36);
         u8g.print("grams");
+        // Display Hold
+        #if BDEF_HOLD
+          if (B_HOLD)
+          {
+            if (bHold)
+            {
+              u8g.setFont(u8g2_font_profont10_tr);
+              u8g.setFontPosTop();
+              u8g.setCursor(0, 36);
+              u8g.print("OK");
+            }
+            else
+            {
+            }
+          }
+          else
+          {
+          }
+        #endif
 
         if (B_DEBUG_MODE){
           u8g.setFont(u8g2_font_micro_tr);
@@ -1245,68 +1315,68 @@ void mainDisplayWooby(){
 
         // Display batterie levels //
 
-          // Drawing the battery outlay
-          u8g.drawLine(100,   2,    100+22, 2); // (Horiz, Vert)
-          u8g.drawLine(100,   2+7,  100+22, 2+7);
-          u8g.drawLine(100,   2,    100,    2+7);
-          u8g.drawLine(100+22,2,    100+22, 2+7);
-          u8g.drawBox(100+22+1,2+2,2, 7-4+1); // Tip of the battery
+        // Drawing the battery outlay
+        u8g.drawLine(100,   2,    100+22, 2); // (Horiz, Vert)
+        u8g.drawLine(100,   2+7,  100+22, 2+7);
+        u8g.drawLine(100,   2,    100,    2+7);
+        u8g.drawLine(100+22,2,    100+22, 2+7);
+        u8g.drawBox(100+22+1,2+2,2, 7-4+1); // Tip of the battery
 
-          if (false){ //BF_SERIALPORT
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosTop();
-            u8g.setCursor(100, 12) ; // (Horiz, Vert)
-            u8g.print("USB");
-            // Shadow to show level of battery
-            //u8g.drawBox(100+2,2+2,int((22-4+1)*1.0),7-4+1); // (Horiz, Vert, Width, Height)
-            u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
-            u8g.setFontPosTop();
-            u8g.setCursor(108, 1);
-            u8g.print(char(67));
-          }
-          else{
-            // Shadow to show level of battery
-            u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
+        if (false){ //BF_SERIALPORT
+          u8g.setFont(u8g2_font_6x10_tf);
+          u8g.setFontPosTop();
+          u8g.setCursor(100, 12) ; // (Horiz, Vert)
+          u8g.print("USB");
+          // Shadow to show level of battery
+          //u8g.drawBox(100+2,2+2,int((22-4+1)*1.0),7-4+1); // (Horiz, Vert, Width, Height)
+          u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
+          u8g.setFontPosTop();
+          u8g.setCursor(108, 1);
+          u8g.print(char(67));
+        }
+        else{
+          // Shadow to show level of battery
+          u8g.drawBox(100+2,2+2,int((22-4+1)*ratioVCCMAX),7-4+1); // (Horiz, Vert, Width, Height)
 
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosTop();
-            u8g.setCursor(100, 12) ; // (Horiz, Vert)
-            BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
+          u8g.setFont(u8g2_font_6x10_tf);
+          u8g.setFontPosTop();
+          u8g.setCursor(100, 12) ; // (Horiz, Vert)
+          BF_VCCMNG ? u8g.print("??") : u8g.print(int(100*ratioVCCMAX));
 
-            u8g.setFont(u8g2_font_6x10_tf);
-            u8g.setFontPosTop();
-            u8g.setCursor(120, 12);
-            u8g.print("%");
-          }
+          u8g.setFont(u8g2_font_6x10_tf);
+          u8g.setFontPosTop();
+          u8g.setCursor(120, 12);
+          u8g.print("%");
+        }
 
 
         // Display connections //
-          u8g.setFont(u8g2_font_open_iconic_www_1x_t);
-          u8g.drawStr( 4, 2, "Q");
-          if (!B_WIFI || BF_WIFI)
-            u8g.drawLine(2, 11, 11, 2);
+        u8g.setFont(u8g2_font_open_iconic_www_1x_t);
+        u8g.drawStr( 4, 2, "Q");
+        if (!B_WIFI || BF_WIFI)
+          u8g.drawLine(2, 11, 11, 2);
 
-          u8g.setFont(u8g2_font_6x10_tf);
-          u8g.drawStr( 20, 3, "S");
-          if (!B_SERIALPORT || BF_SERIALPORT)
-            u8g.drawLine(17, 11, 26, 2);
+        u8g.setFont(u8g2_font_6x10_tf);
+        u8g.drawStr( 20, 3, "S");
+        if (!B_SERIALPORT || BF_SERIALPORT)
+          u8g.drawLine(17, 11, 26, 2);
 
-          #ifdef B_GOOGLE_HTTPREQ
-            if (B_GOOGLE_HTTPREQ){
-              u8g.setFont(u8g2_font_6x10_tf);
-              u8g.drawStr( 33, 3, "G");
-              if(BF_GOOGLE_HTTPREQ)
-                u8g.drawLine(30, 11, 39, 2);
-            }
-          #endif
-
-          #ifdef BDEF_BLE
-            u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
-            u8g.drawStr( 33, 3, "J");
-            if(!B_BLE || BF_BLUETOOTH)
+        #ifdef B_GOOGLE_HTTPREQ
+          if (B_GOOGLE_HTTPREQ){
+            u8g.setFont(u8g2_font_6x10_tf);
+            u8g.drawStr( 33, 3, "G");
+            if(BF_GOOGLE_HTTPREQ)
               u8g.drawLine(30, 11, 39, 2);
-          
-          #endif
+          }
+        #endif
+
+        #ifdef BDEF_BLE
+          u8g.setFont(u8g2_font_open_iconic_embedded_1x_t);
+          u8g.drawStr( 33, 3, "J");
+          if(!B_BLE || BF_BLUETOOTH)
+            u8g.drawLine(30, 11, 39, 2);
+        
+        #endif
 
     } while(u8g.nextPage());
   }
