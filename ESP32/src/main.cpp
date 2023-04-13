@@ -29,8 +29,8 @@
     bool B_INHIB_NEG_VALS = false;
     bool B_INACTIVITY_ENABLE = false;
     #define BDEF_GOOGLE_HTTPREQ true
-    bool B_GOOGLE_HTTPREQ = true;
-    #define BDEF_SERIALPORT BDEF_GOOGLE_HTTPREQ
+    bool B_GOOGLE_HTTPREQ = BDEF_GOOGLE_HTTPREQ;
+    #define BDEF_SERIALPORT true
     bool B_SERIALPORT = BDEF_SERIALPORT;
     bool B_WIFI = true;
     bool B_WIFI_SMART_CONFIG = false;
@@ -163,7 +163,7 @@
 
     bool bHold;
     unsigned long bHoldTimer = 0;
-    const unsigned long BHOLD_TIME = 10000;
+    const unsigned long BHOLD_TIME = 5000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
@@ -346,6 +346,7 @@ float correctionAlgo(float realValue){
 void newTare(){
     Serial.printf("\nNew tare! \n");
     myTare();
+    bHold = false;
 }
 
 void setDebugMode(){
@@ -386,8 +387,8 @@ void initTareButton(){
 
   //*         Easy Button      *//
   tareButton.begin();
-  // onSequence(number_of_presses, sequence_timeout, onSequenceMatchedCallback);
-  tareButton.onSequence(1,  2000,  newTare);            // For tare
+  // onPressed(duration, onSequenceMatchedCallback)
+  tareButton.onPressedFor(500,  newTare);            // For tare
 #if TYPE == 1
   tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
   // tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling TBR
@@ -1210,8 +1211,9 @@ void getWoobyWeight(){
     #if BDEF_HOLD
       if (B_HOLD)
       {
-        if ((realValueNew < 50.0) ||
-            (abs(realValueNew - realValue) < FILTERING_THR))
+        if ((bHold == false) &&
+            ((realValueNew < 50.0) ||
+             (abs(realValueNew - realValue) > FILTERING_THR)))
         {
           bHoldTimer = millis();
           bHold = false;
@@ -1290,9 +1292,9 @@ void mainDisplayWooby(){
           {
             if (bHold)
             {
-              u8g.setFont(u8g2_font_profont10_tr);
+              u8g.setFont(u8g2_font_profont15_tr);
               u8g.setFontPosTop();
-              u8g.setCursor(0, 36);
+              u8g.setCursor(115, 50);
               u8g.print("OK");
             }
             else
