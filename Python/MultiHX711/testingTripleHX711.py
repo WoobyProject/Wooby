@@ -191,7 +191,7 @@ fileNameList = ["WoobyTripleHX711_500gr_{}.csv".format(ii) for ii in range(1,6) 
 
 # For final configurations datasets 
 
-FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets", "WoobyTripleHX711")
+FILE_FOLDER = os.path.join("/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets", "WoobyTripleHX711ForTest2")
 
 fileNameList = ["WoobyTripleHX711_700gr_{}.csv".format(ii) for ii in range(1,6) ]
 
@@ -219,20 +219,34 @@ fileNameList = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) 
                 [ "WoobyTripleHX711ForTest_9912gr_{}.csv".format(ii) for ii in range(1,2) ] 
                 )
 
-fileNameListTest = ([ "WoobyTripleHX711_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
-                    [ "WoobyTripleHX711ForTest_200gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_500gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_993gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_1981gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_2966gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_3956gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_4946gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_5941gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_6934gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_7925gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_8916gr_{}.csv".format(ii) for ii in range(1,2) ] +
-                    [ "WoobyTripleHX711ForTest_9912gr_{}.csv".format(ii) for ii in range(1,2) ] 
-                    )
+# New batch with WoobyTripleHX711ForTest2
+fileNameList     = ([ "WoobyTripleHX711ForTest2_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                    [ "WoobyTripleHX711ForTest2_200gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_500gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_993gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_1981gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_2966gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_3956gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_4944gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_5939gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_6932gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_7923gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_8914gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_9910gr_{}.csv".format(ii) for ii in range(1,6) ] )
+
+fileNameListTest = ([ "WoobyTripleHX711ForTest2_0gr_{}.csv".format(ii) for ii in range(1,6) ]  +
+                    [ "WoobyTripleHX711ForTest2_200gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_500gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_993gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_1981gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_2966gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_3956gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_4944gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_5939gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_6932gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_7923gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_8914gr_{}.csv".format(ii) for ii in range(1,6) ] +
+                    [ "WoobyTripleHX711ForTest2_9910gr_{}.csv".format(ii) for ii in range(1,6) ] )
 
 
 """
@@ -263,6 +277,8 @@ fileNameList = ([ "WoobyDualHX711_Final_70gr_{}.csv".format(ii) for ii in range(
                  )
 
 """
+
+
 allDfDualSensor = myWooby.importCSVbatch(fileNameList, FILE_FOLDER)
 allDfDualSensorTest = myWooby.importCSVbatch(fileNameListTest, FILE_FOLDER)
 
@@ -634,7 +650,7 @@ plt.show()
 #%% Export model
 
 import pickle
-EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree_0to5kg.plk")
+EXPORT_NAME = os.path.join(maindir, "models", "PipeLine_3rDegree_0to10kg_ForTest2.plk")
 pickle.dump(pipe, open(EXPORT_NAME, 'wb'))
 
 
