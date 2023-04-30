@@ -22,11 +22,13 @@ sys.path.append(pckgdir)
 print(maindir)
 print(pckgdir)
 
+
 from pyWooby import Wooby
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import re
+import yaml
 
 #%% Creation of the Serial communication
 
@@ -576,6 +578,7 @@ More info here: https://scikit-learn.org/stable/modules/preprocessing.html#polyn
 
 coefsPipe = pipe["LinearReg"].coef_
 interceptPipe = pipe["LinearReg"].intercept_
+print(pipe.steps[0][1].get_feature_names_out())
 print(coefsPipe)
 print(interceptPipe)
 

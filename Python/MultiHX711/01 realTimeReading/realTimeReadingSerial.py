@@ -17,16 +17,17 @@ pckgdir = os.path.realpath(os.path.join(maindir, "pyWooby"))
 sys.path.append(maindir)
 print(pckgdir)
 
-
 from pyWooby import Wooby
+
+import yaml
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import style
+
 
 #%% Creation of the Serial communication
 

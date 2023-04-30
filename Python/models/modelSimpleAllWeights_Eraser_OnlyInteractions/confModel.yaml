@@ -1,0 +1,14 @@
+dataset: 
+    folder_path: "../datasets/WoobyTripleHX711ForTest3"
+    file_names: ["WoobyTripleHX711ForTest2_0gr_1","WoobyTripleHX711ForTest2_200gr_1"]
+    type_read: "compact"
+    file_suffix: "WoobyTripleHX711ForTest3"
+    weights_list: [0, 993, 1981, 2966, 3956, 4944, 5939, 6932, 7923, 8914, 9910]
+    n_runs: 5
+training: 
+    type: "PolyFeat"
+    variables: ["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]
+    interaction_only: True
+model:
+    export_path: "pwd"
+  

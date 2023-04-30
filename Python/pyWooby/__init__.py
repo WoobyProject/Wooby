@@ -233,10 +233,10 @@ class Wooby():
 #     Import functions   #
 ##########################
 
-    def importCSV(self, fileName, fileFolder):
+    def importCSV_(self, fileName, fileFolder):
         return pd.read_csv(os.path.join(fileFolder, fileName))
         
-    def importCSVbatch(self, fileName, fileFolder):
+    def importCSVbatch_(self, fileName, fileFolder):
         if type(fileName) == list :
             results = list()
             for file in fileName:

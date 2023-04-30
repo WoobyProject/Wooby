@@ -42,3 +42,20 @@ def extraCalculationWooby(dataWooby):
 
     return dataWooby
 
+##########################        
+#     Import functions   #
+##########################
+
+def importCSV(fileName, fileFolder):
+    return pd.read_csv(os.path.join(fileFolder, fileName))
+    
+def importCSVbatch(fileName, fileFolder):
+    if type(fileName) == list :
+        results = list()
+        for file in fileName:
+            results.append(importCSV(file, fileFolder))
+        return results
+    
+    else:
+        return None
+    

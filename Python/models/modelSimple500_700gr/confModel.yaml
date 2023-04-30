@@ -1,0 +1,9 @@
+dataset: 
+  folder_path: "../../datasets/WoobyTripleHX711ForTest2"
+  file_names: ["WoobyTripleHX711ForTest2_0gr_1","WoobyTripleHX711ForTest2_200gr_1"]
+  n_runs: 5
+training: 
+    variable_names: ["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3"]
+model:
+  export_path: "pwd"
+  
