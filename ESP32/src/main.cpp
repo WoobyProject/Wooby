@@ -99,12 +99,19 @@
 //************************//
 //*      SENSOR CONF     *//
 //************************//
-#define NB_HX711 3
-//                                               CLK DOUT
- const unsigned int HX711_pins[NB_HX711][2] = { { 18, 19 },
-                                                { 17,  5 },
-                                                { 18, 32 } };
-//                                                { 17, 33 } };
+typedef struct
+{
+  bool F_sensor_active;
+  unsigned int clk_pin;
+  unsigned int dout_pin;
+} T_SensorConf;
+
+#define NB_HX711 4
+//                                                   CLK DOUT
+ const T_SensorConf HX711_conf[NB_HX711] = { {  true, 18, 19 },
+                                             {  true, 17,  5 },
+                                             {  true, 18, 32 },
+                                             { false, 17, 33 } };
 
   HX711 scale[NB_HX711];
 
@@ -117,9 +124,9 @@
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
-  unsigned long tBeforeMeasure[NB_HX711] = {0, 0, 0};
-  unsigned long tAfterMeasure[NB_HX711] = {0, 0, 0};
-  unsigned long tAfterAlgo[NB_HX711] = {0, 0, 0};
+  unsigned long tBeforeMeasure[NB_HX711] = {0, 0, 0, 0};
+  unsigned long tAfterMeasure[NB_HX711] = {0, 0, 0, 0};
+  unsigned long tAfterAlgo[NB_HX711] = {0, 0, 0, 0};
   char arrayMeasure[8];
 
   //************************//
@@ -138,24 +145,24 @@
     const float a =  0.75147729307528; //
 
     // Filter = y/u = b*z-1(1-a)
-    NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
+    NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
     const float FILTERING_THR = 20.0;  // in grams
     const float K_WU_to_grams = 2.07447658e-2;
 
-    float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0};
+    float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
     float realValue;
     float realValue_1;
     float realValueFiltered;
     float realValueFiltered_1;
     float relativeVal_WU_1[NB_HX711];
 
-    float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0};
-    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0};
-    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0};
+    float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     float correctedValue = 0;
-    RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0};
+    RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     bool bSync;
     unsigned long bSyncTimer = 0;
@@ -167,6 +174,7 @@
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
+                                              RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG) };
 
@@ -304,9 +312,15 @@ void myTare()
   unsigned long bTare = millis();
   for(i=0;i < NB_HX711;i++)
   {
-  // TBR  scale[i].tare(nMeasuresTare);
-    offset[i] = scale[i].tare(nMeasuresTare);
-    DPRINT("Offset");DPRINT(i+1);DPRINT("=");DPRINTLN(offset[i]);
+    if (HX711_conf[i].F_sensor_active)
+    {
+// TBR  scale[i].tare(nMeasuresTare);
+      offset[i] = scale[i].tare(nMeasuresTare);
+      DPRINT("Offset");DPRINT(i+1);DPRINT("=");DPRINTLN(offset[i]);
+    }
+    else
+    {
+    }
   }
   DPRINT("TARE time: "); DPRINT(float((millis()-bTare)/1000)); DPRINTLN(" s");
 
@@ -515,11 +529,11 @@ void poweredByDisplay(void){
 
   do {
       u8g.setFont(u8g2_font_6x10_tf);
-      u8g.drawStr( 30, 15, "Powered by");
+      u8g.drawStr( 30, 5, "Powered by");
       u8g.setFont(u8g2_font_osb18_tf);
-      u8g.drawStr( 10, 40, "Humanity");
+      u8g.drawStr( 10, 20, "Humanity");
       u8g.setFont(u8g2_font_osb18_tf);
-      u8g.drawStr( 40, 60, "Lab");
+      u8g.drawStr( 40, 40, "Lab");
   }while(u8g.nextPage());
 
   Serial.println("Waiting 1 sec...");
@@ -695,22 +709,28 @@ bool buildGenericJSON()
 
   for(i=0;i < NB_HX711;i++)
   {
-    sprintf(s, "tBeforeMeasure%d", i+1);
-    genericJSON[s] = tBeforeMeasure[i];
-    sprintf(s, "tAfterMeasure%d", i+1);
-    genericJSON[s] = tAfterMeasure[i];
-    sprintf(s, "tAfterAlgo%d", i+1);
-    genericJSON[s] = tAfterAlgo[i];
-    sprintf(s, "realValue_WU%d", i+1);
-    genericJSON[s] = realValue_WU[i];
-    sprintf(s, "offset%d", i+1);
-    genericJSON[s] = offset[i];
-    sprintf(s, "relativeVal_WU%d", i+1);
-    genericJSON[s] = relativeVal_WU[i];
-    sprintf(s, "realValue_WU_MovAvg%d", i+1);
-    genericJSON[s] = realValue_WU_MovAvg[i];
-    sprintf(s, "realValue_WU_Filt%d", i+1);
-    genericJSON[s] = realValue_WU_Filt[i];
+    if (HX711_conf[i].F_sensor_active)
+    {
+      sprintf(s, "tBeforeMeasure%d", i+1);
+      genericJSON[s] = tBeforeMeasure[i];
+      sprintf(s, "tAfterMeasure%d", i+1);
+      genericJSON[s] = tAfterMeasure[i];
+      sprintf(s, "tAfterAlgo%d", i+1);
+      genericJSON[s] = tAfterAlgo[i];
+      sprintf(s, "realValue_WU%d", i+1);
+      genericJSON[s] = realValue_WU[i];
+      sprintf(s, "offset%d", i+1);
+      genericJSON[s] = offset[i];
+      sprintf(s, "relativeVal_WU%d", i+1);
+      genericJSON[s] = relativeVal_WU[i];
+      sprintf(s, "realValue_WU_MovAvg%d", i+1);
+      genericJSON[s] = realValue_WU_MovAvg[i];
+      sprintf(s, "realValue_WU_Filt%d", i+1);
+      genericJSON[s] = realValue_WU_Filt[i];
+    }
+    else
+    {
+    }
   }
   genericJSON["realValueFiltered"] = realValueFiltered;
   genericJSON["realValue"] = realValue;
@@ -1112,31 +1132,37 @@ void getWoobyWeight(){
     relativeValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
     {
-      // Updating for synchro
-      relativeVal_WU_1[i] = relativeVal_WU[i];
-
-      // Raw weighting //
-      realValue_WU[i] = (float)0.0;
-      tBeforeMeasure[i] = millis();
-      for(j=0;j < nMeasures;j++)
+      if (HX711_conf[i].F_sensor_active)
       {
-        time = millis();
-        realValue_WU[i] += scale[i].read();
-        if (j < (nMeasures - 1))
+        // Updating for synchro
+        relativeVal_WU_1[i] = relativeVal_WU[i];
+
+        // Raw weighting //
+        realValue_WU[i] = (float)0.0;
+        tBeforeMeasure[i] = millis();
+        for(j=0;j < nMeasures;j++)
         {
-          while((millis() - time) < 100);
+          time = millis();
+          realValue_WU[i] += scale[i].read();
+          if (j < (nMeasures - 1))
+          {
+            while((millis() - time) < 100);
+          }
+          else
+          {
+          }
         }
-        else
-        {
-        }
+        tAfterMeasure[i] = millis();
+        realValue_WU[i] /= nMeasures;
+
+        // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
+        relativeVal_WU[i] = realValue_WU[i] - offset[i];
+
+        relativeValue += abs(relativeVal_WU[i] - relativeVal_WU_1[i]);
       }
-      tAfterMeasure[i] = millis();
-      realValue_WU[i] /= nMeasures;
-
-      // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
-      relativeVal_WU[i] = realValue_WU[i] - offset[i];
-
-      relativeValue += abs(relativeVal_WU[i] - relativeVal_WU_1[i]);
+      else
+      {
+      }
     }
 
     // Synchronization calculation
@@ -1159,54 +1185,60 @@ void getWoobyWeight(){
 
     for(i=0;i < NB_HX711;i++)
     {
-      // Moving average //
-      if (bSync)
+      if (HX711_conf[i].F_sensor_active)
       {
-        weightMovAvg[i].fillValue(relativeVal_WU[i], N_WINDOW_MOV_AVG);
-        realValue_WU_MovAvg[i] = relativeVal_WU[i];
+        // Moving average //
+        if (bSync)
+        {
+          weightMovAvg[i].fillValue(relativeVal_WU[i], N_WINDOW_MOV_AVG);
+          realValue_WU_MovAvg[i] = relativeVal_WU[i];
+        }
+        else
+        {
+          weightMovAvg[i].addValue(relativeVal_WU[i]);
+          realValue_WU_MovAvg[i] = weightMovAvg[i].getFastAverage(); // or getAverage()
+        }
+
+        // Filtering with Arduino-Filters library
+        if (bSync)
+        {
+          realValue_WU_Filt[i] = realValue_WU_MovAvg[i];
+          filterWeight[i].reset(realValue_WU_MovAvg[i]);
+        }
+        else
+        {
+          realValue_WU_Filt[i] = filterWeight[i](realValue_WU_MovAvg[i]);
+        }
+
+        tAfterAlgo[i] = millis();
       }
       else
       {
-        weightMovAvg[i].addValue(relativeVal_WU[i]);
-        realValue_WU_MovAvg[i] = weightMovAvg[i].getFastAverage(); // or getAverage()
       }
-
-      // Filtering with Arduino-Filters library
-      if (bSync)
-      {
-        realValue_WU_Filt[i] = realValue_WU_MovAvg[i];
-        filterWeight[i].reset(realValue_WU_MovAvg[i]);
-      }
-      else
-      {
-        realValue_WU_Filt[i] = filterWeight[i](realValue_WU_MovAvg[i]);
-      }
-
-      tAfterAlgo[i] = millis();
     }
 
     // Conversion to grams
     realValueNew = //0.00000000e+00 +
-                K_WU_to_grams * realValue_WU_Filt[0] +                                                 // X1
-                K_WU_to_grams * realValue_WU_Filt[1] +                                                 // X2
-                K_WU_to_grams * realValue_WU_Filt[2] ;                                                 // X3 
-/* Comments TBR after calibration
-                -8.07681092e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                         // X1*X1
-                -5.44682745e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                         // X1*X2
-                1.86748266e-07 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +                          // X1*X3
-                1.08531066e-07 * realValue_WU_Filt[1] * realValue_WU_Filt[1] +                          // X2*X2
-                -1.77812427e-07 * realValue_WU_Filt[1] * realValue_WU_Filt[2] +                         // X2*X3
-                1.17024501e-07 * realValue_WU_Filt[2] * realValue_WU_Filt[2] +                          // X3*X3
-                3.77797967e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] +   // X1*X1*X1
-                -4.35993849e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] +  // X1*X1*X2
-                -9.17869219e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] +  // X1*X1*X3
-                1.35614557e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +   // X1*X2*X2
-                -2.91880682e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +  // X1*X2*X3
-                3.62854531e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +   // X1*X3*X3
-                -8.79569233e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +  // X2*X2*X2
-                2.05428218e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +   // X2*X2*X3
-                -1.03953617e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X2*X3*X3
-                -1.32195643e-11 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];   // X3*X3*X3
+                   K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
+/*                (float)1.54548730e-2 * realValue_WU_Filt[0] +                                                 // X1
+                (float)9.38177506e-3 * realValue_WU_Filt[1] +                                                 // X2
+                (float)3.33914113e-2 * realValue_WU_Filt[2] +                                                 // X3 
+                (float)7.09511738e-8 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                          // X1*X1
+                (float)1.07562132e-7 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                          // X1*X2
+                (float)-2.04002522e-7 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +                         // X1*X3
+                (float)-3.71438947e-8 * realValue_WU_Filt[1] * realValue_WU_Filt[1] +                         // X2*X2
+                (float)2.28158340e-7 * realValue_WU_Filt[1] * realValue_WU_Filt[2] +                          // X2*X3
+                (float)-2.13291588e-7 * realValue_WU_Filt[2] * realValue_WU_Filt[2] +                         // X3*X3
+                (float)-1.27412008e-14 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] + // X1*X1*X1
+                (float)-1.72586705e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] + // X1*X1*X2
+                (float)-5.24441359e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] + // X1*X1*X3
+                (float)-3.35271440e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] + // X1*X2*X2
+                (float)-4.15491361e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] + // X1*X2*X3
+                (float)2.51632294e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X1*X3*X3
+                (float)5.62325855e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +  // X2*X2*X2
+                (float)-8.20379788e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] + // X2*X2*X3
+                (float)-4.25452425e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] + // X2*X3*X3
+                (float)-2.90904453e-14 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];  // X3*X3*X3
 */
     #if BDEF_HOLD
       if (B_HOLD)
@@ -1460,14 +1492,24 @@ void setup(void) {
     state = 0;
   }
 
+  poweredByDisplay();
+
   //*       SET UP  WEIGHT SENSOR       *//
-  Serial.println("Setting up weight sensor...");
   Serial.printf("Size of JSON : %d\n", CAPACITY_JSON);
+  Serial.println("Setting up weight sensor...");
   for(i=0;i < NB_HX711;i++)
   {
-     scale[i].begin(HX711_pins[i][1], HX711_pins[i][0], 64);
-     // TBR scale[i].set_gain(gain); gain is set in the call above "begin"
-     // TBR scale[i].set_offset(offset[i]); useless to set offset to 0
+    if (HX711_conf[i].F_sensor_active)
+    {
+      Serial.printf("Sensor #%d\n", i+1);
+      scale[i].begin(HX711_conf[i].dout_pin, HX711_conf[i].clk_pin, 64);
+      // TBR scale[i].set_gain(gain); gain is set in the call above "begin"
+      // TBR scale[i].set_offset(offset[i]); useless to set offset to 0
+    }
+    else
+    {
+      Serial.printf("Sensor #%d inactive\n", i+1);
+    }
   }
   nextStepSetup();
 
