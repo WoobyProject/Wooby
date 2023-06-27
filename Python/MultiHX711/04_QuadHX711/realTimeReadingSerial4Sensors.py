@@ -138,10 +138,10 @@ def animate(i, xs, ys1, ys2, ys3, ys4, cvF, myWooby):
     ax.plot(xs, ys3,    label="Sensor 3", c="green")
     ax.plot(xs, ys4,    label="Sensor 4", c="orange")
     """
-    ax_s1.plot(xs, ys1, label="Sensor 1", c="blue")
-    ax_s2.plot(xs, ys2, label="Sensor 2", c="red")
-    ax_s3.plot(xs, ys3, label="Sensor 3", c="green")
-    ax_s4.plot(xs, ys4, label="Sensor 4", c="orange")
+    ax_s1.plot(xs, ys1, c="blue")
+    ax_s2.plot(xs, ys2, c="red")
+    ax_s3.plot(xs, ys3, c="green")
+    ax_s4.plot(xs, ys4, c="orange")
 #    ax2.clear()
     
         
@@ -154,12 +154,16 @@ def animate(i, xs, ys1, ys2, ys3, ys4, cvF, myWooby):
 #    plt.title("Current weight: {:.3f}".format(calc))
     plt.ylabel('Sensor WU')
 #    ax.set_ylabel("Final weight")
-    plt.legend()
+#    plt.legend()
 #    ax.grid(True)
     ax_s1.grid(True)
     ax_s2.grid(True)
     ax_s3.grid(True)
     ax_s4.grid(True)
+    ax_s1.title.set_text('Sensor #1')
+    ax_s2.title.set_text('Sensor #2')
+    ax_s3.title.set_text('Sensor #3')
+    ax_s4.title.set_text('Sensor #4')
     # plt.axis([1, None, 0, 1.1])  # Use for arbitrary number of trials
     # plt.axis([1, 100, 0, 1.1]) #Use for 100 trial demo
 
