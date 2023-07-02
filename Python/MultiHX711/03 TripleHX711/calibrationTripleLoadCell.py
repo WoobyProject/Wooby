@@ -125,7 +125,7 @@ print('Coefficients: \n',   coeffsreg)
 print('Intercept: \n',      intercept)
 print('\n')
 
-SLOPE_basic = 1/coeffsreg[0][0]
+SLOPE_basic = 1/coeffsreg[0]
 
 print("\n\nVariable to code as 'calibration_factor': {}\n\n".format(SLOPE_basic))
 
@@ -133,7 +133,7 @@ print("\n\nVariable to code as 'calibration_factor': {}\n\n".format(SLOPE_basic)
 #      Tendency line (basic)     #
 ################################## 
 
-X_tend_line = np.array([ min(X)[0], max(X)[0]]).reshape((-1, 1))
+X_tend_line = np.array([ np.min(X), np.max(X)]).reshape((-1, 1))
 y_tend_line = reg.predict(X_tend_line)
 
 y_pred = reg.predict(X)
