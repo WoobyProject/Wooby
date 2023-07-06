@@ -18,6 +18,7 @@
 //*      VERSION SEL     *//
 //************************//
 
+  #define CALIBRATED
   #define TYPE 0
 
   // TYPE = 0 (PROTOTYPE)
@@ -108,10 +109,10 @@ typedef struct
 
 #define NB_HX711 4
 //                                                   CLK DOUT
- const T_SensorConf HX711_conf[NB_HX711] = { {  true, 18, 19 },
-                                             {  true, 17,  5 },
-                                             {  true, 18, 32 },
-                                             { false, 17, 33 } };
+ const T_SensorConf HX711_conf[NB_HX711] = { { true, 18, 19 },
+                                             { true, 17,  5 },
+                                             { true, 18, 32 },
+                                             { true, 17, 33 } };
 
   HX711 scale[NB_HX711];
 
@@ -1218,28 +1219,45 @@ void getWoobyWeight(){
     }
 
     // Conversion to grams
-    realValueNew = //0.00000000e+00 +
-                   K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
-/*                (float)1.54548730e-2 * realValue_WU_Filt[0] +                                                 // X1
-                (float)9.38177506e-3 * realValue_WU_Filt[1] +                                                 // X2
-                (float)3.33914113e-2 * realValue_WU_Filt[2] +                                                 // X3 
-                (float)7.09511738e-8 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +                          // X1*X1
-                (float)1.07562132e-7 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +                          // X1*X2
-                (float)-2.04002522e-7 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +                         // X1*X3
-                (float)-3.71438947e-8 * realValue_WU_Filt[1] * realValue_WU_Filt[1] +                         // X2*X2
-                (float)2.28158340e-7 * realValue_WU_Filt[1] * realValue_WU_Filt[2] +                          // X2*X3
-                (float)-2.13291588e-7 * realValue_WU_Filt[2] * realValue_WU_Filt[2] +                         // X3*X3
-                (float)-1.27412008e-14 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] + // X1*X1*X1
-                (float)-1.72586705e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] + // X1*X1*X2
-                (float)-5.24441359e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] + // X1*X1*X3
-                (float)-3.35271440e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] + // X1*X2*X2
-                (float)-4.15491361e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] + // X1*X2*X3
-                (float)2.51632294e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +  // X1*X3*X3
-                (float)5.62325855e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +  // X2*X2*X2
-                (float)-8.20379788e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] + // X2*X2*X3
-                (float)-4.25452425e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] + // X2*X3*X3
-                (float)-2.90904453e-14 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2];  // X3*X3*X3
-*/
+    #ifdef CALIBRATED
+      realValueNew = (float)-1.56750193e-03 +
+                     (float)1.32332350e-02  * realValue_WU_Filt[0] +
+                     (float)1.90435255e-02  * realValue_WU_Filt[1] +
+                     (float)2.36666826e-02  * realValue_WU_Filt[2] +
+                     (float)1.71489001e-02  * realValue_WU_Filt[3] +
+                     (float)2.29943651e-07  * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
+                     (float)-1.05681357e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
+                     (float)-9.27333479e-10 * realValue_WU_Filt[0] * realValue_WU_Filt[2] +
+                     (float)4.55455739e-07  * realValue_WU_Filt[0] * realValue_WU_Filt[3] +
+                     (float)1.03362535e-07  * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
+                     (float)-5.06906810e-07 * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
+                     (float)2.68425905e-07  * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
+                     (float)-2.64730793e-07 * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
+                     (float)1.54104273e-07  * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
+                     (float)1.22112456e-07  * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
+                     (float)1.63367743e-12  * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
+                     (float)-5.30037175e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
+                     (float)2.19636687e-12  * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] +
+                     (float)-9.83585858e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[3] +
+                     (float)1.00257542e-11  * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
+                     (float)-1.99540985e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
+                     (float)-2.82066157e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
+                     (float)-1.32423155e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
+                     (float)4.03762724e-11  * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
+                     (float)-1.03344435e-11 * realValue_WU_Filt[0] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
+                     (float)-3.19752427e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
+                     (float)-1.49122819e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
+                     (float)8.31454202e-13  * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
+                     (float)2.64972519e-11  * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
+                     (float)-2.12902634e-11 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
+                     (float)8.46778109e-12  * realValue_WU_Filt[1] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
+                     (float)5.26219609e-12  * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
+                     (float)-2.38295209e-11 * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
+                     (float)1.11823463e-11  * realValue_WU_Filt[2] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
+                     (float)-3.79200837e-12 * realValue_WU_Filt[3] * realValue_WU_Filt[3] * realValue_WU_Filt[3];
+    #else
+      realValueNew = K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
+    #endif
     #if BDEF_HOLD
       if (B_HOLD)
       {
