@@ -184,6 +184,10 @@ fig, ax = plt.subplots(figsize=(10, 6))
 sns.scatterplot(data=overallKPIsRawData, x="realWeight", y="norm_std", hue="test", style="sensor", s=200)
 
 
+#%%#######################################
+## The old code starts here  #############
+##########################################
+
 
 #%% Plotting of the batch
 

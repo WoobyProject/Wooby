@@ -187,7 +187,6 @@ def listFilesForTraining(file_path):
 ##############################
 
 
-
 def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
     """
     Trains a polynomial model based on the variables specified in the YML file, if the YML file
@@ -200,6 +199,7 @@ def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
     Returns:
         Pipeline: The trained polynomial model.
     """
+    
     # Read the YML file
     yml_data = readYMLfile(configFile)
 
@@ -213,9 +213,12 @@ def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
         pipe = Pipeline([('PolyFeat', PolynomialFeatures(degree=3, include_bias=True, interaction_only=interaction_only)), 
                          ('LinearReg', LinearRegression())])
         
+            
+            
         # Prepare the data for the training
        
         Xfinal = dfTotal[var_list]
+        Xfinal = Xfinal.clip(upper=150e3)
         yfinal = dfTotal['realWeight']
         
         # Fit the model
@@ -267,10 +270,21 @@ def train_and_test_wooby(modelFolder:str, configFile:str):
         configFile (str): The path to the configuration file.
 
     Returns:
-        tuple: A tuple with two elements. The first element is a DataFrame with the test data and predictions. The second element is a DataFrame with the performance metrics.
+        tuple: A tuple with three elements. 
+                The first element is a DataFrame with the test data and predictions. 
+                The second element is a DataFrame with the performance metrics.
+                The third is the whole DataFrame used for the training
     """
     
-
+    if os.path.exists(modelFolder) == False:
+        print("The model folder does not exist")
+        return
+    
+    if os.path.exists(configFile) == False:
+        print("The config file does not exist")
+        return
+    
+    
     fileNameList = listFilesForTraining(configFile)
 
     allDfList = importCSVbatch(fileNameList, "")
@@ -284,7 +298,7 @@ def train_and_test_wooby(modelFolder:str, configFile:str):
     modelPolyFeat, XTrainPolyFeat, YTrainPolyFeat = trainWooby(configFile, dfTotal) 
     allDataTest, dfKPI = testWooby(modelPolyFeat, XTrainPolyFeat, YTrainPolyFeat, name = extract_model_name(configFile))
 
-    return modelPolyFeat, dfKPI, allDataTest
+    return modelPolyFeat, dfKPI, allDataTest, dfTotal
 
 
 ##############################        
@@ -372,8 +386,11 @@ def add_real_weight_to_dataframes(fileNameList: List[str], allDfList: List[pd.Da
         list of pd.DataFrame: The list of dataframes with the "realWeight" column added.
     """
     for ii, file in enumerate(fileNameList):
-        mtch = re.search(r"(\d*)gr", file)
-        allDfList[ii]["realWeight"] = float(mtch.group(1))
+        mtchRealWgt = re.search(r"(\d*)gr", file)
+        mtchRun = re.search(r"gr_(\d+)\.csv", file)
+        
+        allDfList[ii]["run"] = float(mtchRun.group(1))
+        allDfList[ii]["realWeight"] = float(mtchRealWgt.group(1))
         
     return allDfList
 
