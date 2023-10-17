@@ -40,6 +40,8 @@ import seaborn as sns
 
 
 datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForTest")
+datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711Vader")
+
 uniqueValuesWeights = createYMLfromFolder(datasetFolder)
 print(uniqueValuesWeights)
 

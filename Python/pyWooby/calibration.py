@@ -13,7 +13,7 @@ from typing import List
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, RANSACRegressor
 
 from pyWooby.load import *
 
@@ -186,6 +186,39 @@ def listFilesForTraining(file_path):
 #     PolyFeat functions     #
 ##############################
 
+def cleanData(allDfListRaw):
+    """
+    This function cleans the Wooby data before the training
+    
+    Args:
+        allDfListRaw (List of DataFrame): The test dataset features.
+       
+    Returns:
+        allDfLisClean: A dataframe with the cleaning 
+    """
+    
+    allDfLisClean = allDfListRaw
+    print("CLEANINIG DATA!")
+    for ii in range(0, len(allDfLisClean)):
+        dfT = allDfListRaw[ii]
+        for id in dfT.keys():
+            if "relativeVal_WU" in id:
+                calculation = abs((dfT[id]-dfT[id].mean())/dfT[id].std())
+                
+                n = len(dfT)
+                for jj in range(0, len(dfT)):
+                    absDf = abs(dfT[id])
+                    masked = ((np.arange(0, n) != jj)+0) * absDf
+                    meanMasked = masked.mean()
+                    
+                    if meanMasked < (absDf.mean()/2):
+                        print(id)
+                        print("CORRECTION OF OUT OF RANGE VALUE!")
+                        dfT[id][jj]= meanMasked
+                
+
+    return allDfLisClean
+
 
 def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
     """
@@ -208,17 +241,22 @@ def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
         # Get the variables to be used in the training
         var_list = yml_data['training']['variables']
         interaction_only = yml_data['training']['interaction_only']
+        degree_ = yml_data['training']['order']
         
         # Create the pipeline
-        pipe = Pipeline([('PolyFeat', PolynomialFeatures(degree=3, include_bias=True, interaction_only=interaction_only)), 
+        pipe = Pipeline([('PolyFeat', PolynomialFeatures(degree=degree_, include_bias=True, interaction_only=interaction_only)), 
                          ('LinearReg', LinearRegression())])
         
-            
-            
+        # Create the pipeline
+        """
+        pipe = Pipeline([('PolyFeat', PolynomialFeatures(degree=degree_, include_bias=True, interaction_only=interaction_only)), 
+                         ('RANSAC', RANSACRegressor()) ] )
+        """
+        
         # Prepare the data for the training
        
         Xfinal = dfTotal[var_list]
-        Xfinal = Xfinal.clip(upper=150e3)
+        # Xfinal = Xfinal.clip(upper=150e3)
         yfinal = dfTotal['realWeight']
         
         # Fit the model
@@ -230,6 +268,7 @@ def trainWooby(configFile: str, dfTotal: pd.DataFrame) -> Pipeline:
         raise ValueError("Invalid training type specified in YML file.")
 
 
+    
 def testWooby(pipe, XTest, yTest, name=""):
     """
     This function evaluates the performance of a given pipeline model on the test dataset.
@@ -287,8 +326,10 @@ def train_and_test_wooby(modelFolder:str, configFile:str):
     
     fileNameList = listFilesForTraining(configFile)
 
-    allDfList = importCSVbatch(fileNameList, "")
-
+    allDfListRaw = importCSVbatch(fileNameList, "")
+    
+    allDfList = cleanData(allDfListRaw)
+    
     add_real_weight_to_dataframes(fileNameList, allDfList)
 
     # Creation of the test DataFrame

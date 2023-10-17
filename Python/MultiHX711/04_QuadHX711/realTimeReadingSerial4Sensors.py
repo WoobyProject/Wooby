@@ -34,8 +34,8 @@ myWooby = Wooby()
 
 myWooby.availablePorts()
 
-# portWooby =   '/dev/tty.usbserial-0001'
-portWooby = 'COM3'
+portWooby =   '/dev/tty.usbserial-0001'
+# portWooby = 'COM3'
 baudRateWooby = 115200;
 
 myWooby.setupSerial(portWooby, baudRateWooby)
@@ -72,8 +72,8 @@ Xpredict =  np.array([[0, 0, 0]])
 dfLiveRead = pd.DataFrame()
 
 # Possibility to load an existing ML model
-IMPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree.plk")
-loaded_model = pickle.load(open(IMPORT_NAME, 'rb'))
+#IMPORT_NAME = os.path.join(maindir, "models", "PipeLine_OnlyInteractions_3rDegree.plk")
+#loaded_model = pickle.load(open(IMPORT_NAME, 'rb'))
 
 
 # This function is called periodically from FuncAnimation
@@ -105,8 +105,9 @@ def animate(i, xs, ys1, ys2, ys3, ys4, cvF, myWooby):
 #    Xpredict[0][3]=dfLiveRead['relativeVal_WU4'][0]
 
     
-    calc = loaded_model.predict(Xpredict)
-    calc = calc[0]
+    #calc = loaded_model.predict(Xpredict)
+    #calc = calc[0]
+    calc = 0;
     
     """
     print("\n")

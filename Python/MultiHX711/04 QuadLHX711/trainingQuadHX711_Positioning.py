@@ -44,6 +44,10 @@ import seaborn as sns
 
 # All coeffs
 folderName = "modelSimpleAllWeights_QuadSensor_PositionVariations"
+folderName = "modelSimpleAllWeights_QuadSensor_PositionVariations_1_2_10"
+folderName = "modelSimpleAllWeights_QuadSensor_Vader"
+folderName = "modelSimpleAllWeights_QuadSensor_Vader_1order"
+folderName = "modelSimpleAllWeights_QuadSensor_Vader_2order"
 
 modelFolder = os.path.join(maindir, "models", folderName)
 
@@ -58,7 +62,9 @@ allDataTestAllCoeffsQuad["absErrorOK"] = abs(allDataTestAllCoeffsQuad["absError"
 
 coefsPipe = modelPolyFeatAllCoeffsQuad["LinearReg"].coef_
 interceptPipe = modelPolyFeatAllCoeffsQuad["LinearReg"].intercept_
-print(modelPolyFeatAllCoeffsQuad.steps[0][1].get_feature_names_out())
+coefsNames = modelPolyFeatAllCoeffsQuad.steps[0][1].get_feature_names_out()
+
+print(coefsNames)
 print(coefsPipe)
 print(interceptPipe)
 
@@ -104,6 +110,103 @@ allDataTestAllCoeffsQuad500["run"] = pd.Categorical(dfTotal500["run"])
 
 corr_matrix_500 = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
 
+#########################
+####  Quad 1-2-10    ####
+#########################
+
+# All coeffs
+folderName = "modelSimpleAllWeights_QuadSensor_PositionVariations_1_2_10"
+modelFolder = os.path.join(maindir, "models", folderName)
+
+configFile =  os.path.join(modelFolder,"confModel.yaml")
+modelPolyFeatAllCoeffsQuad1_2_10, dfKPIAllCoeffsQuad1_2_10, allDataTestAllCoeffsQuad1_2_10, dfTotal1_2_10 = train_and_test_wooby(modelFolder, configFile)
+print(dfKPIAllCoeffsQuad1_2_10)
+
+allDataTestAllCoeffsQuad1_2_10[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
+allDataTestAllCoeffsQuad1_2_10["test"] = "Quad"
+allDataTestAllCoeffsQuad1_2_10["run"] = pd.Categorical(dfTotal1_2_10["run"])
+
+
+corr_matrix_1_2_10 = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
+
+#########################
+####  Quad Vader     ####
+#########################
+
+# All coeffs
+folderName = "modelSimpleAllWeights_QuadSensor_Vader"
+modelFolder = os.path.join(maindir, "models", folderName)
+
+configFile =  os.path.join(modelFolder,"confModel.yaml")
+modelPolyFeatAllCoeffsQuadVader, dfKPIAllCoeffsQuadVader, allDataTestAllCoeffsQuadVader, dfTotalVader = train_and_test_wooby(modelFolder, configFile)
+print(dfKPIAllCoeffsQuadVader)
+
+allDataTestAllCoeffsQuadVader[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
+allDataTestAllCoeffsQuadVader["test"] = "Quad"
+allDataTestAllCoeffsQuadVader["run"] = pd.Categorical(dfTotalVader["run"])
+
+coefsPipe = modelPolyFeatAllCoeffsQuadVader["LinearReg"].coef_
+interceptPipe = modelPolyFeatAllCoeffsQuadVader["LinearReg"].intercept_
+coefsNames = modelPolyFeatAllCoeffsQuadVader.steps[0][1].get_feature_names_out()
+print(coefsNames)
+print(coefsPipe)
+print(interceptPipe)
+
+corr_matrix_Vader = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
+
+################################
+####  Quad Vader_1order     ####
+################################
+
+# All coeffs
+folderName = "modelSimpleAllWeights_QuadSensor_Vader_1order"
+modelFolder = os.path.join(maindir, "models", folderName)
+
+configFile =  os.path.join(modelFolder,"confModel.yaml")
+modelPolyFeatAllCoeffsQuadVader_1order, dfKPIAllCoeffsQuadVader_1order, allDataTestAllCoeffsQuadVader_1order, dfTotalVader_1order = train_and_test_wooby(modelFolder, configFile)
+print(dfKPIAllCoeffsQuadVader_1order)
+
+allDataTestAllCoeffsQuadVader_1order[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
+allDataTestAllCoeffsQuadVader_1order["test"] = "Quad"
+allDataTestAllCoeffsQuadVader_1order["run"] = pd.Categorical(dfTotalVader_1order["run"])
+
+coefsPipe = modelPolyFeatAllCoeffsQuadVader_1order["LinearReg"].coef_
+interceptPipe = modelPolyFeatAllCoeffsQuadVader_1order["LinearReg"].intercept_
+coefsNames = modelPolyFeatAllCoeffsQuadVader_1order.steps[0][1].get_feature_names_out()
+print(coefsNames)
+print(coefsPipe)
+print(interceptPipe)
+
+corr_matrix_Vader_1order = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
+
+
+################################
+####  Quad Vader_2order     ####
+################################
+
+# All coeffs
+folderName = "modelSimpleAllWeights_QuadSensor_Vader_2order"
+modelFolder = os.path.join(maindir, "models", folderName)
+
+configFile =  os.path.join(modelFolder,"confModel.yaml")
+modelPolyFeatAllCoeffsQuadVader_2order, dfKPIAllCoeffsQuadVader_2order, allDataTestAllCoeffsQuadVader_2order, dfTotalVader_2order = train_and_test_wooby(modelFolder, configFile)
+print(dfKPIAllCoeffsQuadVader_2order)
+
+allDataTestAllCoeffsQuadVader_2order[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
+allDataTestAllCoeffsQuadVader_2order["test"] = "Quad"
+allDataTestAllCoeffsQuadVader_2order["run"] = pd.Categorical(dfTotalVader_2order["run"])
+
+coefsPipe = modelPolyFeatAllCoeffsQuadVader_2order["LinearReg"].coef_
+interceptPipe = modelPolyFeatAllCoeffsQuadVader_2order["LinearReg"].intercept_
+coefsNames = modelPolyFeatAllCoeffsQuadVader_2order.steps[0][1].get_feature_names_out()
+print(coefsNames)
+print(coefsPipe)
+print(interceptPipe)
+
+corr_matrix_Vader_2order = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
+
+
+
 #%% Supplement plots
 
 
@@ -143,6 +246,10 @@ plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[[
 plt.legend()
 plt.grid(True)
 
+# Coefficients 
+plt.figure()
+plt.bar(coefsNames, coefsPipe)
+
 # %% 
 
 meanVal10k = (allDataTestAllCoeffsQuad10k[allDataTestAllCoeffsQuad10k.run == 1].relativeVal_WU1.mean() + 
@@ -157,7 +264,7 @@ allDataTestAllCoeffsQuad500[allDataTestAllCoeffsQuad500.run == 1].relativeVal_WU
 
 
 #meanVal = allDataTestAllCoeffsQuad10k[allDataTestAllCoeffsQuad10k.run == 1].relativeVal_WU1.mean()
-
+i
 # Other plots
 plt.figure()
 plt.scatter(allDataTestAllCoeffsQuad10k[["run"]], (10410/10e3)*(allDataTestAllCoeffsQuad10k[["relativeVal_WU1"]]-meanVal10k)/meanVal10k, marker = "d", color="blue",   label="10kg relativeVal_WU1")
