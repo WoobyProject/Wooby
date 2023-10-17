@@ -1,0 +1,11 @@
+tBeforeMeasure1,tAfterMeasure1,tAfterAlgo1,realValue_WU1,offset1,relativeVal_WU1,realValue_WU_MovAvg1,realValue_WU_Filt1,tBeforeMeasure2,tAfterMeasure2,tAfterAlgo2,realValue_WU2,offset2,relativeVal_WU2,realValue_WU_MovAvg2,realValue_WU_Filt2,tBeforeMeasure3,tAfterMeasure3,tAfterAlgo3,realValue_WU3,offset3,relativeVal_WU3,realValue_WU_MovAvg3,realValue_WU_Filt3,tBeforeMeasure4,tAfterMeasure4,tAfterAlgo4,realValue_WU4,offset4,relativeVal_WU4,realValue_WU_MovAvg4,realValue_WU_Filt4,realValueFiltered,realValue,correctedValueFiltered,bSync,vccReadBits,vccReadVolts,vccGPIO,vccVolts,ratioVCCMAX,B_DEBUG_MODE,B_SERIALPORT,BF_SERIALPORT
+3542,3842,4742,0,0,0,0,0,3842,4142,4742,0,0,0,0,0,4142,4442,4742,0,0,0,0,0,4442,4742,4742,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+4824,5124,6024,0,0,0,0,0,5124,5424,6024,0,0,0,0,0,5424,5724,6024,0,0,0,0,0,5724,6024,6024,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+6106,6406,7306,0,0,0,0,0,6406,6706,7306,0,0,0,0,0,6706,7006,7306,0,0,0,0,0,7006,7306,7306,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+7388,7688,8588,0,0,0,0,0,7688,7988,8588,0,0,0,0,0,7988,8288,8588,0,0,0,0,0,8288,8588,8588,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+8670,8970,9870,0,0,0,0,0,8970,9270,9870,0,0,0,0,0,9270,9570,9870,0,0,0,0,0,9570,9870,9870,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+9952,10252,11152,0,0,0,0,0,10252,10552,11152,0,0,0,0,0,10552,10852,11152,0,0,0,0,0,10852,11152,11152,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+11235,11535,12435,0,0,0,0,0,11535,11835,12435,0,0,0,0,0,11835,12135,12435,0,0,0,0,0,12135,12435,12435,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+12518,12818,13718,0,0,0,0,0,12818,13118,13718,0,0,0,0,0,13118,13418,13718,0,0,0,0,0,13418,13718,13718,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+13801,14102,15002,0,0,0,0,0,14102,14402,15002,0,0,0,0,0,14402,14702,15002,0,0,0,0,0,14702,15002,15002,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False
+15087,15387,16287,0,0,0,0,0,15387,15687,16287,0,0,0,0,0,15687,15987,16287,0,0,0,0,0,15987,16287,16287,0,0,0,0,0,0,-2.031466,0,False,0,0,0,0,0,True,True,False

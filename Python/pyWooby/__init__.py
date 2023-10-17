@@ -183,14 +183,33 @@ class Wooby():
     def extraCalcWooby(self, WoobyDataFrame):
         
         try:
-            
+            """
             WoobyDataFrame["timeNorm"] =    WoobyDataFrame["tBeforeMeasure"]-WoobyDataFrame["tBeforeMeasure"][0]
             
             WoobyDataFrame["timeMeasure"] = WoobyDataFrame["tAfterMeasure"] - WoobyDataFrame["tBeforeMeasure"]
             WoobyDataFrame["timeAlgo"] =    WoobyDataFrame["tAfterAlgo"]    - WoobyDataFrame["tAfterMeasure"]
             WoobyDataFrame["timeTotal"] =   WoobyDataFrame["tAfterAlgo"]    - WoobyDataFrame["tBeforeMeasure"]
             WoobyDataFrame["timeSim"] =     np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
-    
+            """
+            
+            if "tBeforeMeasure" in WoobyDataFrame and "tAfterMeasure" in WoobyDataFrame and "tAfterMeasure" in WoobyDataFrame :
+                WoobyDataFrame["timeNorm"] = WoobyDataFrame["tBeforeMeasure"] - WoobyDataFrame["tBeforeMeasure"][0]
+                WoobyDataFrame["timeMeasure"] = WoobyDataFrame["tAfterMeasure"] - WoobyDataFrame["tBeforeMeasure"]
+                WoobyDataFrame["timeAlgo"] = WoobyDataFrame["tAfterAlgo"] - WoobyDataFrame["tAfterMeasure"]
+                WoobyDataFrame["timeTotal"] = WoobyDataFrame["tAfterAlgo"] - WoobyDataFrame["tBeforeMeasure"]
+                WoobyDataFrame["timeSim"] = np.linspace(WoobyDataFrame["timeNorm"][0], WoobyDataFrame["timeNorm"].values[-1], WoobyDataFrame["timeNorm"].shape[0])
+            else:
+                for i in range(1, 5):
+                    before_measure_key = f"tBeforeMeasure{i}"
+                    after_measure_key = f"tAfterMeasure{i}"
+                    after_algo_key = f"tAfterAlgo{i}"
+                    if before_measure_key in WoobyDataFrame and after_measure_key in WoobyDataFrame and after_algo_key in WoobyDataFrame:
+                        WoobyDataFrame[f"timeNorm{i}"] = WoobyDataFrame[before_measure_key] - WoobyDataFrame[before_measure_key][0]
+                        WoobyDataFrame[f"timeMeasure{i}"] = WoobyDataFrame[after_measure_key] - WoobyDataFrame[before_measure_key]
+                        WoobyDataFrame[f"timeAlgo{i}"] = WoobyDataFrame[after_algo_key] - WoobyDataFrame[after_measure_key]
+                        WoobyDataFrame[f"timeTotal{i}"] = WoobyDataFrame[after_algo_key] - WoobyDataFrame[before_measure_key]
+                        WoobyDataFrame[f"timeSim{i}"] = np.linspace(WoobyDataFrame[f"timeNorm{i}"][0], WoobyDataFrame[f"timeNorm{i}"].values[-1], WoobyDataFrame[f"timeNorm{i}"].shape[0])
+                        
             return WoobyDataFrame
         except Exception as e:
             print("ERROR => {}: {}".format(type(e).__name__, str(e)))
