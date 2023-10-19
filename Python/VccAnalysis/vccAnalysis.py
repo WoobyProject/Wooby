@@ -57,7 +57,7 @@ else:
 
 Vccref = 3;
 
-tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDFVccStudy[timeSimKey]/1000, WoobyDFVccStudy["vccVolts"], 10, 0.7)
+tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDFVccStudy[timeSimKey]/1000, WoobyDFVccStudy["vccVolts"], 10, (WoobyDFVccStudy[timeSimKey][1]-WoobyDFVccStudy[timeSimKey][0])/1000)
 ratio = pyWooby.filtering.mapval(vccFiltered, 5.0, 7.4, 0, 1) 
 
 timeVcc = np.array(WoobyDFVccStudy[timeSimKey]/1000/60/60)
@@ -78,7 +78,7 @@ plt.xlabel("Time normalized (hours) ")
 np.array(WoobyDFVccStudy[WoobyDFVccStudy["vccVolts"]>Vccref][timeNormKey])[-1]/1000/60/60
 
 
-plt.figure
+plt.figure()
 xData = WoobyDFVccStudyRaw.timeSim1/1000/60/60;
 xData = timeVcc;
 plt.plot(xData, xData, 'o--')
