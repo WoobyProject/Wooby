@@ -27,13 +27,18 @@ myWooby = Wooby()
 # fileName = "VccMeasurement_500gr_500gr.txt"
 
 
+# Readin with pyWooby file
 fileFolder = os.path.join(pyWoobyPath, "datasets", "VccAnalysis_Vader")
 fileName = "essai.csv"
-
-
 WoobyVccStudy = pyWooby.load.readWoobyFile(fileFolder, fileName, verbose=False)
-
 WoobyDFVccStudyRaw = WoobyVccStudy["data"]
+
+
+## Reading with external file
+fileFolder = os.path.join(pyWoobyPath, "datasets", "VccAnalysis_Vader")
+fileName = "capture.txt"
+WoobyDFVccStudyRaw = myWooby.process_file(os.path.join(fileFolder, fileName))
+
 
 ## Completing calculations
 WoobyDFVccStudy = myWooby.extraCalcWooby(WoobyDFVccStudyRaw)
@@ -55,10 +60,10 @@ Vccref = 3;
 tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDFVccStudy[timeSimKey]/1000, WoobyDFVccStudy["vccVolts"], 10, 0.7)
 ratio = pyWooby.filtering.mapval(vccFiltered, 5.0, 7.4, 0, 1) 
 
-timeVcc = np.array(WoobyDFVccStudy[timeNormKey]/1000/60/60)
+timeVcc = np.array(WoobyDFVccStudy[timeSimKey]/1000/60/60)
 # Plot: Vcc vs time
 plt.figure()
-plt.plot(timeVcc, WoobyDFVccStudy["vccVolts"], label ="vccVolts")
+plt.plot(timeVcc, WoobyDFVccStudy["vccVolts"], 'o-', label ="vccVolts")
 #plt.plot(tout, vccFiltered, label ="Filtered")
 #plt.plot(tout, ratio*100, label ="Filtered")
 plt.plot([timeVcc[0], timeVcc[-1]], [Vccref, Vccref], 'k--')
@@ -71,4 +76,13 @@ plt.xlabel("Time normalized (hours) ")
 
 # Calculation of the actual ON time
 np.array(WoobyDFVccStudy[WoobyDFVccStudy["vccVolts"]>Vccref][timeNormKey])[-1]/1000/60/60
+
+
+plt.figure
+xData = WoobyDFVccStudyRaw.timeSim1/1000/60/60;
+xData = timeVcc;
+plt.plot(xData, xData, 'o--')
+plt.show()
+plt.grid(True)
+
 
