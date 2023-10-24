@@ -16,6 +16,7 @@ from pyWooby import Wooby
 import pyWooby
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -27,7 +28,7 @@ myWooby = Wooby()
 # fileName = "VccMeasurement_500gr_500gr.txt"
 
 
-# Readin with pyWooby file
+# Reading with pyWooby file
 fileFolder = os.path.join(pyWoobyPath, "datasets", "VccAnalysis_Vader")
 fileName = "essai.csv"
 WoobyVccStudy = pyWooby.load.readWoobyFile(fileFolder, fileName, verbose=False)
@@ -36,9 +37,16 @@ WoobyDFVccStudyRaw = WoobyVccStudy["data"]
 
 ## Reading with external file
 fileFolder = os.path.join(pyWoobyPath, "datasets", "VccAnalysis_Vader")
-fileName = "capture.txt"
-WoobyDFVccStudyRaw = myWooby.process_file(os.path.join(fileFolder, fileName))
+#fileName = "capture.txt"
+fileName_1 = "full_discharge_2.txt"
+fileName_2 = "full_discharge_3.txt"
+WoobyDFVccStudyRaw_1 = myWooby.process_file(os.path.join(fileFolder, fileName_1))
+WoobyDFVccStudyRaw_2 = myWooby.process_file(os.path.join(fileFolder, fileName_2))
 
+WoobyDFVccStudyRaw_2["tBeforeMeasure1"] = WoobyDFVccStudyRaw_2["tBeforeMeasure1"] + WoobyDFVccStudyRaw_1["tBeforeMeasure1"].iloc[-1]
+WoobyDFVccStudyRaw_2["tAfterMeasure1"] = WoobyDFVccStudyRaw_2["tAfterMeasure1"] + WoobyDFVccStudyRaw_1["tAfterMeasure1"].iloc[-1]
+
+WoobyDFVccStudyRaw = pd.concat([WoobyDFVccStudyRaw_1, WoobyDFVccStudyRaw_2], ignore_index=True)
 
 ## Completing calculations
 WoobyDFVccStudy = myWooby.extraCalcWooby(WoobyDFVccStudyRaw)
@@ -57,26 +65,30 @@ else:
 
 Vccref = 3;
 
-tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDFVccStudy[timeSimKey]/1000, WoobyDFVccStudy["vccVolts"], 10, (WoobyDFVccStudy[timeSimKey][1]-WoobyDFVccStudy[timeSimKey][0])/1000)
-ratio = pyWooby.filtering.mapval(vccFiltered, 5.0, 7.4, 0, 1) 
+# Filtering of the Vcc data
+timeConstantFilter = 10         # in s
+tout, vccFiltered = pyWooby.filtering.filter_1od(WoobyDFVccStudy[timeSimKey]/1000, WoobyDFVccStudy["vccVolts"], timeConstantFilter, (WoobyDFVccStudy[timeSimKey][1]-WoobyDFVccStudy[timeSimKey][0])/1000)
+ratio = pyWooby.filtering.mapval(vccFiltered, 3.0, 4.2, 0, 1) 
 
 timeVcc = np.array(WoobyDFVccStudy[timeSimKey]/1000/60/60)
 # Plot: Vcc vs time
 plt.figure()
 plt.plot(timeVcc, WoobyDFVccStudy["vccVolts"], 'o-', label ="vccVolts")
-#plt.plot(tout, vccFiltered, label ="Filtered")
+plt.plot(tout/60/60, vccFiltered, label ="Filtered")
 #plt.plot(tout, ratio*100, label ="Filtered")
 plt.plot([timeVcc[0], timeVcc[-1]], [Vccref, Vccref], 'k--')
 plt.show()
 plt.grid(True)
 plt.legend(loc='best')
-plt.title("Vcc plot")
-plt.ylabel("Vcc (Volts)")
+plt.title("Vcc plot - ")
+plt.ylabel("Vcc (Volts)"  )
 plt.xlabel("Time normalized (hours) ")
+plt.ylim([0.95*Vccref, 1.05*np.max(WoobyDFVccStudy["vccVolts"])])
 
 # Calculation of the actual ON time
 np.array(WoobyDFVccStudy[WoobyDFVccStudy["vccVolts"]>Vccref][timeNormKey])[-1]/1000/60/60
 
+# Support plots (for timing)
 
 plt.figure()
 xData = WoobyDFVccStudyRaw.timeSim1/1000/60/60;
