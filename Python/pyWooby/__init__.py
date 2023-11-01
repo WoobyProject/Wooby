@@ -219,6 +219,7 @@ class Wooby():
         if ( self.serialPortWooby):
             self.serialPortWooby.close()
         
+
 ##########################        
 #     Export functions   #
 ##########################  
@@ -265,6 +266,26 @@ class Wooby():
         else:
             return None
         
+    def process_file(self, filePath):
+        json_objects = []
+        
+        with open(filePath, 'r') as file:
+            for line in file:
+                # Remove "WS" from the beginning of each line and strip whitespace
+                cleaned_line = line.lstrip('WS').strip()
+                if cleaned_line:
+                    try:
+                        # Attempt to parse the cleaned line as JSON
+                        json_object = json.loads(cleaned_line)
+                        json_objects.append(json_object)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding line: {cleaned_line}. Error: {e}")
+    
+        # Convert JSON objects to DataFrame
+        df = pd.DataFrame(json_objects)
+        return df
+
+            
 ##########################        
 #    Reading functions   #
 ##########################
