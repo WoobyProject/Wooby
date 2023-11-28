@@ -1,0 +1,15 @@
+dataset: 
+    folder_path: "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets/WoobyQuadHX711ForVader2"
+    file_names: [""]
+    type_read: "compact"
+    file_suffix: "WoobyQuadHX711ForVader2"
+    weights_list: [00, 500, 1000, 2010, 4001, 6964, 9943]
+    n_runs: 9
+training: 
+    type: "PolyFeat"
+    variables: ["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]
+    interaction_only: True
+    order: 2
+model:
+    export_path: "pwd"
+  

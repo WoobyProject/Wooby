@@ -114,6 +114,8 @@ plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[[
 plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[["relativeVal_WU4"]], label="relativeVal_WU4")
 plt.legend()
 plt.grid(True)
+plt.xlabel("Real weight [gr]")
+plt.ylabel("Relatives values [no units]")
 
 # Other plots
 plt.figure()

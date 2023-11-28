@@ -37,6 +37,8 @@ WoobyDFVccStudyRaw = WoobyVccStudy["data"]
 
 ## Reading with external file
 fileFolder = os.path.join(pyWoobyPath, "datasets", "VccAnalysis_Vader")
+
+# For discharge
 #fileName = "capture.txt"
 fileName_1 = "full_discharge_2.txt"
 fileName_2 = "full_discharge_3.txt"
@@ -47,6 +49,15 @@ WoobyDFVccStudyRaw_2["tBeforeMeasure1"] = WoobyDFVccStudyRaw_2["tBeforeMeasure1"
 WoobyDFVccStudyRaw_2["tAfterMeasure1"] = WoobyDFVccStudyRaw_2["tAfterMeasure1"] + WoobyDFVccStudyRaw_1["tAfterMeasure1"].iloc[-1]
 
 WoobyDFVccStudyRaw = pd.concat([WoobyDFVccStudyRaw_1, WoobyDFVccStudyRaw_2], ignore_index=True)
+
+# For charge
+fileName = "capture_charge.txt"
+WoobyDFVccStudyRaw = myWooby.process_file(os.path.join(fileFolder, fileName))
+
+fileNameRefCharge = "charge_reference.csv"
+referenceCharge = pd.read_csv(os.path.join(fileFolder, fileNameRefCharge), sep=";")
+referenceCharge = referenceCharge.fillna(0)
+referenceCharge["Time total [h]"] = referenceCharge["Time [h]"] +   referenceCharge["Time [m]"]/60 +   referenceCharge["Time [s]"]/60/60 ;
 
 ## Completing calculations
 WoobyDFVccStudy = myWooby.extraCalcWooby(WoobyDFVccStudyRaw)
@@ -76,6 +87,7 @@ plt.figure()
 plt.plot(timeVcc, WoobyDFVccStudy["vccVolts"], 'o-', label ="vccVolts")
 plt.plot(tout/60/60, vccFiltered, label ="Filtered")
 #plt.plot(tout, ratio*100, label ="Filtered")
+plt.plot(referenceCharge["Time total [h]"], referenceCharge["Measured voltage [V]"], 'ko--')
 plt.plot([timeVcc[0], timeVcc[-1]], [Vccref, Vccref], 'k--')
 plt.show()
 plt.grid(True)
