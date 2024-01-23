@@ -1,0 +1,15 @@
+Les vis 1 et 4 sont dévissées
+Les vis 2 et 3 sont vissées
+3 mesures sont effectuées à chaque fois, à l'interieur du carré 1/2/3/4
+ 1. position gauche (1 et 4)
+ 2. position centrale
+ 3. position droite (2 et 3)
+
+Poids 500g -> 3kg
+Le poids total change de position à chaque mesure : 1 à gauche, 2 au milieu et 3 à droite
+Poids 4kg -> 6kg
+Les sacs 1/2/3 restent en postion : 1 à gauche, 2 au milieu et 3 à droite
+Les sacs 4/5/6 changent de position à chaque mesure : 1 à gauche, 2 au milieu et 3 à droite
+Poids 7kg -> 9kg
+Les sacs 1/4/2/5/3/5 restent en postion : 1 à gauche, 2 au milieu et 3 à droite
+Les sacs 7/8/9 changent de position à chaque mesure : 1 à gauche, 2 au milieu et 3 à droite
