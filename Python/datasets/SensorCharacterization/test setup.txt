@@ -1,0 +1,2 @@
+Each sensor of Spider (1, 2, 3, 4) has been characterized with weights from 0gr to 1500gr.
+Moreover, the sensor 2 has been used to check if the location of the weight (left, center, right side) influences the measurement.
