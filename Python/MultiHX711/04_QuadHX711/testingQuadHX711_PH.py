@@ -13,8 +13,8 @@ import os
 """
     For pyWoobypackage use
 """
-maindir = "C:/Users/pasca/Wooby/devs/Python/"
-# maindir = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/"
+# maindir = "C:/Users/pasca/Wooby/devs/Python/"
+maindir = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/"
 
 pckgdir = os.path.realpath(os.path.join(maindir, "pyWooby"))
 sys.path.append(maindir)
@@ -33,8 +33,8 @@ myWooby = Wooby()
 
 myWooby.availablePorts()
 
-# portWooby =  '/dev/tty.usbserial-0001'
-portWooby = 'COM3'
+portWooby =  '/dev/tty.usbserial-0001'
+# portWooby = 'COM3'
 baudRateWooby = 115200;
     
 myWooby.setupSerial(portWooby, baudRateWooby)
@@ -45,15 +45,15 @@ myWooby.tare()
 #%% Reading of a calibration point
 
 N_MAX_MEASURES = 15
-SUBSET = "WoobyQuadHX711ForTest"
+SUBSET = "WoobySpideyWood"
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
-REAL_WEIGHT = 0
+REAL_WEIGHT = 10000
 # in gr
 SUFFIX = "1"
 
-# EXPORT_FOLDER = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets"
-EXPORT_FOLDER = "C:/Users/pasca/Wooby/devs/Python/datasets"
+EXPORT_FOLDER = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets"
+#EXPORT_FOLDER = "C:/Users/pasca/Wooby/devs/Python/datasets"
 FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, SUFFIX)
 FILE_FOLDER = os.path.join(EXPORT_FOLDER, SUBSET)
                        
@@ -68,8 +68,8 @@ OVERWRITE = True
 
 #%% Reading of a calibration point - Loop
 
-REAL_WEIGHT = 0  # in gr
-N_TEST = 5
+REAL_WEIGHT = 10000  # in gr
+N_TEST = 9
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
@@ -116,7 +116,7 @@ for ii in range(N_TEST):
     # 
     print("End of the run #{}".format(ii+1))
     
-exit()
+# exit()
 
 #%% Plots for testing
 

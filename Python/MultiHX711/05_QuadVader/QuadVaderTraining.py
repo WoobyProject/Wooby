@@ -60,9 +60,9 @@ print(uniqueValuesWeights)
 #########################
 
 # All coeffs
-folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
+# folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
 # folderName = "modelSimpleAllWeights_QuadSensor_Vader2_2order"
-
+folderName = "modelSimpleAllWeights_QuadSensor_Spidey"
 
 modelFolder = os.path.join(maindir, "models", folderName)
 

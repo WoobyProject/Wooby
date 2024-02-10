@@ -85,6 +85,7 @@ timeVcc = np.array(WoobyDFVccStudy[timeSimKey]/1000/60/60)
 # Plot: Vcc vs time
 plt.figure()
 plt.plot(timeVcc, WoobyDFVccStudy["vccVolts"], 'o-', label ="vccVolts")
+plt.plot(timeVcc, WoobyDFVccStudy["vccReadVolts"], '-', label ="vccReadVolts")
 plt.plot(tout/60/60, vccFiltered, label ="Filtered")
 #plt.plot(tout, ratio*100, label ="Filtered")
 plt.plot(referenceCharge["Time total [h]"], referenceCharge["Measured voltage [V]"], 'ko--')
