@@ -271,6 +271,7 @@ class Wooby():
         
         with open(filePath, 'r') as file:
             for line in file:
+                print(line)
                 # Remove "WS" from the beginning of each line and strip whitespace
                 cleaned_line = line.lstrip('WS').strip()
                 if cleaned_line:
@@ -372,8 +373,8 @@ class Wooby():
 #           Calibration          #
 ################################## 
 
-    def basicCalibration(self, WoobyDataFrame, verbose=False):
-        X = np.array(WoobyDataFrame["realValue_WU"]) #  relativeValue_WU
+    def basicCalibration(self, WoobyDataFrame, verbose=False, xVar="realValue_WU"):
+        X = np.array(WoobyDataFrame[xVar])
         y = np.array(WoobyDataFrame["realWeight"])
         
         X = X.reshape((-1, 1))

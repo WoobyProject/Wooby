@@ -1,0 +1,15 @@
+dataset: 
+    folder_path: "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets/WoobyQuadHX711ForSpidey"
+    file_names: [""]
+    type_read: "compact"
+    file_suffix: "WoobyQuadHX711ForSpidey_conf1a"
+    weights_list: [4944]
+    n_runs: 4
+training: 
+    type: "PolyFeat"
+    variables: ["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]
+    interaction_only: True
+    order: 1
+model:
+    export_path: "pwd"
+  
