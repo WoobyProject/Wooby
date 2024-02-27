@@ -271,7 +271,7 @@ class Wooby():
         
         with open(filePath, 'r') as file:
             for line in file:
-                print(line)
+                # print(line)
                 # Remove "WS" from the beginning of each line and strip whitespace
                 cleaned_line = line.lstrip('WS').strip()
                 if cleaned_line:
