@@ -11,8 +11,9 @@ import sys
 import os
 import pickle
 
-maindir = r"C:\Users\pasca\Wooby\devs\Python"
-# maindir = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python"print(maindir)
+#maindir = r"C:\Users\pasca\Wooby\devs\Python"
+maindir = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python"
+print(maindir)
 pckgdir = os.path.realpath(os.path.join(maindir, "pyWooby"))
 sys.path.append(maindir)
 print(pckgdir)
