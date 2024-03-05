@@ -34,8 +34,8 @@ myWooby = Wooby()
 
 myWooby.availablePorts()
 
-portWooby =   '/dev/tty.usbserial-0001'
-# portWooby = 'COM3'
+#portWooby =   '/dev/tty.usbserial-0001'
+portWooby = 'COM3'
 baudRateWooby = 115200;
 
 myWooby.setupSerial(portWooby, baudRateWooby)

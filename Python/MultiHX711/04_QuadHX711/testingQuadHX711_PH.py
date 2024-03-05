@@ -45,7 +45,7 @@ myWooby.tare()
 #%% Reading of a calibration point
 
 N_MAX_MEASURES = 15
-SUBSET = "WoobyQuadHX711ForTest"
+SUBSET = "WoobyQuadHX711ForBeattle"
 SOURCE = "SERIAL" # "TELNET" OR "SERIAL" 
 
 REAL_WEIGHT = 0
@@ -53,7 +53,7 @@ REAL_WEIGHT = 0
 SUFFIX = "1"
 
 # EXPORT_FOLDER = "/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets"
-EXPORT_FOLDER = "C:/Users/pasca/Wooby/devs/Python/datasets"
+EXPORT_FOLDER = "C:/Users/pasca/Wooby/devs/Python/datasets/"
 FILE_NAME = "{}_{}gr_{}.csv".format(SUBSET, REAL_WEIGHT, SUFFIX)
 FILE_FOLDER = os.path.join(EXPORT_FOLDER, SUBSET)
                        
@@ -68,8 +68,8 @@ OVERWRITE = True
 
 #%% Reading of a calibration point - Loop
 
-REAL_WEIGHT = 0  # in gr
-N_TEST = 5
+REAL_WEIGHT = 1510  # in gr
+N_TEST = 3
 
 print("\n\nRemove everything from Wooby. ")
 input("Once it's done press enter to continue...")
