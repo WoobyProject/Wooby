@@ -60,9 +60,8 @@ print(uniqueValuesWeights)
 #########################
 
 # All coeffs
-# folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
+folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
 # folderName = "modelSimpleAllWeights_QuadSensor_Vader2_2order"
-folderName = "modelSimpleAllWeights_QuadSensor_Spidey"
 
 modelFolder = os.path.join(maindir, "models", folderName)
 
@@ -139,3 +138,46 @@ plt.ylabel("Relatives values [no units]")
 # Coefficients 
 plt.figure()
 plt.bar(coefsNames, coefsPipe)
+
+# %% Balance plots
+
+import plotly.express as px
+import plotly.io as pio
+pio.renderers.default='browser'
+
+
+#%%
+
+################################
+# Plots for relative values
+################################
+
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
+filteredData = filteredData.reset_index()
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData["relativeVal_WU1"][i],
+            filteredData["relativeVal_WU2"][i],
+            filteredData["relativeVal_WU3"][i],
+            filteredData["relativeVal_WU4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135)
+fig.show()
+
+

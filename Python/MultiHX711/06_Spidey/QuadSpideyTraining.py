@@ -154,3 +154,181 @@ plt.ylabel("Relatives values [no units]")
 # Coefficients 
 plt.figure()
 plt.bar(coefsNames, coefsPipe)
+
+
+#%% Sandbox
+
+################################
+# Calculations
+################################
+allDataTestAllCoeffsQuad["sumRelativeVal_WU"] = abs(allDataTestAllCoeffsQuad["relativeVal_WU1"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU2"]) + \
+                                                abs(allDataTestAllCoeffsQuad["relativeVal_WU3"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU4"]) 
+for i in range(1, 5):
+    allDataTestAllCoeffsQuad["percetageVal_WU{}".format(i)] = allDataTestAllCoeffsQuad["relativeVal_WU{}".format(i)]/allDataTestAllCoeffsQuad["sumRelativeVal_WU"] 
+    allDataTestAllCoeffsQuad["realValue_WU{}".format(i)] = dfTotalQuad["realValue_WU{}".format(i)]
+    allDataTestAllCoeffsQuad["offset{}".format(i)] = dfTotalQuad["offset{}".format(i)]
+    
+    
+#%%
+
+################################
+# Intial plots
+################################
+
+filteredDf = allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"]== 4944]
+sns.pairplot(data=filteredDf[["run", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]], hue="run")
+
+plt.figure()
+plt.scatter(allDataTestAllCoeffsQuad["realWeight"], allDataTestAllCoeffsQuad["sumRelativeVal_WU"])
+
+
+
+#%%
+import plotly.express as px
+import plotly.io as pio
+pio.renderers.default='browser'
+
+"""
+for i in range(400, 410):
+    df = pd.DataFrame(dict(
+        r=[allDataTestAllCoeffsQuad["relativeVal_WU1"][i], allDataTestAllCoeffsQuad["relativeVal_WU2"][i], 
+           allDataTestAllCoeffsQuad["relativeVal_WU3"][i], allDataTestAllCoeffsQuad["relativeVal_WU4"][i]], 
+        theta=['Sensor 1','Sensor 2','Sensor 3','Sensor 4']))
+    
+    fig = px.line_polar(df, r='r', theta='theta', line_close=True)
+    fig.show()
+
+
+"""
+
+#%%
+
+################################
+# Plots for relative values
+################################
+
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 2]
+filteredData = filteredData.reset_index()
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData["relativeVal_WU1"][i],
+            filteredData["relativeVal_WU2"][i],
+            filteredData["relativeVal_WU3"][i],
+            filteredData["relativeVal_WU4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135)
+fig.show()
+
+#%%
+
+filteredData = allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"]== 2) & (allDataTestAllCoeffsQuad["realWeight"] >= 0)]
+filteredData = filteredData.reset_index()
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData["realValue_WU1"][i],
+            filteredData["realValue_WU2"][i],
+            filteredData["realValue_WU3"][i],
+            filteredData["realValue_WU4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135, title = "'realValue' distribution for all sensors")
+
+fig.show()
+
+
+#%%
+
+filteredData = allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"]== 2) & (allDataTestAllCoeffsQuad["realWeight"] > 100)]
+filteredData = filteredData.reset_index()
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData["offset1"][i],
+            filteredData["offset2"][i],
+            filteredData["offset3"][i],
+            filteredData["offset4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135, title = "'offset' distribution for all sensors")
+fig.show()
+
+#%%
+
+################################
+# Plots for percentage contributions
+################################
+
+filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"]== 3) & (allDataTestAllCoeffsQuad["realWeight"] > 20)]
+filteredData = filteredData.reset_index()
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData["percetageVal_WU1"][i],
+            filteredData["percetageVal_WU2"][i],
+            filteredData["percetageVal_WU3"][i],
+            filteredData["percetageVal_WU4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135)
+fig.show()
+
+
