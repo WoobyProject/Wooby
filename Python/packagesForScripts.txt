@@ -1,0 +1,7 @@
+conda install scikit-learn
+conda install pyserial
+conda install matplotlib
+conda install scipy
+conda install pandas
+conda install seaborn
+Conda install dash

@@ -291,7 +291,8 @@ def testWooby(pipe, XTest, yTest, name=""):
 
     dfKPI = pd.DataFrame({
         "name": name,
-        "MAE": [np.abs(allDataTest["absError"]).mean()],
+        "MeanAE": [np.abs(allDataTest["absError"]).mean()],
+        "StdAE": [allDataTest["absError"].std()],
         "RMSE": [np.sqrt(((allDataTest["absError"])**2).mean())],
         "R": [pipe.score(XTest, yTest)],
         "MaxAE": [np.abs(allDataTest["absError"]).max()]

@@ -372,8 +372,8 @@ class Wooby():
 #           Calibration          #
 ################################## 
 
-    def basicCalibration(self, WoobyDataFrame, verbose=False):
-        X = np.array(WoobyDataFrame["realValue_WU"]) #  relativeValue_WU
+    def basicCalibration(self, WoobyDataFrame, verbose=False, xVar="realValue_WU"):
+        X = np.array(WoobyDataFrame[xVar]) #  relativeValue_WU
         y = np.array(WoobyDataFrame["realWeight"])
         
         X = X.reshape((-1, 1))
