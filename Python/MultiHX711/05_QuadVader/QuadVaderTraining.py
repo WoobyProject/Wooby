@@ -47,8 +47,8 @@ import seaborn as sns
 
 #%% Getting the weights from the folder
 
-datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForVader2")
-datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForVader2")
+datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711Vader")
+#datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForVader2")
 
 uniqueValuesWeights = createYMLfromFolder(datasetFolder)
 print(uniqueValuesWeights)
@@ -60,7 +60,9 @@ print(uniqueValuesWeights)
 #########################
 
 # All coeffs
-folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
+folderName = "modelSimpleAllWeights_QuadSensor_Vader_1order"
+
+# folderName = "modelSimpleAllWeights_QuadSensor_Vader2"
 # folderName = "modelSimpleAllWeights_QuadSensor_Vader2_2order"
 
 modelFolder = os.path.join(maindir, "models", folderName)
@@ -82,6 +84,9 @@ print(coefsNames)
 print(coefsPipe)
 print(interceptPipe)
 
+print(dfKPIAllCoeffsQuad["MaxAE"])
+print(dfKPIAllCoeffsQuad["StdAE"])
+print(dfKPIAllCoeffsQuad["MeanAE"])
 
 corr_matrix = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
 
@@ -124,6 +129,22 @@ plt.plot([0,11e3], [0, 11e3], 'r--')
 plt.legend()
 plt.grid(True)
 
+# Absolute error performance
+plt.figure()
+groups = allDataTestAllCoeffsQuad.groupby('run')
+for name, group in groups:
+    plt.plot(group.realWeight, group.absError, marker='o', linestyle='', markersize=5, label=name)
+
+plt.legend(title="Run")
+#plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[["absError"]], c=allDataTestAllCoeffsQuad["run"])
+plt.plot([0,11e3], [  5,   5], 'r--')
+plt.plot([0,11e3], [ -5,  -5], 'r--')
+plt.plot([0,11e3], [ 10,  10], 'r--', alpha=0.2)
+plt.plot([0,11e3], [-10, -10], 'r--', alpha=0.2)
+plt.xlabel("Real weight [gr]")
+plt.ylabel("Absolute error for model [gr]")
+plt.grid(True)
+
 # Other plots
 plt.figure()
 plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[["relativeVal_WU1"]], label="relativeVal_WU1")
@@ -145,15 +166,36 @@ import plotly.express as px
 import plotly.io as pio
 pio.renderers.default='browser'
 
-
+# %%
+################################
+# Calculations
+################################
+allDataTestAllCoeffsQuad["sumRelativeVal_WU"] = abs(allDataTestAllCoeffsQuad["relativeVal_WU1"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU2"]) + \
+                                                abs(allDataTestAllCoeffsQuad["relativeVal_WU3"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU4"]) 
+for i in range(1, 5):
+    allDataTestAllCoeffsQuad["percetageVal_WU{}".format(i)] = allDataTestAllCoeffsQuad["relativeVal_WU{}".format(i)]/allDataTestAllCoeffsQuad["sumRelativeVal_WU"] 
+    allDataTestAllCoeffsQuad["realValue_WU{}".format(i)] = dfTotalQuad["realValue_WU{}".format(i)]
+    allDataTestAllCoeffsQuad["offset{}".format(i)] = dfTotalQuad["offset{}".format(i)]
+    
+    
 #%%
 
 ################################
-# Plots for relative values
+# Plots for relative values (per weight)
 ################################
 
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
+#filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
+
+filteredData = allDataTestAllCoeffsQuad
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] < 2000] # For Vader 1
+
+
 filteredData = filteredData.reset_index()
+
+
+variableToPlot = "relativeVal_WU"
+variableToPlot = "offset"
+variableToPlot = "realValue_WU"
 
 # Create a list to store individual DataFrames
 data_frames = []
@@ -162,10 +204,10 @@ data_frames = []
 for i in range(len(filteredData)):
     data = {
         'r': [
-            filteredData["relativeVal_WU1"][i],
-            filteredData["relativeVal_WU2"][i],
-            filteredData["relativeVal_WU3"][i],
-            filteredData["relativeVal_WU4"][i]
+            filteredData[variableToPlot+"1"][i],
+            filteredData[variableToPlot+"2"][i],
+            filteredData[variableToPlot+"3"][i],
+            filteredData[variableToPlot+"4"][i]
         ],
         'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
         'run': filteredData["run"][i],  # Add the 'run' variable
@@ -177,7 +219,74 @@ for i in range(len(filteredData)):
 all_data = pd.concat(data_frames, ignore_index=True)
 
 # Plot all the data on the same figure with color coded by 'run'
-fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=135)
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=-45, title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
+fig.show()
+
+#%%
+################################
+# Plots for relative values (per run)
+################################
+
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 4001] # For Vader 2
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500] # For Vader 1: 7432 2481 500
+filteredData =  allDataTestAllCoeffsQuad
+filteredData = filteredData.reset_index()
+
+
+variableToPlot = "relativeVal_WU"
+#variableToPlot = "offset"
+#variableToPlot = "realValue_WU"
+
+# Create a list to store individual DataFrames
+data_frames = []
+
+# Iterate over the range
+for i in range(len(filteredData)):
+    data = {
+        'r': [
+            filteredData[variableToPlot+"1"][i],
+            filteredData[variableToPlot+"2"][i],
+            filteredData[variableToPlot+"3"][i],
+            filteredData[variableToPlot+"4"][i]
+        ],
+        'theta': ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4'],
+        'run': filteredData["run"][i],  # Add the 'run' variable
+        'realWeight': filteredData["realWeight"][i]   # Add the 'realWeight' variable
+    }
+    data_frames.append(pd.DataFrame(data))
+
+# Concatenate all DataFrames into a single DataFrame
+all_data = pd.concat(data_frames, ignore_index=True)
+
+# Plot all the data on the same figure with color coded by 'run'
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='run', start_angle=-45, title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
 fig.show()
 
 
+#%% Sandbox centroids
+
+
+
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] < 10e3] # For Vader 1: 7432 2481 500
+
+
+allDataTestAllCoeffsQuad["centroid_x"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] *  np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] * -np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] * -np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] *  np.sqrt(2) \
+                
+allDataTestAllCoeffsQuad["centroid_y"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] * -np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] * -np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] * +np.sqrt(2) \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] * +np.sqrt(2) \
+                                                            
+                
+                
+
+fig = px.scatter(filteredData, x="centroid_x", y="centroid_y", color="run",  size='realWeight', hover_data=['realWeight'])
+fig.show()  
+
+                
+                
+                
+                

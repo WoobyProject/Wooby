@@ -1,0 +1,7 @@
+Sensors are numbered with letters A, B, C, D
+Positions on the Wooby tray are given by numbers 1 to 4
+The dictionary for correspondence is
+A:1
+B:4
+C:3
+D:2
