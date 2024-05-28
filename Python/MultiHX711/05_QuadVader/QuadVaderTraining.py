@@ -68,7 +68,7 @@ folderName = "modelSimpleAllWeights_QuadSensor_Vader_1order"
 modelFolder = os.path.join(maindir, "models", folderName)
 
 configFile =  os.path.join(modelFolder,"confModel.yaml")
-modelPolyFeatAllCoeffsQuad, dfKPIAllCoeffsQuad, allDataTestAllCoeffsQuad, dfTotalQuad = train_and_test_wooby(modelFolder, configFile)
+modelPolyFeatAllCoeffsQuad, dfKPIAllCoeffsQuad, allDataTestAllCoeffsQuad, dfTotalQuad = train_and_test_wooby(configFile)
 print(dfKPIAllCoeffsQuad)
 
 allDataTestAllCoeffsQuad[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
