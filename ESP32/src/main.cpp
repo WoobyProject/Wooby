@@ -17,8 +17,8 @@
 //************************//
 //*      VERSION SEL     *//
 //************************//
- //#define CALIBRATED
-  #define FIRST_ORDER
+  #define CALIBRATED
+
   #define TYPE 0
 
   // TYPE = 0 (PROTOTYPE)
@@ -185,16 +185,16 @@ typedef struct
 
   const int PIN_VCC = 34;
 
-  const float VCCMIN   = 5.0;         // Minimum expected Vcc level, in Volts.
-  const float VCCMAX   = 7.3;         // Maximum expected Vcc level, in Volts.
+  const float VCCMIN   = 3.0;         // Minimum expected Vcc level, in Volts.
+  const float VCCMAX   = 4.2;         // Maximum expected Vcc level, in Volts.
 
   // New:
   const int N_VCC_READ = 10;
   float K_BITS_TO_VOLTS = 3.3/4095;
 
-  const float realMeasureVcc =      7.270;
-  const float realMeasureDivider =  2.355;
-  const float realMeasureADC =      2.154;
+  const float realMeasureVcc =      3.540;
+  const float realMeasureDivider =  3.511;
+  const float realMeasureADC =      2.384;
 
   const float RATIO_VCC_DIV = realMeasureVcc/realMeasureDivider;
   const float RATIO_VCC_ADC = realMeasureVcc/realMeasureADC;
@@ -226,7 +226,7 @@ typedef struct
   unsigned long tEndTareButton = 0;
 
   /* EasyButton */
-  EasyButton tareButton(PIN_PUSH_BUTTON, 50, true, true); // tareButton(BTN_PIN, debounce, pullup, invert
+  EasyButton tareButton(PIN_PUSH_BUTTON, 50, false, true); // tareButton(BTN_PIN, debounce, internal_pullup, invert
 
 //************************//
 //*      DISPLAY CONF    *//
@@ -398,7 +398,7 @@ void couplingBLE(){
 
 void initTareButton(){
 
-  pinMode(PIN_PUSH_BUTTON, INPUT);
+  //pinMode(PIN_PUSH_BUTTON, INPUT);
 
   //*         Easy Button      *//
   tareButton.begin();
@@ -1220,52 +1220,15 @@ void getWoobyWeight(){
 
     // Conversion to grams
     #ifdef CALIBRATED
-    #ifdef FIRST_ORDER
-      realValueNew = (float)-3.8346657784845775 +
-                     (float)0.01891648 * realValue_WU_Filt[0] +
-                     (float)0.01936471 * realValue_WU_Filt[1] +
-                     (float)0.02002861 * realValue_WU_Filt[2] +
-                     (float)0.01917123 * realValue_WU_Filt[3];
-    #else
-      realValueNew = (float)-2.0314661671818612 +
-                     (float)1.93102010e-02  * realValue_WU_Filt[0] +
-                     (float)1.91255752e-02  * realValue_WU_Filt[1] +
-                     (float)2.05200649e-02  * realValue_WU_Filt[2] +
-                     (float)1.96710918e-02  * realValue_WU_Filt[3] +
-                     (float)-1.57030622e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
-                     (float)3.49965021e-08  * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
-                     (float)6.00372349e-08  * realValue_WU_Filt[0] * realValue_WU_Filt[2] +
-                     (float)-7.19449209e-08 * realValue_WU_Filt[0] * realValue_WU_Filt[3] +
-                     (float)-4.85789644e-08 * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
-                     (float)1.19174520e-08  * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
-                     (float)1.09969094e-07  * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
-                     (float)2.38679237e-09  * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
-                     (float)-5.56957203e-08 * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
-                     (float)-5.36102577e-08 * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
-                     (float)-1.11613101e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[0] +
-                     (float)-4.12549294e-13 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[1] +
-                     (float)6.02903187e-13  * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[2] +
-                     (float)-9.89301479e-14 * realValue_WU_Filt[0] * realValue_WU_Filt[0] * realValue_WU_Filt[3] +
-                     (float)-1.31332568e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
-                     (float)5.71410552e-13  * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
-                     (float)4.34111627e-12  * realValue_WU_Filt[0] * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
-                     (float)2.45453120e-12  * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
-                     (float)-6.45705045e-12 * realValue_WU_Filt[0] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
-                     (float)7.16075241e-13  * realValue_WU_Filt[0] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
-                     (float)2.04704427e-12  * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[1] +
-                     (float)-1.95076704e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[2] +
-                     (float)-4.62083231e-12 * realValue_WU_Filt[1] * realValue_WU_Filt[1] * realValue_WU_Filt[3] +
-                     (float)-7.82637730e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
-                     (float)6.21342944e-12  * realValue_WU_Filt[1] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
-                     (float)-6.27537909e-13 * realValue_WU_Filt[1] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
-                     (float)1.25680548e-12  * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[2] +
-                     (float)9.14014872e-13  * realValue_WU_Filt[2] * realValue_WU_Filt[2] * realValue_WU_Filt[3] +
-                     (float)-1.01275368e-12 * realValue_WU_Filt[2] * realValue_WU_Filt[3] * realValue_WU_Filt[3] +
-                     (float)9.38532238e-13  * realValue_WU_Filt[3] * realValue_WU_Filt[3] * realValue_WU_Filt[3]; 
-    #endif
-    #else
+      realValueNew = (float)1.9144821813024464 +
+                     ((float)0.004520171042997179 * relativeVal_WU[1-1] +
+                      (float)0.0045300412383189655 * relativeVal_WU[2-1] +
+                      (float)0.004693922058113139 * relativeVal_WU[3-1] +
+                      (float)0.004720994613048314 * relativeVal_WU[4-1]);
+    #else // no CALIBRATION
       realValueNew = K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
     #endif
+
     #if BDEF_HOLD
       if (B_HOLD)
       {
