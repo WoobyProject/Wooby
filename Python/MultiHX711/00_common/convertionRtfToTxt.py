@@ -10,7 +10,7 @@ import os
 from striprtf.striprtf import rtf_to_text
 
 
-folder_path = '/Users/enriquem/Documents/HumanityLab/Wooby/GitHub3/Wooby/Python/datasets/WoobyInConfBeetlePosition'
+folder_path = '/Users/enriquem/Downloads/babydata'
 
 rtf_files_list = [f for f in os.listdir(folder_path) if f.endswith('.rtf')]
 
