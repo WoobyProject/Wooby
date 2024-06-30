@@ -142,7 +142,7 @@ def readYMLfile(file_path):
     return yml_data
 
 
-def listFilesForTraining(file_path):
+def listFilesForTraining(file_path, extension="csv"):
     """
     Given a file path to a YML file, this function reads the file and creates a list of files to be read based on the
     parameters specified in the YML file.
@@ -169,11 +169,13 @@ def listFilesForTraining(file_path):
 
         if "skip_runs" in yml_data["dataset"]:
             rangeRuns = [run for run in range(1, n_runs+1) if run not in yml_data.get("dataset", {}).get("skip_runs", [])]
+        else:
+            rangeRuns = range(1, n_runs+1) 
             
         files_to_read = []
         for weight in weights_list:
             for run in rangeRuns:
-                file_name = f"{file_suffix}_{weight}gr_{run}.csv"
+                file_name = f"{file_suffix}_{weight}gr_{run}.{extension}"
                 file_path = os.path.join(yml_data["dataset"]["folder_path"], file_name)
                 if os.path.isfile(file_path):
                     files_to_read.append(file_path)
@@ -305,7 +307,7 @@ def testWooby(pipe, XTest, yTest, name=""):
     return allDataTest, dfKPI
 
 
-def train_and_test_wooby(configInput):
+def train_and_test_wooby(configInput, extension="csv"):
     """
     This function trains and tests a Wooby model using the given configuration file and model folder.
 
@@ -335,7 +337,7 @@ def train_and_test_wooby(configInput):
             print("The config file does not exist")
             return
         
-        fileNameList = listFilesForTraining(configFile)
+        fileNameList = listFilesForTraining(configFile, extension=extension)
     
         allDfListRaw = importCSVbatch(fileNameList, "")
     
@@ -343,6 +345,8 @@ def train_and_test_wooby(configInput):
         
         add_real_weight_to_dataframes(fileNameList, allDfList)
         
+        allDfList = [extraCalculationWoobyDf(df) for df in allDfList]
+
         allDfListForAllConfiFiles = allDfListForAllConfiFiles + allDfList
 
     # Creation of the test DataFrame

@@ -13,4 +13,3 @@ training:
     order: 1
 model:
     export_path: "pwd"
-  

@@ -113,7 +113,7 @@ def plotFinalDisplayedData(dfWoobyFiltered_, dfWooby_, title="", plotVar="correc
     
 def plotRawData(dfWoobyFiltered, dfWooby, title=""):
     fig2 = go.Figure( layout=go.Layout(
-            title=go.layout.Title(text=title)
+            title=go.layout.Title(text=title) 
         ) )
     fig2.add_trace(go.Scatter(x=dfWoobyFiltered["tBeforeMeasure1Norm"], y=dfWoobyFiltered["realValue_WU1"],
                         mode='lines+markers',
@@ -250,7 +250,7 @@ for iF in range(len(allFilesNames)):
     # Evaluation
     dfWooby, dfWoobyFiltered = procees_data_baby(dataset_folder, file_name, t_start,  t_end, filtering=True, realWeight=4180.47)
     plotRawData(dfWoobyFiltered, dfWooby, title = file_name)
-    plotFinalDisplayedData(dfWoobyFiltered, dfWooby, title = file_name)
+    plotFinalDisplayedData(dfWoobyFiltered, dfWooby, title = file_name) 
     KPIs = calculationKPI(dfWoobyFiltered)
     
     # Total variables constructions
@@ -319,7 +319,7 @@ print( (df['tAfterMeasure4'] - df['tBeforeMeasure1']).mean())
 
 #%% Sandbox-  All algorithms
 
-iF = 5
+iF = 3
 df = allDf[iF]
 dfValid = allDfFiltered[iF]
 
@@ -344,7 +344,9 @@ dfValid['savgol'] = apply_savgol_filter(dfValid['correctedValueFiltered'], savgo
 """
 
 # Plot the results
-fig = go.Figure()
+fig = go.Figure( layout=go.Layout(
+        title=go.layout.Title(text=allFilesNames[iF])
+    ) )
 
 # Original data
 fig.add_trace(go.Scatter(x=df['tAfterMeasure4Norm'], y=df['correctedValueFiltered'], mode='markers+lines', name='Original', line=dict(color='gray', dash='dot')))
@@ -374,6 +376,8 @@ fig.add_trace(go.Scatter(x=dfValid['time'], y=dfValid['savgol'], mode='lines', n
 """
 fig.show()
 
+
+  
 
 print("{}: {:.2f} gr".format("correctedValueFiltered",     dfValid['correctedValueFiltered'].std())    )
 print("{}: {:.2f} gr".format("moving_average",             dfValid['moving_average'].std())            )

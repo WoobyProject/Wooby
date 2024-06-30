@@ -58,7 +58,7 @@ pio.renderers.default='browser'
 ######### Spidey and Beetle  ######
 ###################################
 
-modelForTest = "BeetleInConfPosition"
+modelForTest = "BeetleNew3Dpieces"
 
 match modelForTest:
     case "SpideyWood":
@@ -83,6 +83,9 @@ match modelForTest:
     case "BeetleInConfPosition":
         datasetFolder = os.path.join(maindir, "datasets/WoobyInConfBeetlePosition")
         folderName = "model_Beetle_inconfig_position"
+    case "BeetleNew3Dpieces":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetleNew3DPieces")
+        folderName = "model_Beetle_new3Dpieces"
 
 
 if folderName == "model_Beetle_inconfig_position":
@@ -91,7 +94,7 @@ if folderName == "model_Beetle_inconfig_position":
         
 #%% Getting the weights from the folder
 
-extension = "csv"
+extension = "txt"
 uniqueValuesWeights = createYMLfromFolder(datasetFolder, extension=extension)
 print(uniqueValuesWeights)
 
@@ -131,8 +134,52 @@ print(dfKPIAllCoeffsQuad["MeanAE"])
 
 corr_matrix = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
 
+# Calculation extra variables
+# Apply the function to each DataFrame in the list
+# processed_dfs = [extraCalculationWoobyDf(df) for df in allDfListForAllConfiFiles]
+# dfTotalQuad = pd.concat(processed_dfs, ignore_index=True)
+
+#%% Sanity check for data
 
 
+# Define the mapping of relativeVal_WU and tAfterMeasureNorm columns
+mapping = {
+    "relativeVal_WU1": "tAfterMeasure1Norm",
+    "relativeVal_WU2": "tAfterMeasure2Norm",
+    "relativeVal_WU3": "tAfterMeasure3Norm",
+    "relativeVal_WU4": "tAfterMeasure4Norm",
+}
+
+# Create an empty DataFrame to hold the reshaped data
+plot_data = pd.DataFrame()
+
+# Iterate over the mapping and concatenate the results
+for sensor, (relative_val, measure_time) in enumerate(mapping.items(), start=1):
+    temp_df = dfTotalQuad[["realWeight", "run", relative_val, measure_time]].rename(
+        columns={relative_val: "relativeVal_WU", measure_time: "tAfterMeasureNorm"}
+    )
+    temp_df['sensor'] = sensor
+    plot_data = pd.concat([plot_data, temp_df])
+
+# Combine columns to create a more descriptive legend
+plot_data['legend'] = plot_data.apply(lambda row: f"Weight: {row['realWeight']}, Run: {row['run']}, Sensor: {row['sensor']}", axis=1)
+
+# Plotting
+fig = px.line(
+    plot_data,
+    x="tAfterMeasureNorm",
+    y="relativeVal_WU",
+    color="legend",
+    title="Relative Values vs Normalized After Measure Times"
+)
+
+fig.update_layout(
+    xaxis_title="Normalized After Measure Time",
+    yaxis_title="Relative Value (WU)",
+    legend_title="Legend"
+)
+
+fig.show()
 #%% Supplement plots
 
 # Correlation matrix
@@ -294,8 +341,9 @@ plt.grid(True)
 
 #filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
 
-filteredData = allDataTestAllCoeffsQuad
+# filteredData = allDataTestAllCoeffsQuad
 filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 2) | (allDataTestAllCoeffsQuad["run"] == 6)]
+filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 1) ]
 
 
 filteredData = filteredData.reset_index()
