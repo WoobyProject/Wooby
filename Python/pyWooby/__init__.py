@@ -284,8 +284,24 @@ class Wooby():
         # Convert JSON objects to DataFrame
         df = pd.DataFrame(json_objects)
         return df
-
-            
+    
+    def convert_txt_to_csv(self, datasetFolder):
+        if os.path.isdir(datasetFolder):  # Check if the input is a folder
+            files_list = [f for f in os.listdir(datasetFolder) if f.endswith('.txt') and os.path.isfile(os.path.join(datasetFolder, f))]
+            fullpath_list = [os.path.join(datasetFolder, f) for f in files_list]
+        elif os.path.isfile(datasetFolder):  # Check if the input is a file
+            fullpath_list = [datasetFolder]
+        else:
+            print("Invalid input. Please provide a valid folder or file path.")
+            return
+    
+        for file in fullpath_list:
+            dfFromFile = self.process_file(file)
+            csv_file_path = os.path.splitext(file)[0] + '.csv'
+            dfFromFile.to_csv(csv_file_path, index=False)
+                    
+        
+                
 ##########################        
 #    Reading functions   #
 ##########################

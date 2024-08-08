@@ -48,7 +48,7 @@ def extract_model_name(config_file_path):
 ##########################
 
 
-def createListForYMLfromFolder(folder_path):
+def createListForYMLfromFolder(folder_path, extension="csv"):
     """
     Given a folder path, this function returns a list of all the weights of the CSV files
     found in the folder. The CSV files should be named in the format "WoobyTripleHX711ForTest3_Xgr_Y.csv", where X is the
@@ -65,7 +65,7 @@ def createListForYMLfromFolder(folder_path):
     
     weights = []
     for file_name in os.listdir(folder_path):
-        if file_name.endswith(".csv"):
+        if file_name.endswith("."+extension):
             weight_match = re.search(r'(\d+)\s*gr', file_name)
             if weight_match:
                 weight = int(weight_match.group(1))
@@ -78,7 +78,7 @@ def createListForYMLfromFolder(folder_path):
 
 
 
-def createYMLfromFolder(folder_path):
+def createYMLfromFolder(folder_path, extension="csv"):
     """
     Given a folder path, this function creates a YML file and returns a list of all the weights of the CSV files
     found in the folder. The CSV files should be named in the format "WoobyTripleHX711ForTest3_Xgr_Y.csv", where X is the
@@ -91,7 +91,7 @@ def createYMLfromFolder(folder_path):
         list: A list of weights (in grams) extracted from the file names.
 
     """
-    weights = createListForYMLfromFolder(folder_path)
+    weights = createListForYMLfromFolder(folder_path, extension=extension)
 
     with open(os.path.join(folder_path, 'weights.yml'), 'w') as f:
         yaml.dump({'weights': weights}, f)
@@ -142,7 +142,7 @@ def readYMLfile(file_path):
     return yml_data
 
 
-def listFilesForTraining(file_path):
+def listFilesForTraining(file_path, extension="csv"):
     """
     Given a file path to a YML file, this function reads the file and creates a list of files to be read based on the
     parameters specified in the YML file.
@@ -166,10 +166,16 @@ def listFilesForTraining(file_path):
         weights_list = yml_data["dataset"]["weights_list"]
         n_runs = yml_data["dataset"]["n_runs"]
 
+
+        if "skip_runs" in yml_data["dataset"]:
+            rangeRuns = [run for run in range(1, n_runs+1) if run not in yml_data.get("dataset", {}).get("skip_runs", [])]
+        else:
+            rangeRuns = range(1, n_runs+1) 
+            
         files_to_read = []
         for weight in weights_list:
-            for run in range(1, n_runs+1):
-                file_name = f"{file_suffix}_{weight}gr_{run}.csv"
+            for run in rangeRuns:
+                file_name = f"{file_suffix}_{weight}gr_{run}.{extension}"
                 file_path = os.path.join(yml_data["dataset"]["folder_path"], file_name)
                 if os.path.isfile(file_path):
                     files_to_read.append(file_path)
@@ -301,13 +307,13 @@ def testWooby(pipe, XTest, yTest, name=""):
     return allDataTest, dfKPI
 
 
-def train_and_test_wooby(modelFolder:str, configFile:str):
+def train_and_test_wooby(configInput, extension="csv"):
     """
     This function trains and tests a Wooby model using the given configuration file and model folder.
 
     Args:
-        modelFolder (str): The path to the model folder.
-        configFile (str): The path to the configuration file.
+        configFile (str or list): If a string, it's the path to the configuration file. 
+                                  If a list, it's a list of paths to the configuration files.
 
     Returns:
         tuple: A tuple with three elements. 
@@ -316,31 +322,41 @@ def train_and_test_wooby(modelFolder:str, configFile:str):
                 The third is the whole DataFrame used for the training
     """
     
-    if os.path.exists(modelFolder) == False:
-        print("The model folder does not exist")
-        return
-    
-    if os.path.exists(configFile) == False:
-        print("The config file does not exist")
-        return
-    
-    
-    fileNameList = listFilesForTraining(configFile)
+    if isinstance(configInput, str):  # If input is a string
+        configFiles = [configInput]
+    elif isinstance(configInput, list):  # If input is a list
+        configFiles = configInput
+    else:
+        raise ValueError("Invalid input type. Expected string or list.")
 
-    allDfListRaw = importCSVbatch(fileNameList, "")
+
+    allDfListForAllConfiFiles = []
     
-    allDfList = cleanData(allDfListRaw)
+    for configFile in configFiles:
+        if os.path.exists(configFile) == False:
+            print("The config file does not exist")
+            return
+        
+        fileNameList = listFilesForTraining(configFile, extension=extension)
     
-    add_real_weight_to_dataframes(fileNameList, allDfList)
+        allDfListRaw = importCSVbatch(fileNameList, "")
+    
+        allDfList = cleanData(allDfListRaw)
+        
+        add_real_weight_to_dataframes(fileNameList, allDfList)
+        
+        allDfList = [extraCalculationWoobyDf(df) for df in allDfList]
+
+        allDfListForAllConfiFiles = allDfListForAllConfiFiles + allDfList
 
     # Creation of the test DataFrame
-    dfTotal = pd.concat(allDfList, ignore_index=True)
+    dfTotal = pd.concat(allDfListForAllConfiFiles, ignore_index=True)
 
     # Training 
     modelPolyFeat, XTrainPolyFeat, YTrainPolyFeat = trainWooby(configFile, dfTotal) 
     allDataTest, dfKPI = testWooby(modelPolyFeat, XTrainPolyFeat, YTrainPolyFeat, name = extract_model_name(configFile))
 
-    return modelPolyFeat, dfKPI, allDataTest, dfTotal
+    return modelPolyFeat, dfKPI, allDataTest, dfTotal, allDfListForAllConfiFiles
 
 
 ##############################        

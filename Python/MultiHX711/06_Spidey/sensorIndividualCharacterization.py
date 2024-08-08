@@ -55,8 +55,7 @@ weights = np.array([0, 200, 500, 1000, 1200, 1500])
 matchSensorNumber = False
 
 # Sensor charact # 2
-nSensors = 3
-listSensors = [1, 4]
+listSensors = [1, 2, 3, 4]
 sensorDataFolder = os.path.join(maindir, "datasets/SensorCharacterizationBatch2")
 weights = np.array([500, 1510])
 matchSensorNumber = True
@@ -84,8 +83,10 @@ for iSensor in listSensors:
                 dfWooby["realWeight"] = weight
                 if matchSensorNumber:
                     dfWooby["relativeVal_WUFinal"] = dfWooby["relativeVal_WU{}".format(iSensor)]
+                    dfWooby["offset_Final"] = dfWooby["offset{}".format(iSensor)]
                 else:
                     dfWooby["relativeVal_WUFinal"] = dfWooby["relativeVal_WU1"] 
+                    dfWooby["offset_Final"] = dfWooby["offset_1"] 
                 sensorData = pd.concat([sensorData, dfWooby], ignore_index=True)
             else:
                 print("\t File not found: '" + file_name + "'")
@@ -109,11 +110,14 @@ recordList = [2, 4, 1]
 sensorList = [3, 3, 3, 3]
 recordList = [1, 2, 3, 4]
 
-sensorList = [1, 1, 1, 1]
+sensorList = [2, 2, 2, 2]
 recordList = [1, 2, 3, 4]
 
-sensorList = [4, 4, 4, 4]
-recordList = [1, 2, 3, 4]
+#sensorList = [1, 1, 1, 1]
+#recordList = [1, 2, 3, 4]
+
+#sensorList = [4, 4, 4, 4]
+#recordList = [1, 2, 3, 4]
 
 for (iS, iR) in zip(sensorList, recordList):
     print(iS)
@@ -131,6 +135,11 @@ filteredDataFrame = allSensorsData
 # Initial plots (by sensor)
 sns.pairplot(data=filteredDataFrame[["sensor", "realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]], hue="sensor", palette="tab10")
 
+
+# Check for offset
+
+sns.scatterplot(data = allSensorsData, x="realWeight", y="offset_Final", hue="sensor", palette="tab10") 
+
 # %% Calibration
 
 # Running a linear calibration for each sensor to get its coeff and intercept value
@@ -138,10 +147,10 @@ regForSensors = {}
 data = {'Sensor': listSensors, 'Coeff': [0.0] * nSensors, 'Intercept': [0.0] * nSensors}
 dfSensorCalib = pd.DataFrame(data)    
 
-for iSensor in listSensors:
-    regForSensors[iSensor] = myWooby.basicCalibration(dataForSensors[iSensor], verbose=False, xVar="relativeVal_WU1")
-    dfSensorCalib.at[iSensor-1, 'Coeff']     = regForSensors[iSensor].coef_[0][0]
-    dfSensorCalib.at[iSensor-1, 'Intercept'] = regForSensors[iSensor].intercept_
+for it, iSensor in enumerate(listSensors, start=0):
+    regForSensors[it] = myWooby.basicCalibration(dataForSensors[iSensor], verbose=False, xVar="relativeVal_WUFinal")
+    dfSensorCalib.at[it, 'Coeff']     = regForSensors[it].coef_[0][0]
+    dfSensorCalib.at[it, 'Intercept'] = regForSensors[it].intercept_
  
       
 dfSensorCalib["InverseCoeff"] = 1/dfSensorCalib["Coeff"] ;

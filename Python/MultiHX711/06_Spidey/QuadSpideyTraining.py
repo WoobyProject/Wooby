@@ -38,6 +38,7 @@ from pyWooby.load import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from scipy.stats import norm
 import re
 import yaml
 
@@ -50,30 +51,65 @@ import plotly.io as pio
 pio.renderers.default='browser'
 
 
+
+#%% Model selection
+
+###################################
+######### Spidey and Beetle  ######
+###################################
+
+modelForTest = "BeetleNew3Dpieces"
+
+match modelForTest:
+    case "SpideyWood":
+        datasetFolder = os.path.join(maindir, "datasets/WoobySpideyWood")           # Unknown use
+    case "Spidey_v1":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForSpidey")   # Only used for the configuration evaluation
+    case "Spidey_v2":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForSpidey2")
+        folderName = "model_Spidey_v2"
+    case "Beetlev1":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeattle")
+        folderName = "model_Beetle_v1"
+    case "BeetlePrerun":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetleCalibration")
+        folderName = "model_Beetle_calibration_prerun"
+    case "BeetleFinalRun":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetle2")
+        folderName = "model_Beetle_calibration_final_run"
+    case "BeetlePosition":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetlePosition")
+        folderName = "model_Beetle_position"
+    case "BeetleInConfPosition":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyInConfBeetlePosition")
+        folderName = "model_Beetle_inconfig_position"
+    case "BeetleNew3Dpieces":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetleNew3DPieces")
+        folderName = "model_Beetle_new3Dpieces"
+
+
+if folderName == "model_Beetle_inconfig_position":
+    Wooby().convert_txt_to_csv(datasetFolder)
+
+        
 #%% Getting the weights from the folder
 
-# datasetFolder = os.path.join(maindir, "datasets/WoobySpideyWood")
-datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForSpidey")   # Only used for the configuration evaluation
-datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForSpidey2")
-# datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeattle")
-
-uniqueValuesWeights = createYMLfromFolder(datasetFolder)
+extension = "txt"
+uniqueValuesWeights = createYMLfromFolder(datasetFolder, extension=extension)
 print(uniqueValuesWeights)
+
 
 #%% Reading of the files
 
-#########################
-######### Spidey   ######
-#########################
+configFile =  os.path.join(maindir, "models", folderName,"confModel.yaml")
 
-# Folder for the model to run
-folderName = "model_Spidey_v2"
-# folderName = "model_Beetle_v1"
-
-modelFolder = os.path.join(maindir, "models", folderName)
-
-configFile =  os.path.join(modelFolder,"confModel.yaml")
-modelPolyFeatAllCoeffsQuad, dfKPIAllCoeffsQuad, allDataTestAllCoeffsQuad, dfTotalQuad = train_and_test_wooby(modelFolder, configFile)
+"""
+configFile = [ os.path.join(maindir, "models", "model_Beetle_calibration_prerun","confModel.yaml"), \
+                os.path.join(maindir, "models", "model_Beetle_calibration_final_run","confModel.yaml")]
+  
+"""
+  
+modelPolyFeatAllCoeffsQuad, dfKPIAllCoeffsQuad, allDataTestAllCoeffsQuad, dfTotalQuad, allDfListForAllConfiFiles = train_and_test_wooby(configFile)
 print(dfKPIAllCoeffsQuad)
 
 allDataTestAllCoeffsQuad[["relativeVal_WU1","relativeVal_WU2", "relativeVal_WU3", "relativeVal_WU4"]]
@@ -86,8 +122,11 @@ interceptPipe = modelPolyFeatAllCoeffsQuad["LinearReg"].intercept_
 coefsNames = modelPolyFeatAllCoeffsQuad.steps[0][1].get_feature_names_out()
 
 print(coefsNames)
-print(coefsPipe)
-print(interceptPipe)
+for i in range(1, len(coefsNames)):
+    print("Sensor {} ({}): {}".format(i, coefsNames[i], coefsPipe[i]))
+    
+
+print("Intercept: {}".format(interceptPipe))
 
 print(dfKPIAllCoeffsQuad["MaxAE"])
 print(dfKPIAllCoeffsQuad["StdAE"])
@@ -95,8 +134,52 @@ print(dfKPIAllCoeffsQuad["MeanAE"])
 
 corr_matrix = allDataTestAllCoeffsQuad[["relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4"]].corr()
 
+# Calculation extra variables
+# Apply the function to each DataFrame in the list
+# processed_dfs = [extraCalculationWoobyDf(df) for df in allDfListForAllConfiFiles]
+# dfTotalQuad = pd.concat(processed_dfs, ignore_index=True)
+
+#%% Sanity check for data
 
 
+# Define the mapping of relativeVal_WU and tAfterMeasureNorm columns
+mapping = {
+    "relativeVal_WU1": "tAfterMeasure1Norm",
+    "relativeVal_WU2": "tAfterMeasure2Norm",
+    "relativeVal_WU3": "tAfterMeasure3Norm",
+    "relativeVal_WU4": "tAfterMeasure4Norm",
+}
+
+# Create an empty DataFrame to hold the reshaped data
+plot_data = pd.DataFrame()
+
+# Iterate over the mapping and concatenate the results
+for sensor, (relative_val, measure_time) in enumerate(mapping.items(), start=1):
+    temp_df = dfTotalQuad[["realWeight", "run", relative_val, measure_time]].rename(
+        columns={relative_val: "relativeVal_WU", measure_time: "tAfterMeasureNorm"}
+    )
+    temp_df['sensor'] = sensor
+    plot_data = pd.concat([plot_data, temp_df])
+
+# Combine columns to create a more descriptive legend
+plot_data['legend'] = plot_data.apply(lambda row: f"Weight: {row['realWeight']}, Run: {row['run']}, Sensor: {row['sensor']}", axis=1)
+
+# Plotting
+fig = px.line(
+    plot_data,
+    x="tAfterMeasureNorm",
+    y="relativeVal_WU",
+    color="legend",
+    title="Relative Values vs Normalized After Measure Times"
+)
+
+fig.update_layout(
+    xaxis_title="Normalized After Measure Time",
+    yaxis_title="Relative Value (WU)",
+    legend_title="Legend"
+)
+
+fig.show()
 #%% Supplement plots
 
 # Correlation matrix
@@ -122,8 +205,34 @@ sns.pairplot(data=filteredDataTestAllCoeffsQuad[["run", "relativeVal_WU1", "rela
 # Performance plots
 sns.pairplot(data=allDataTestAllCoeffsQuad[["test", "realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4", "absError", "absErrorOK"]], hue="absErrorOK")
 
+
 # Performance plots (by run) 
 sns.pairplot(data=allDataTestAllCoeffsQuad[["run", "realWeight", "relativeVal_WU1", "relativeVal_WU2", "relativeVal_WU3",  "relativeVal_WU4", "absError"]], hue="run")
+
+
+
+
+
+# Absolute error distribution
+plt.figure()
+data = allDataTestAllCoeffsQuad["absError"]
+plt.hist(data, bins=round(np.sqrt(2*len(allDataTestAllCoeffsQuad))), density=True, alpha=0.5, color='orange', edgecolor='black')
+
+# Calculate mean and standard deviation for Gaussian curve
+mu, std = norm.fit(data)
+
+# Plot Gaussian bell curve
+xmin, xmax = plt.xlim()
+x = np.linspace(xmin, xmax, 100)
+p = norm.pdf(x, mu, std)
+plt.plot(x, p, 'k', linewidth=2)
+
+# Add labels and title
+plt.xlabel('Absolute Error')
+plt.ylabel('Density')
+plt.title('Absolute error Gaussian distribution ($\mu={:.2f}$, $\sigma={:.2f}$)'.format(round(mu, 2), round(std, 2)))
+plt.grid(True)
+
 
 
 # One-to-one performance
@@ -132,6 +241,28 @@ plt.scatter(allDataTestAllCoeffsQuad[["realWeight"]], allDataTestAllCoeffsQuad[[
 plt.plot([0,11e3], [0, 11e3], 'r--')
 plt.legend()
 plt.grid(True)
+
+
+# One-to-one performance (by run)
+plt.figure()
+
+# Get unique runs and assign a unique color to each one
+unique_runs = allDataTestAllCoeffsQuad["run"].unique()
+colors = plt.cm.get_cmap('tab10', len(unique_runs))  # Get a colormap with the same number of colors as unique runs
+
+for i, run in enumerate(unique_runs):
+    data_for_run = allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"] == run]
+    plt.scatter(data_for_run["realWeight"], data_for_run["predictWeight"], color=colors(i), label=f"Run {run}")
+
+plt.plot([0, 11e3], [0, 11e3], 'r--')
+plt.legend()
+plt.grid(True)
+plt.xlabel("Real Weight")
+plt.ylabel("Predicted Weight")
+plt.title("One-to-one Performance")
+
+plt.show()
+
 
 # Absolute error performance
 plt.figure()
@@ -171,6 +302,8 @@ plt.bar(coefsNames, coefsPipe)
 ################################
 # Calculations
 ################################
+allDataTestAllCoeffsQuad["sumRelativeValUnbiased_WU"] = (allDataTestAllCoeffsQuad["relativeVal_WU1"]) +  (allDataTestAllCoeffsQuad["relativeVal_WU2"]) + \
+                                                        (allDataTestAllCoeffsQuad["relativeVal_WU3"]) +  (allDataTestAllCoeffsQuad["relativeVal_WU4"]) 
 allDataTestAllCoeffsQuad["sumRelativeVal_WU"] = abs(allDataTestAllCoeffsQuad["relativeVal_WU1"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU2"]) + \
                                                 abs(allDataTestAllCoeffsQuad["relativeVal_WU3"]) +  abs(allDataTestAllCoeffsQuad["relativeVal_WU4"]) 
 for i in range(1, 5):
@@ -195,7 +328,9 @@ sns.pairplot(data=filteredDf[["run", "relativeVal_WU1", "relativeVal_WU2", "rela
 
 plt.figure()
 plt.scatter(allDataTestAllCoeffsQuad["realWeight"], allDataTestAllCoeffsQuad["sumRelativeVal_WU"])
-
+plt.plot([0,11e3], np.array([0, 11e3])*200, 'r--')
+plt.legend()
+plt.grid(True)
 
 
 #%%
@@ -206,8 +341,9 @@ plt.scatter(allDataTestAllCoeffsQuad["realWeight"], allDataTestAllCoeffsQuad["su
 
 #filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
 
-filteredData = allDataTestAllCoeffsQuad
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"] == 2]
+# filteredData = allDataTestAllCoeffsQuad
+filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 2) | (allDataTestAllCoeffsQuad["run"] == 6)]
+filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 1) ]
 
 
 filteredData = filteredData.reset_index()
@@ -239,7 +375,7 @@ for i in range(len(filteredData)):
 all_data = pd.concat(data_frames, ignore_index=True)
 
 # Plot all the data on the same figure with color coded by 'run'
-fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight', start_angle=-45, title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='realWeight',  start_angle=-135, direction='counterclockwise',  title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
 fig.show()
 
 #%%
@@ -248,14 +384,19 @@ fig.show()
 # Plots for relative values (per run)
 ################################
 
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 4001] 
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 0]
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500] 
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 2590] 
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 5020] 
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 7427] 
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500]
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 2980]
+# filteredData =  allDataTestAllCoeffsQuad
 filteredData = filteredData.reset_index()
 
 
 variableToPlot = "relativeVal_WU"
-#variableToPlot = "offset"
-#variableToPlot = "realValue_WU"
+# variableToPlot = "offset"
+# variableToPlot = "realValue_WU"
 
 # Create a list to store individual DataFrames
 data_frames = []
@@ -279,35 +420,95 @@ for i in range(len(filteredData)):
 all_data = pd.concat(data_frames, ignore_index=True)
 
 # Plot all the data on the same figure with color coded by 'run'
-fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='run', start_angle=135, title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
+fig = px.line_polar(all_data, r='r', theta='theta', line_close=True, color='run', start_angle=-135, direction='counterclockwise', title="Results for the variable "+variableToPlot, hover_data=['realWeight'])
+fig.show()
+
+
+#%% Sandbox sum
+
+filteredData = allDataTestAllCoeffsQuad
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"] == 1]
+# filteredData =  allDataTestAllCoeffsQuad
+
+
+# Replicate each row four times
+df_repeated = pd.concat([filteredData] * 4, ignore_index=True)
+
+# Create 'sensor' column indicating which 'offset' column it came from
+df_repeated['sensor'] = [1, 2, 3, 4] * len(filteredData)
+
+# Combine 'offset' columns into a single column
+offset_columns = ['offset1', 'offset2', 'offset3', 'offset4']
+df_repeated['offset'] = df_repeated.apply(lambda row: row[offset_columns[row['sensor'] - 1]], axis=1)
+offset_columns = ['relativeVal_WU1', 'relativeVal_WU2', 'relativeVal_WU3', 'relativeVal_WU4']
+df_repeated['relativeVal_WU'] = df_repeated.apply(lambda row: row[offset_columns[row['sensor'] - 1]], axis=1)
+
+df_repeated['realWeightPlot'] = df_repeated['realWeight'] + 30*df_repeated['sensor'] 
+df_repeated['sensor'] = df_repeated['sensor'].astype('category') 
+
+fig = px.scatter(df_repeated, x="realWeightPlot", y="offset", color="sensor",  hover_data=['realWeight'], error_y="relativeVal_WU", error_y_minus=0*df_repeated['offset'])
+fig.update_layout(scattermode="group", scattergap=0.75)
+fig.show()
+
+
+# plt.figure
+# plt.scatter(filteredData["realWeight"], filteredData["offset1"] )
+# plt.scatter(filteredData["realWeight"], filteredData["realValue_WU1"])
+# plt.grid()
+
+#%% Sandbox sum
+
+filteredData = allDataTestAllCoeffsQuad
+filteredData = filteredData.reset_index()          
+
+filteredData["sumRelativeValUnbiased_gr"] = filteredData["sumRelativeValUnbiased_WU"]/215.84
+fig = px.scatter(filteredData, x="realWeight", y="sumRelativeValUnbiased_WU", color="run",  hover_data=['realWeight'])
+fig.show()
+
+fig = px.scatter(filteredData, x="realWeight", y="sumRelativeValUnbiased_gr", color="run",  hover_data=['realWeight'])
 fig.show()
 
 
 #%% Sandbox centroids
 
 
+# For Beetle
+kPosVectorX = np.array([-np.sqrt(2), np.sqrt(2),  np.sqrt(2), -np.sqrt(2)  ])
+kPosVectorY = np.array([ np.sqrt(2), np.sqrt(2), -np.sqrt(2), -np.sqrt(2)  ])
 
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] < 3.1e3] 
-filteredData = filteredData.reset_index()
+# For Beetle Calibration
+kPosVectorX = np.array([-np.sqrt(2), np.sqrt(2),  np.sqrt(2), -np.sqrt(2)  ])
+kPosVectorY = np.array([-np.sqrt(2),-np.sqrt(2),  np.sqrt(2),  np.sqrt(2)  ])
 
-
-allDataTestAllCoeffsQuad["centroid_x"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] * -np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] *  np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] *  np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] * -np.sqrt(2) \
+allDataTestAllCoeffsQuad["centroid_x"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] * kPosVectorX[0] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] * kPosVectorX[1] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] * kPosVectorX[2] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] * kPosVectorX[3] 
                 
-allDataTestAllCoeffsQuad["centroid_y"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] *  np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] *  np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] * -np.sqrt(2) \
-                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] * -np.sqrt(2) \
+allDataTestAllCoeffsQuad["centroid_y"]  = allDataTestAllCoeffsQuad["relativeVal_WU1"] * kPosVectorY[0] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU2"] * kPosVectorY[1] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU3"] * kPosVectorY[2] \
+                                        + allDataTestAllCoeffsQuad["relativeVal_WU4"] * kPosVectorY[3] 
+                                    
                                                             
                 
-                
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] < 10e3] 
+filteredData = filteredData.reset_index()
+
+maxValuesDf = pd.DataFrame(columns=["centroid_x", "centroid_y", "sensor"] )
+
+for ii in range(0,4):
+    maskVector = np.zeros(4)
+    maskVector[ii] = 1
+    maxValue = max(allDataTestAllCoeffsQuad["relativeVal_WU{}".format(ii+1)])
+    maxValuesDf.loc[ii, "centroid_x"] = np.dot( maxValue*maskVector, kPosVectorX)
+    maxValuesDf.loc[ii, "centroid_y"] = np.dot( maxValue*maskVector, kPosVectorY)
+    maxValuesDf.loc[ii, "sensor"] = 100+ii
+                                            
 
 fig = px.scatter(filteredData, x="centroid_x", y="centroid_y", color="run",  size='realWeight', hover_data=['realWeight'])
+# fig.add_scatter(mode='markers', x=maxValuesDf["centroid_x"], y=maxValuesDf["centroid_y"])
 fig.show()  
-
-
 
 #%% Sandbox new way of calibration
 
@@ -418,6 +619,33 @@ for i in range(0, 4):
 fig.show()
 
 
+#%% Evaluation of calibrated value 
+
+dfReportFinal = pd.DataFrame(columns=["realWeight","run"])
+    
+plt.figure()
+for i in range(len(allDfListForAllConfiFiles)) :
+    
+    myDf = allDfListForAllConfiFiles[i]
+    time = myDf["tBeforeMeasure1"] -  myDf["tBeforeMeasure1"].loc[0]
+    # sumVals = myDf["relativeVal_WU1"] # + myDf["relativeVal_WU2"] +myDf["relativeVal_WU3"] + myDf["relativeVal_WU4"]
+    sumVals = myDf["correctedValueFiltered"] # + myDf["relativeVal_WU2"] +myDf["relativeVal_WU3"] + myDf["relativeVal_WU4"]
+
+    # print(np.round(np.mean(myDf["correctedValueFiltered"])))
+    print(np.round((np.std(myDf["correctedValueFiltered"])),3))
+    plt.plot(time, sumVals, label="{}".format(myDf["run"].loc[0]))
+    
+    dfReportFinal.loc[i, "realWeight"] = myDf["realWeight"].loc[0]
+    dfReportFinal.loc[i, "run"] = myDf["run"].loc[0]
+    dfReportFinal.loc[i, "std dev displayed value"] = np.std(myDf["correctedValueFiltered"])
+    dfReportFinal.loc[i, "std dev error"] = np.std(myDf["correctedValueFiltered"] - myDf["realWeight"])
+    
+    
+    
+plt.grid(True)
+plt.legend()
+dfReportFinal
+dfTotalQuad.groupby('realWeight')['correctedValueFiltered'].std()
 
 #%% RUN WITH APPS
 
