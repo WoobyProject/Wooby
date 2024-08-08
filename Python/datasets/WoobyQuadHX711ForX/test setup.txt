@@ -1,0 +1,5 @@
+Dans ce répertoire se trouvent les résultats de 2 sessions de mesures.
+Chaque session (PositionX, X=1,2) a été faite à 2 endroits sur la table du protospace.
+Chaque session comporte 3 séries de mesures : 500g, 2590g et 5020g.
+Chaque série de mesures comporte une mesure sur chaque capteur (1 à 4) puis une 5ème au centre contenue dans un fichier csv.
+Chaque fichier csv comporte 15 mesures successives.

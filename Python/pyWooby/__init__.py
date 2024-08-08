@@ -150,7 +150,7 @@ class Wooby():
         #print("Raw data: {} \n\n".format(dataLineWoobyRaw))
         
         # Emptying the buffer
-        if ( (tEndMeasure - tStart) < 500e-3 ):
+        if ( (tEndMeasure - tStart) < 50e-3 ):
             print("Emptying the buffer... ")
             return None
 
