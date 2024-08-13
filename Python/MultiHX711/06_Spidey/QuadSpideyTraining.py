@@ -58,7 +58,7 @@ pio.renderers.default='browser'
 ######### Spidey and Beetle  ######
 ###################################
 
-modelForTest = "BeetleNew3Dpieces"
+modelForTest = "BeetleXPosition3"
 
 match modelForTest:
     case "SpideyWood":
@@ -86,6 +86,15 @@ match modelForTest:
     case "BeetleNew3Dpieces":
         datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForBeetleNew3DPieces")
         folderName = "model_Beetle_new3Dpieces"
+    case "BeetleXPosition1":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForX")
+        folderName = "model_Beetle_X_Position1"
+    case "BeetleXPosition2":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForX")
+        folderName = "model_Beetle_X_Position2"
+    case "BeetleXPosition3":
+        datasetFolder = os.path.join(maindir, "datasets/WoobyQuadHX711ForX")
+        folderName = "model_Beetle_X_Position3"
 
 
 if folderName == "model_Beetle_inconfig_position":
@@ -94,7 +103,7 @@ if folderName == "model_Beetle_inconfig_position":
         
 #%% Getting the weights from the folder
 
-extension = "txt"
+extension = "csv"
 uniqueValuesWeights = createYMLfromFolder(datasetFolder, extension=extension)
 print(uniqueValuesWeights)
 
@@ -108,7 +117,7 @@ configFile = [ os.path.join(maindir, "models", "model_Beetle_calibration_prerun"
                 os.path.join(maindir, "models", "model_Beetle_calibration_final_run","confModel.yaml")]
   
 """
-  
+
 modelPolyFeatAllCoeffsQuad, dfKPIAllCoeffsQuad, allDataTestAllCoeffsQuad, dfTotalQuad, allDfListForAllConfiFiles = train_and_test_wooby(configFile)
 print(dfKPIAllCoeffsQuad)
 
@@ -342,8 +351,8 @@ plt.grid(True)
 #filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["run"]== 1]
 
 # filteredData = allDataTestAllCoeffsQuad
-filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 2) | (allDataTestAllCoeffsQuad["run"] == 6)]
-filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 1) ]
+filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 1) | (allDataTestAllCoeffsQuad["run"] == 5)]
+# filteredData =  allDataTestAllCoeffsQuad[ (allDataTestAllCoeffsQuad["run"] == 4) ]
 
 
 filteredData = filteredData.reset_index()
@@ -383,10 +392,10 @@ fig.show()
 ################################
 # Plots for relative values (per run)
 ################################
-
-# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500] 
+# 
+filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500] 
 # filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 2590] 
-filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 5020] 
+# filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 5020] 
 # filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 7427] 
 # filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 500]
 # filteredData =  allDataTestAllCoeffsQuad[allDataTestAllCoeffsQuad["realWeight"] == 2980]
