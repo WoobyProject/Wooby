@@ -122,6 +122,8 @@ typedef struct
   float MIN_GR_VALUE = 5;    // in gr
 
   float correctedValueFiltered = 0.0;
+  float correctedValueFilteredMem = 0.0;
+  float displayValue = 0.0;
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
 
@@ -134,7 +136,7 @@ typedef struct
   //*  WEIGHTING ALGO CONF *//
   //************************//
 
-    const int nMeasures = 4;
+    const int nMeasures = 1;
     const int nMeasuresTare = 4;
 
     // Definition of the coeffs for the filter
@@ -142,8 +144,8 @@ typedef struct
     //            b = 1 - math.exp(-Te/tau)
     //            a = math.exp(-Te/tau)
     //            tau = 1.4
-    const float b =  0.24852270692472; // Te = nMeasures*100 ms
-    const float a =  0.75147729307528; //
+    const float b = 0.06893722029598; // Te = nMeasures*100 ms
+    const float a = 0.93106277970402;
 
     // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
@@ -170,8 +172,6 @@ typedef struct
     const unsigned long BSYNC_TIME = 2000;
 
     bool bHold;
-    unsigned long bHoldTimer = 0;
-    const unsigned long BHOLD_TIME = 5000;
 
     const int N_WINDOW_MOV_AVG = nMeasures;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
@@ -240,6 +240,9 @@ typedef struct
 // For ESP32, replace 'setPrintPos' by 'setCursor'.
   int state = 0;
   int setupState = 0;
+  int displayState = 5;
+  unsigned long showWeightTime;
+  unsigned long weightStableTime;
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
@@ -331,6 +334,16 @@ void myTare()
     weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
     filterWeight[i].reset(0);
   }
+
+  #if BDEF_HOLD
+    if (B_HOLD)
+    {
+      displayState = 0;
+    }
+    else
+    {
+    }
+  #endif
 }
 
 
@@ -403,7 +416,7 @@ void initTareButton(){
   //*         Easy Button      *//
   tareButton.begin();
   // onPressed(duration, onSequenceMatchedCallback)
-  tareButton.onPressedFor(500,  newTare);            // For tare
+  tareButton.onPressedFor(200,  newTare);            // For tare
 #if TYPE == 1
   tareButton.onSequence(10, 5000, setDebugMode);        // For debug mode
   // tareButton.onPressedFor(3000, setDebugMode);          // For BLE coupling TBR
@@ -738,6 +751,7 @@ bool buildGenericJSON()
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
   genericJSON["bSync"] = bSync;
+  genericJSON["displayState"] = displayState;
   #if BDEF_HOLD
     if (B_HOLD)
     {
@@ -1128,7 +1142,6 @@ void getWoobyWeight(){
     int j;
     unsigned long time;
     float relativeValue;
-    float realValueNew;
 
     relativeValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
@@ -1220,40 +1233,44 @@ void getWoobyWeight(){
 
     // Conversion to grams
     #ifdef CALIBRATED
-      realValueNew = (float)1.9144821813024464 +
-                     ((float)0.004520171042997179 * relativeVal_WU[1-1] +
-                      (float)0.0045300412383189655 * relativeVal_WU[2-1] +
-                      (float)0.004693922058113139 * relativeVal_WU[3-1] +
-                      (float)0.004720994613048314 * relativeVal_WU[4-1]);
+      realValue = (float)0.6426926246681433 +
+                  ((float)0.005002767915632634 * relativeVal_WU[1-1] +
+                   (float)0.004745810377569078 * relativeVal_WU[2-1] +
+                   (float)0.004725581378376843 * relativeVal_WU[3-1] +
+                   (float)0.004845236455404485 * relativeVal_WU[4-1]);
     #else // no CALIBRATION
-      realValueNew = K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
+      realValue = K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
     #endif
 
-    #if BDEF_HOLD
-      if (B_HOLD)
+    // Final correction
+    correctedValueFilteredMem = correctedValueFiltered;
+    correctedValueFiltered = correctionAlgo(realValue);
+}
+
+void measuringSequence()
+{
+  switch(displayState)
+  {
+    case 0 :
+      displayValue = correctedValueFiltered;
+      if (correctedValueFiltered > (float)100.0)
       {
-        if ((bHold == false) &&
-            ((realValueNew < 50.0) ||
-             (abs(realValueNew - realValue) > FILTERING_THR)))
+        displayState = 1;
+        showWeightTime = millis();
+        weightStableTime = showWeightTime;
+
+      }
+      else
+      {
+      }
+      break;
+    case 1 :
+      displayValue = correctedValueFiltered;
+      if (abs(correctedValueFiltered - correctedValueFilteredMem) < FILTERING_THR)
+      {
+        if ((millis() - weightStableTime) >= 1000)
         {
-          bHoldTimer = millis();
-          bHold = false;
-        }
-        else
-        {
-          if ((millis() - bHoldTimer) > BHOLD_TIME)
-          {
-            bHold = true;
-          }
-          else
-          {
-          }
-        }
-        if (bHold == false)
-        {
-          realValue = realValueNew;
-          // Final correction
-          correctedValueFiltered = correctionAlgo(realValue);
+          displayState = 3;
         }
         else
         {
@@ -1261,12 +1278,67 @@ void getWoobyWeight(){
       }
       else
       {
+        weightStableTime = millis();
+        if ((millis() - showWeightTime) >= 3000)
+        {
+          displayState = 2;
+          weightStableTime = showWeightTime;
+        }
+        else
+        {
+        }
       }
-    #else
-      realValue = realValueNew;
-      // Final correction
-      correctedValueFiltered = correctionAlgo(realValue);
-    #endif
+      break;
+    case 2 :
+      displayValue = correctedValueFiltered;
+      // TBR en fonction de la transition à définir
+      if (correctedValueFiltered <= (float)100.0)
+      {
+        displayState = 0;
+      }
+      else
+      {
+      }
+      if (abs(correctedValueFiltered - correctedValueFilteredMem) < FILTERING_THR)
+      {
+        if ((millis() - weightStableTime) >= 1000)
+        {
+          displayState = 3;
+        }
+        else
+        {
+        }
+      }
+      else
+      {
+        weightStableTime = millis();
+      }
+      break;
+    case 3 :
+      #if BDEF_HOLD
+        bHold = B_HOLD;
+        if (bHold == false)
+        {
+          displayValue = correctedValueFiltered;
+        }
+        else
+        {
+        }
+      #else
+//        displayValue = correctedValueFiltered; // pour défiger l'affichage du poids
+        bHold = false;
+      #endif
+      if ((bHold == false) && (correctedValueFiltered <= (float)100.0))
+      {
+        displayState = 0;
+      }
+      else
+      {
+      }
+      break;
+    default : 
+      displayState = 0;
+  }
 }
 
 void mainDisplayWooby(){
@@ -1308,25 +1380,23 @@ void mainDisplayWooby(){
         u8g.setCursor(50, 36);
         u8g.print("grams");
         // Display Hold
-        #if BDEF_HOLD
-          if (B_HOLD)
-          {
-            if (bHold)
-            {
+        if (displayState == 2)
+        {
               u8g.setFont(u8g2_font_profont15_tr);
               u8g.setFontPosTop();
-              u8g.setCursor(115, 50);
-              u8g.print("OK");
-            }
-            else
-            {
-            }
-          }
-          else
-          {
-          }
-        #endif
-
+              u8g.setCursor(110, 50);
+              u8g.print("~");
+        }
+        else if (displayState == 3)
+        {
+              u8g.setFont(u8g2_font_open_iconic_check_2x_t);
+              u8g.setFontPosTop();
+              u8g.setCursor(110, 50);
+              u8g.print(char(64)); // Character ✔
+        }
+        else
+        {
+        }
         if (B_DEBUG_MODE){
           u8g.setFont(u8g2_font_micro_tr);
           if (B_DEBUG_MODE){
@@ -1635,6 +1705,7 @@ void loop(void) {
 
         // Weighting //
         getWoobyWeight();
+        measuringSequence();
 
         // Creating the JSON
         buildGenericJSON();
@@ -1683,7 +1754,7 @@ void loop(void) {
 
         // Updating for inactivity check
         displayFinalValue_1 = displayFinalValue;
-        displayFinalValue   = correctedValueFiltered;
+        displayFinalValue   = displayValue;
 
         //     Displaying     //
         mainDisplayWooby();
