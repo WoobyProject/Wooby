@@ -122,7 +122,7 @@ typedef struct
   float MIN_GR_VALUE = 5;    // in gr
 
   float correctedValueFiltered = 0.0;
-  float correctedValueFilteredMem = 0.0;
+  float correctedValueFiltered_Mem = 0.0;
   float displayValue = 0.0;
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
@@ -150,19 +150,16 @@ typedef struct
     // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
 
-    const float FILTERING_THR = 20.0;  // in grams
+    const float FILTERING_THR = 300.0;  // in grams
     const float K_WU_to_grams = 2.07447658e-2;
 
     float realValue_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
     float realValue;
-    float realValue_1;
-    float realValueFiltered;
-    float realValueFiltered_1;
-    float relativeVal_WU_1[NB_HX711];
+    float relativeVal_WU_Mem[NB_HX711];
 
     float relativeVal_WU[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
-    float realValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
-    float realValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float relativeValue_WU_MovAvg[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
+    float relativeValue_WU_Filt[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     float correctedValue = 0;
     RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
@@ -173,11 +170,12 @@ typedef struct
 
     bool bHold;
 
-    const int N_WINDOW_MOV_AVG = nMeasures;
+    const int N_WINDOW_MOV_AVG = 5;
     RunningAverage weightMovAvg[NB_HX711] = { RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG),
                                               RunningAverage(N_WINDOW_MOV_AVG) };
+    RunningAverage relativeValue_MovAvg = RunningAverage(N_WINDOW_MOV_AVG);
 
 //************************//
 //*  VCC MANAGEMENT CONF *//
@@ -737,16 +735,15 @@ bool buildGenericJSON()
       genericJSON[s] = offset[i];
       sprintf(s, "relativeVal_WU%d", i+1);
       genericJSON[s] = relativeVal_WU[i];
-      sprintf(s, "realValue_WU_MovAvg%d", i+1);
-      genericJSON[s] = realValue_WU_MovAvg[i];
-      sprintf(s, "realValue_WU_Filt%d", i+1);
-      genericJSON[s] = realValue_WU_Filt[i];
+      sprintf(s, "relativeValue_WU_MovAvg%d", i+1);
+      genericJSON[s] = relativeValue_WU_MovAvg[i];
+      sprintf(s, "relativeValue_WU_Filt%d", i+1);
+      genericJSON[s] = relativeValue_WU_Filt[i];
     }
     else
     {
     }
   }
-  genericJSON["realValueFiltered"] = realValueFiltered;
   genericJSON["realValue"] = realValue;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
 
@@ -850,7 +847,6 @@ String json2String(DynamicJsonDocument theJSON) {
     dataItem["tBeforeMeasure"     ]     = tBeforeMeasure;
     dataItem["tAfterMeasure"     ]      = tAfterMeasure;
     dataItem["IPadress" ]               = getIp();
-    dataItem["realValueFiltered"     ]  = realValueFiltered;
     dataItem["correctedValueFiltered"]  = correctedValueFiltered;
     dataItem["bSync"     ]              = bSync;
     dataItem["offset"]                  = offset;
@@ -1125,9 +1121,6 @@ void setUpWeightAlgorithm()
 {
     int i;
 
-    realValue_1 = 0;
-    realValueFiltered = 0;
-    realValueFiltered_1 = 0;
     bSync = false;
     bHold = false;
     for(i=0;i < NB_HX711;i++)
@@ -1135,21 +1128,23 @@ void setUpWeightAlgorithm()
       weightMovAvg[i].clear();
       weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG); // (float)scale1.get_offset()
     }
+    relativeValue_MovAvg.clear();
+    relativeValue_MovAvg.fillValue(0, N_WINDOW_MOV_AVG);
 }
 
 void getWoobyWeight(){
     int i;
     int j;
     unsigned long time;
-    float relativeValue;
+    float deltaValue;
 
-    relativeValue = 0.0f;
+    deltaValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
     {
       if (HX711_conf[i].F_sensor_active)
       {
         // Updating for synchro
-        relativeVal_WU_1[i] = relativeVal_WU[i];
+        relativeVal_WU_Mem[i] = relativeVal_WU[i];
 
         // Raw weighting //
         realValue_WU[i] = (float)0.0;
@@ -1172,7 +1167,7 @@ void getWoobyWeight(){
         // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
         relativeVal_WU[i] = realValue_WU[i] - offset[i];
 
-        relativeValue += abs(relativeVal_WU[i] - relativeVal_WU_1[i]);
+        deltaValue += abs(relativeVal_WU[i] - relativeVal_WU_Mem[i]);
       }
       else
       {
@@ -1180,7 +1175,7 @@ void getWoobyWeight(){
     }
 
     // Synchronization calculation
-    if (relativeValue > (FILTERING_THR / K_WU_to_grams))
+    if (deltaValue > (FILTERING_THR / K_WU_to_grams))
     {
       bSyncTimer = millis();
       bSync = true;
@@ -1205,23 +1200,23 @@ void getWoobyWeight(){
         if (bSync)
         {
           weightMovAvg[i].fillValue(relativeVal_WU[i], N_WINDOW_MOV_AVG);
-          realValue_WU_MovAvg[i] = relativeVal_WU[i];
+          relativeValue_WU_MovAvg[i] = relativeVal_WU[i];
         }
         else
         {
           weightMovAvg[i].addValue(relativeVal_WU[i]);
-          realValue_WU_MovAvg[i] = weightMovAvg[i].getFastAverage(); // or getAverage()
+          relativeValue_WU_MovAvg[i] = weightMovAvg[i].getFastAverage(); // or getAverage()
         }
 
         // Filtering with Arduino-Filters library
         if (bSync)
         {
-          realValue_WU_Filt[i] = realValue_WU_MovAvg[i];
-          filterWeight[i].reset(realValue_WU_MovAvg[i]);
+          relativeValue_WU_Filt[i] = relativeValue_WU_MovAvg[i];
+          filterWeight[i].reset(relativeValue_WU_MovAvg[i]);
         }
         else
         {
-          realValue_WU_Filt[i] = filterWeight[i](realValue_WU_MovAvg[i]);
+          relativeValue_WU_Filt[i] = filterWeight[i](relativeValue_WU_MovAvg[i]);
         }
 
         tAfterAlgo[i] = millis();
@@ -1234,17 +1229,18 @@ void getWoobyWeight(){
     // Conversion to grams
     #ifdef CALIBRATED
       realValue = (float)0.6426926246681433 +
-                  ((float)0.005002767915632634 * relativeVal_WU[1-1] +
-                   (float)0.004745810377569078 * relativeVal_WU[2-1] +
-                   (float)0.004725581378376843 * relativeVal_WU[3-1] +
-                   (float)0.004845236455404485 * relativeVal_WU[4-1]);
+                  ((float)0.005002767915632634 * relativeValue_WU_Filt[1-1] +
+                   (float)0.004745810377569078 * relativeValue_WU_Filt[2-1] +
+                   (float)0.004725581378376843 * relativeValue_WU_Filt[3-1] +
+                   (float)0.004845236455404485 * relativeValue_WU_Filt[4-1]);
     #else // no CALIBRATION
-      realValue = K_WU_to_grams * (realValue_WU_Filt[0] + realValue_WU_Filt[1] + realValue_WU_Filt[2] + realValue_WU_Filt[3]);
+      realValue = K_WU_to_grams * (relativeValue_WU_Filt[0] + relativeValue_WU_Filt[1] + relativeValue_WU_Filt[2] + relativeValue_WU_Filt[3]);
     #endif
 
+    relativeValue_MovAvg.addValue(realValue);
     // Final correction
-    correctedValueFilteredMem = correctedValueFiltered;
-    correctedValueFiltered = correctionAlgo(realValue);
+    correctedValueFiltered_Mem = correctedValueFiltered;
+    correctedValueFiltered = correctionAlgo(relativeValue_MovAvg.getAverage());
 }
 
 void measuringSequence()
@@ -1266,7 +1262,7 @@ void measuringSequence()
       break;
     case 1 :
       displayValue = correctedValueFiltered;
-      if (abs(correctedValueFiltered - correctedValueFilteredMem) < FILTERING_THR)
+      if (abs(correctedValueFiltered - correctedValueFiltered_Mem) < (float)20.0)
       {
         if ((millis() - weightStableTime) >= 1000)
         {
@@ -1299,7 +1295,7 @@ void measuringSequence()
       else
       {
       }
-      if (abs(correctedValueFiltered - correctedValueFilteredMem) < FILTERING_THR)
+      if (abs(correctedValueFiltered - correctedValueFiltered_Mem) < (float)20.0)
       {
         if ((millis() - weightStableTime) >= 1000)
         {
