@@ -40,8 +40,6 @@
     bool B_OTA = BDEF_OTA;
     #define BDEF_BLE true
     bool B_BLE = BDEF_BLE;
-    #define BDEF_HOLD false
-    bool B_HOLD = BDEF_HOLD;
   #endif
 
 // TYPE = 3 (PROTOTYPE-connectToWiFi)
@@ -80,8 +78,6 @@
     bool B_OTA = BDEF_OTA;
     #define BDEF_BLE true
     bool B_BLE = BDEF_BLE;
-    #define BDEF_HOLD true
-    bool B_HOLD = BDEF_HOLD;
   #endif
 
 #include <ArduinoJson.h>            // by Benoit Blanchon
@@ -123,6 +119,7 @@ typedef struct
 
   float correctedValueFiltered = 0.0;
   float correctedValueFiltered_Mem = 0.0;
+  float std_deviation = 0.0;
   float displayValue = 0.0;
   float displayFinalValue = 0;
   float displayFinalValue_1 = 0;
@@ -240,7 +237,6 @@ typedef struct
   int setupState = 0;
   int displayState = 5;
   unsigned long showWeightTime;
-  unsigned long weightStableTime;
 
   #define DISPLAY_WIDTH 128
   #define DISPLAY_HEIGHT 64
@@ -332,16 +328,6 @@ void myTare()
     weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
     filterWeight[i].reset(0);
   }
-
-  #if BDEF_HOLD
-    if (B_HOLD)
-    {
-      displayState = 0;
-    }
-    else
-    {
-    }
-  #endif
 }
 
 
@@ -746,18 +732,11 @@ bool buildGenericJSON()
   }
   genericJSON["realValue"] = realValue;
   genericJSON["correctedValueFiltered"] = correctedValueFiltered;
+  genericJSON["std_deviation"] = std_deviation;
 
   genericJSON["bSync"] = bSync;
   genericJSON["displayState"] = displayState;
-  #if BDEF_HOLD
-    if (B_HOLD)
-    {
-      genericJSON["bHold"] = bHold;
-    }
-    else
-    {
-    }
-  #endif
+  genericJSON["bHold"] = bHold;
   genericJSON["vccReadBits"] = vccReadBits;
   genericJSON["vccReadVolts"] = vccReadVolts;
   genericJSON["vccGPIO"] = vccGPIO;
@@ -1238,6 +1217,7 @@ void getWoobyWeight(){
     #endif
 
     relativeValue_MovAvg.addValue(realValue);
+    std_deviation = relativeValue_MovAvg.getStandardDeviation();
     // Final correction
     correctedValueFiltered_Mem = correctedValueFiltered;
     correctedValueFiltered = correctionAlgo(relativeValue_MovAvg.getAverage());
@@ -1249,11 +1229,11 @@ void measuringSequence()
   {
     case 0 :
       displayValue = correctedValueFiltered;
+      // Weight is detected
       if (correctedValueFiltered > (float)100.0)
       {
         displayState = 1;
         showWeightTime = millis();
-        weightStableTime = showWeightTime;
 
       }
       else
@@ -1262,23 +1242,17 @@ void measuringSequence()
       break;
     case 1 :
       displayValue = correctedValueFiltered;
-      if (abs(correctedValueFiltered - correctedValueFiltered_Mem) < (float)20.0)
+      if (std_deviation < (float)20.0)
       {
-        if ((millis() - weightStableTime) >= 1000)
-        {
-          displayState = 3;
-        }
-        else
-        {
-        }
+        displayState = 3;
+        bHold = true;
       }
       else
       {
-        weightStableTime = millis();
         if ((millis() - showWeightTime) >= 3000)
         {
           displayState = 2;
-          weightStableTime = showWeightTime;
+          bHold = true;
         }
         else
         {
@@ -1287,44 +1261,23 @@ void measuringSequence()
       break;
     case 2 :
       displayValue = correctedValueFiltered;
-      // TBR en fonction de la transition à définir
-      if (correctedValueFiltered <= (float)100.0)
+      if (std_deviation < (float)20.0)
+      {
+        displayState = 3;
+      }
+      else
+      {
+      }
+      if (bHold == false)
       {
         displayState = 0;
       }
       else
       {
       }
-      if (abs(correctedValueFiltered - correctedValueFiltered_Mem) < (float)20.0)
-      {
-        if ((millis() - weightStableTime) >= 1000)
-        {
-          displayState = 3;
-        }
-        else
-        {
-        }
-      }
-      else
-      {
-        weightStableTime = millis();
-      }
       break;
     case 3 :
-      #if BDEF_HOLD
-        bHold = B_HOLD;
-        if (bHold == false)
-        {
-          displayValue = correctedValueFiltered;
-        }
-        else
-        {
-        }
-      #else
-//        displayValue = correctedValueFiltered; // pour défiger l'affichage du poids
-        bHold = false;
-      #endif
-      if ((bHold == false) && (correctedValueFiltered <= (float)100.0))
+      if (bHold == false)
       {
         displayState = 0;
       }
