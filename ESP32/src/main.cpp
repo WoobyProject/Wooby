@@ -137,12 +137,12 @@ typedef struct
     const int nMeasuresTare = 4;
 
     // Definition of the coeffs for the filter
-    // Remember : Te = nMeasures*100 ms
+    // Remember : Te = 300ms (100+200)
     //            b = 1 - math.exp(-Te/tau)
     //            a = math.exp(-Te/tau)
-    //            tau = 1.4
-    const float b = 0.06893722029598; // Te = nMeasures*100 ms
-    const float a = 0.93106277970402;
+    //            tau = 1.4s
+    const float b = 0.192882253;
+    const float a = 0.807117747;
 
     // Filter = y/u = b*z-1(1-a)
     NormalizingIIRFilter<NB_HX711, NB_HX711, float> filterWeight[] = { {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}}, {{0, b}, {1, -a}} };
@@ -162,8 +162,6 @@ typedef struct
     RTC_DATA_ATTR float offset[NB_HX711] = {0.0, 0.0, 0.0, 0.0};
 
     bool bSync;
-    unsigned long bSyncTimer = 0;
-    const unsigned long BSYNC_TIME = 2000;
 
     bool bHold;
 
@@ -328,6 +326,7 @@ void myTare()
     weightMovAvg[i].fillValue(0, N_WINDOW_MOV_AVG);
     filterWeight[i].reset(0);
   }
+  relativeValue_MovAvg.fillValue(0, N_WINDOW_MOV_AVG);
 }
 
 
@@ -703,7 +702,7 @@ void RTC_IRAM_ATTR esp_wake_deep_sleep(void) {
 bool buildGenericJSON()
 {
   int i;
-  char s[21];
+  char s[30]; // Warning : the size of this string must enough large to contain all the name of JSON attributes
 
   for(i=0;i < NB_HX711;i++)
   {
@@ -1114,9 +1113,10 @@ void setUpWeightAlgorithm()
 void getWoobyWeight(){
     int i;
     int j;
-    unsigned long time;
     float deltaValue;
 
+    // 200ms between end of measure of sensor #4 from previous measure and beginning of new measure
+    while((millis() - tAfterMeasure[4-1]) < 200);
     deltaValue = 0.0f;
     for(i=0;i < NB_HX711;i++)
     {
@@ -1130,17 +1130,17 @@ void getWoobyWeight(){
         tBeforeMeasure[i] = millis();
         for(j=0;j < nMeasures;j++)
         {
-          time = millis();
           realValue_WU[i] += scale[i].read();
-          if (j < (nMeasures - 1))
-          {
-            while((millis() - time) < 100);
-          }
-          else
-          {
-          }
         }
         tAfterMeasure[i] = millis();
+        // 100ms added after measurement of sensor #2
+        if (i == (2-1))
+        {
+          while((millis() - tAfterMeasure[2-1]) < 100);
+        }
+        else
+        {
+        }
         realValue_WU[i] /= nMeasures;
 
         // TBR offset[i] = (float)scale[i].get_offset(); useless to read offset all along the reading, offset will not change
@@ -1156,19 +1156,11 @@ void getWoobyWeight(){
     // Synchronization calculation
     if (deltaValue > (FILTERING_THR / K_WU_to_grams))
     {
-      bSyncTimer = millis();
       bSync = true;
     }
     else
     {
-      if ((millis() - bSyncTimer) > BSYNC_TIME)
-      {
-        bSync = false;
-      }
-      else
-      {
-        bSync = true;
-      }
+      bSync = false;
     }
 
     for(i=0;i < NB_HX711;i++)
@@ -1220,7 +1212,7 @@ void getWoobyWeight(){
     std_deviation = relativeValue_MovAvg.getStandardDeviation();
     // Final correction
     correctedValueFiltered_Mem = correctedValueFiltered;
-    correctedValueFiltered = correctionAlgo(relativeValue_MovAvg.getAverage());
+    correctedValueFiltered = correctionAlgo(realValue);
 }
 
 void measuringSequence()
@@ -1230,7 +1222,7 @@ void measuringSequence()
     case 0 :
       displayValue = correctedValueFiltered;
       // Weight is detected
-      if (correctedValueFiltered > (float)100.0)
+      if (correctedValueFiltered > FILTERING_THR)
       {
         displayState = 1;
         showWeightTime = millis();
