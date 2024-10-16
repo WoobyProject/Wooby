@@ -248,7 +248,7 @@ typedef struct
 //************************//
 
   bool bInactive = false;
-  const float MAX_INACTIVITY_TIME = 10*1000; // in milliseconds
+  const float MAX_INACTIVITY_TIME = 5*60*1000; // in milliseconds
   const float INACTIVE_THR  = 5.0;
 
   unsigned long lastTimeActivity = 0;
@@ -439,7 +439,7 @@ void readVcc(){
 
   // Calulation for displaying
   vccGPIO   = vccReadVolts*RATIO_DIV_ADC;
-  vccVolts  = vccReadVolts*RATIO_VCC_ADC;
+  vccVolts  = vccReadVolts*(float)1.47;
   // ratioVCCMAX = min((vccVolts/VCCMAX), float(1.0));
   ratioVCCMAX = mapval(vccVolts, VCCMIN, VCCMAX, 0, 1);
   ratioVCCMAX = max(min(ratioVCCMAX, float(1.0)), float(0.0));
@@ -1241,13 +1241,20 @@ void measuringSequence()
       }
       else
       {
-        if ((millis() - showWeightTime) >= 3000)
+        if (abs(correctedValueFiltered_Mem - correctedValueFiltered) > FILTERING_THR)
         {
-          displayState = 2;
-          bHold = true;
+          showWeightTime = millis();
         }
         else
         {
+          if ((millis() - showWeightTime) >= 3000)
+          {
+            displayState = 2;
+            bHold = true;
+          }
+          else
+          {
+          }
         }
       }
       break;
